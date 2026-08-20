@@ -1,0 +1,36 @@
+:root {
+  /* Fast and quiet. Nothing bounces, nothing stalls for effect. */
+  --dur-instant: 90ms; /* @kind other */
+  --dur-fast: 140ms; /* @kind other */
+  --dur-base: 200ms; /* @kind other */
+  --dur-slow: 320ms; /* @kind other */
+  --dur-sheet: 260ms; /* @kind other */
+
+  --ease-standard: cubic-bezier(0.2, 0, 0.2, 1); /* @kind other */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1); /* @kind other */
+  --ease-in: cubic-bezier(0.4, 0, 1, 1); /* @kind other */
+
+  --transition-color: color var(--dur-fast) var(--ease-standard), background-color var(--dur-fast) var(--ease-standard), border-color var(--dur-fast) var(--ease-standard); /* @kind other */
+  --transition-shadow: box-shadow var(--dur-fast) var(--ease-standard); /* @kind other */
+  --transition-transform: transform var(--dur-instant) var(--ease-standard); /* @kind other */
+
+  /* Press: 1px settle, no scale-bounce */
+  --press-translate: translateY(1px); /* @kind other */
+
+  /* Skeleton: a slow, low-contrast breath — not a running sheen */
+  --skeleton-dur: 1200ms; /* @kind other */
+}
+
+@keyframes madli-skeleton {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+@keyframes madli-fade-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --dur-instant: 0ms; /* @kind other */ --dur-fast: 0ms; /* @kind other */ --dur-base: 0ms; /* @kind other */ --dur-slow: 0ms; /* @kind other */ --dur-sheet: 0ms; /* @kind other */ }
+}

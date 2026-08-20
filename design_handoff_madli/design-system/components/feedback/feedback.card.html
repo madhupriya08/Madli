@@ -1,0 +1,33 @@
+<!-- @dsCard group="Components" viewport="700x360" name="Feedback" subtitle="Skeletons, toasts, tooltips, dialogs, empty states" -->
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>body{background:var(--bg-page);padding:20px}.lbl{font:var(--type-evidence);text-transform:uppercase;letter-spacing:var(--tracking-eyebrow);color:var(--text-faint)}</style>
+</head><body><div id="root"></div>
+<script type="text/babel">
+const { PickSkeleton, Skeleton, Toast, Tooltip, Dialog, EmptyState, Button, Icon } = window.MadliDesignSystem_b70beb;
+function Demo(){
+  return <div style={{display:"grid",gridTemplateColumns:"250px 1fr",gap:22,alignItems:"start"}}>
+    <div><div className="lbl">Pick skeleton</div><div style={{marginTop:8}}><PickSkeleton/></div></div>
+    <div style={{display:"flex",flexDirection:"column",gap:14}}>
+      <div style={{display:"flex",flexDirection:"column",gap:8}}>
+        <Toast tone="success" actionLabel="Undo" action={()=>{}}>Saved to Kadıköy list</Toast>
+        <Toast tone="warn">Only 22 ratings here — we are not calling it a pick yet</Toast>
+      </div>
+      <div style={{display:"flex",alignItems:"center",gap:8,font:"var(--type-body-sm)",color:"var(--text-body)"}}>
+        Locals score <Tooltip label="Locals are people whose last 20 check-ins are within 5km."><Icon name="info" size={15} color="var(--text-faint)"/></Tooltip>
+      </div>
+      <div style={{position:"relative",height:150,borderRadius:"var(--radius-lg)",overflow:"hidden",border:"1px solid var(--border-hairline)",background:"var(--surface-sunken)"}}>
+        <Dialog variant="sheet" title="How this was ranked" subtitle="500 local ratings, weighted by how often each person eats in this area."
+          footer={<Button variant="primary" size="sm">Got it</Button>}/>
+      </div>
+      <div style={{border:"1px solid var(--border-hairline)",borderRadius:"var(--radius-lg)",background:"var(--surface-card)"}}>
+        <EmptyState title="No ranking here yet" body="We need about 50 local ratings before we will call anything a pick." action={<Button variant="secondary" size="sm">Try a nearby area</Button>} style={{padding:"var(--space-6)"}}/>
+      </div>
+    </div>
+  </div>;
+}
+ReactDOM.createRoot(document.getElementById("root")).render(<Demo/>);
+</script></body></html>

@@ -1,0 +1,33 @@
+:root {
+  /* 4px base grid */
+  --space-0: 0px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 40px;
+  --space-9: 48px;
+  --space-10: 64px;
+  --space-11: 80px;
+  --space-12: 112px;
+  --space-13: 160px;
+
+  /* Layout */
+  --gutter-mobile: 20px;
+  --gutter-desktop: 40px;
+  --content-max: 1160px;
+  --prose-max: 66ch;
+  --reason-max: 46ch; /* the "why" text never gets narrower than this */
+  --app-frame-width: 390px;
+  --tap-target-min: 44px;
+
+  /* Section rhythm */
+  --section-y-mobile: var(--space-9);
+  --section-y-desktop: var(--space-12);
+  --stack-tight: var(--space-2);
+  --stack: var(--space-4);
+  --stack-loose: var(--space-6);
+}
