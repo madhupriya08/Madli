@@ -1,0 +1,60 @@
+:root {
+  /* Families */
+  --font-display: "Cooper BT", "Cooper Black", Georgia, serif;
+  --font-ui: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", "Menlo", monospace;
+
+  /* Type scale — 1280/mobile shared ramp */
+  --text-2xs: 11px;
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-base: 15px;
+  --text-md: 17px;
+  --text-lg: 20px;
+  --text-xl: 24px;
+  --text-2xl: 30px;
+  --text-3xl: 38px;
+  --text-4xl: 48px;
+  --text-5xl: 62px;
+  --text-6xl: 80px;
+
+  /* Line heights */
+  --leading-tight: 1;
+  --leading-display: 1.04;
+  --leading-snug: 1.25;
+  --leading-normal: 1.45;
+  --leading-relaxed: 1.6;
+
+  /* Tracking — Cooper is tightened; Inter eyebrows are opened up */
+  --tracking-display: -0.02em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.04em;
+  --tracking-eyebrow: 0.16em;
+
+  /* Weights */
+  --weight-book: 400;
+  --weight-demi: 600;
+  --weight-black: 900;
+
+  /* The supplied Cooper BT cut is the Black ITALIC Headline — no roman was
+     provided, so display type is ITALIC until the upright cut is uploaded.
+     This token is the single switch: set it to `normal` once a roman face is
+     registered and every display role goes upright. */
+  --display-upright: normal; /* @kind other */
+
+  /* Composed roles */
+  --type-display: var(--display-upright) var(--weight-black) var(--text-5xl) / var(--leading-display) var(--font-display);
+  --type-h1: var(--display-upright) var(--weight-black) var(--text-4xl) / var(--leading-display) var(--font-display);
+  --type-h2: var(--display-upright) var(--weight-black) var(--text-3xl) / 1.08 var(--font-display);
+  --type-h3: var(--display-upright) var(--weight-black) var(--text-2xl) / 1.12 var(--font-display);
+  --type-display-italic: var(--weight-black) var(--text-5xl) / var(--leading-display) var(--font-display);
+  --type-h2-italic: var(--weight-black) var(--text-3xl) / 1.08 var(--font-display);
+  --type-h4: var(--weight-demi) var(--text-lg) / var(--leading-snug) var(--font-ui);
+  --type-body-lg: var(--weight-book) var(--text-md) / var(--leading-relaxed) var(--font-ui);
+  --type-body: var(--weight-book) var(--text-base) / var(--leading-normal) var(--font-ui);
+  --type-body-sm: var(--weight-book) var(--text-sm) / var(--leading-normal) var(--font-ui);
+  --type-label: var(--weight-demi) var(--text-sm) / var(--leading-snug) var(--font-ui);
+  --type-eyebrow: var(--weight-demi) var(--text-xs) / var(--leading-snug) var(--font-ui);
+  --type-caption: var(--weight-book) var(--text-xs) / var(--leading-normal) var(--font-ui);
+  --type-evidence: var(--weight-book) var(--text-2xs) / var(--leading-normal) var(--font-ui);
+}

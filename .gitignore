@@ -4,3 +4,8 @@ node_modules/
 supabase/.temp/
 supabase/.branches/
 *.log
+dist/
+dist-ssr/
+*.local
+.eslintcache
+*.tsbuildinfo

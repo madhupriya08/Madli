@@ -1,0 +1,605 @@
+// Mirrors Phase 1's `places` + `place_eat_details` + `place_explore_details`
+// tables (same ids/values as supabase/seed.sql), lifted verbatim from the
+// design handoff's prototype (FOOD/EXPLORE arrays). Do not invent new places
+// here — see PHASE_2_HANDOFF.md "Fixtures" for why.
+//
+// TODO(phase-3): replace this static array with a TanStack Query hook reading
+// `supabase.from('places').select('*, place_eat_details(*), place_explore_details(*)')`.
+
+export type PlaceType = 'eat' | 'explore';
+export type GapTone = 'clear' | 'close' | 'thin';
+
+export interface Place {
+  id: string;
+  slug: string;
+  name: string;
+  type: PlaceType;
+  vibe: string;
+  categoryId: string;
+  neighborhood: string;
+  areaId: string | null;
+  priceLevel: string;
+  reason: string;
+  history: string | null;
+  tags: string[];
+  gapTone: GapTone | null;
+  gapPoints: number | null;
+  locals: number;
+  visitors: number;
+  drive: string | null;
+  outsideFameRank: number | null;
+  isActive: boolean;
+  address: string;
+  phone: string;
+  hours: string;
+  // eat-only (place_eat_details in the real schema)
+  waitTime?: string;
+  servingHours?: string;
+  dishes?: number;
+  gem?: boolean;
+  // explore-only (place_explore_details in the real schema)
+  crowdLevel?: string;
+  best?: string;
+}
+
+const A = {
+  jubileeHills: '00000000-0000-0000-0000-0000000000a1',
+  banjaraHills: '00000000-0000-0000-0000-0000000000a2',
+  oldCity: '00000000-0000-0000-0000-0000000000a3',
+  madhapur: '00000000-0000-0000-0000-0000000000a4',
+  nampally: '00000000-0000-0000-0000-0000000000a7',
+  alwal: '00000000-0000-0000-0000-0000000000a8',
+};
+
+const C = {
+  breakfastAndTiffin: '00000000-0000-0000-0000-0000000000c1',
+  biryaniAndKebab: '00000000-0000-0000-0000-0000000000c2',
+  cafes: '00000000-0000-0000-0000-0000000000c3',
+  lakesAndViewpoints: '00000000-0000-0000-0000-0000000000c4',
+  historical: '00000000-0000-0000-0000-0000000000c5',
+  nightlife: '00000000-0000-0000-0000-0000000000c6',
+  concertsAndEvents: '00000000-0000-0000-0000-0000000000c7',
+};
+
+export const places: Place[] = [
+  {
+    id: '00000000-0000-0000-0000-0000000000f1',
+    slug: 'restaurants/hotel-shadab',
+    name: 'Hotel Shadab',
+    type: 'eat',
+    vibe: 'Diner',
+    categoryId: C.biryaniAndKebab,
+    neighborhood: 'Ghansi Bazaar',
+    areaId: null,
+    priceLevel: '₹300 / head',
+    reason:
+      'Locals rank it first for a late Ramzan-hours plate: the kitchen runs past 2am and the haleem is made in the same three vessels it always was.',
+    history:
+      'Opened in 1965 as a single counter selling haleem to mill workers on night shift. The same family still runs the kitchen.',
+    tags: ['Friends', 'Late night', 'Family'],
+    gapTone: 'clear',
+    gapPoints: 14,
+    locals: 412,
+    visitors: 88,
+    drive: '22 min · 9.4 km',
+    outsideFameRank: null,
+    isActive: true,
+    address: 'Ghansi Bazaar, near Madina Circle',
+    phone: '040 2456 1180',
+    hours: '12pm – 2am',
+    waitTime: '20–35 min after 9pm, walk-in before 7pm',
+    servingHours: 'Kitchen is fastest 12–3pm; slows after 9pm when the queue forms',
+    dishes: 18,
+    gem: false,
+  },
+  {
+    id: '00000000-0000-0000-0000-0000000000f2',
+    slug: 'restaurants/nimrah-cafe-bakery',
+    name: 'Nimrah Cafe & Bakery',
+    type: 'eat',
+    vibe: 'Tiffin',
+    categoryId: C.cafes,
+    neighborhood: 'Old City',
+    areaId: A.oldCity,
+    priceLevel: '₹75 / head',
+    reason:
+      'Seventy-five rupees for chai and Osmania biscuits, and 84% of the people ranking it live inside two kilometres of Charminar.',
+    history:
+      'A tea counter since the 1950s that grew into a bakery once the Charminar crowds discovered the biscuits.',
+    tags: ['Solo', 'Friends', 'Breakfast'],
+    gapTone: 'close',
+    gapPoints: 3,
+    locals: 318,
+    visitors: 41,
+    drive: '24 min · 10.2 km',
+    outsideFameRank: null,
+    isActive: true,
+    address: 'Opposite Charminar, Old City',
+    phone: '040 2452 3391',
+    hours: '5am – 11pm',
+    waitTime: 'Under 10 min most hours, longer on weekend mornings',
+    servingHours: 'Biscuits are freshest right after the 6am and 4pm bakes',
+    dishes: 12,
+    gem: false,
+  },
+  {
+    id: '00000000-0000-0000-0000-0000000000f3',
+    slug: 'restaurants/roastery-coffee-house',
+    name: 'Roastery Coffee House',
+    type: 'eat',
+    vibe: 'Calm and pleasant',
+    categoryId: C.cafes,
+    neighborhood: 'Banjara Hills',
+    areaId: A.banjaraHills,
+    priceLevel: '₹450 / head',
+    reason:
+      'The only kitchen on Road No. 12 still cooking to order after midnight, and the filter batch is ground every two hours.',
+    history:
+      'Started as a roastery counter for a single Banjara Hills office block before opening seating in 2019.',
+    tags: ['Couple', 'Late night', 'Work lunch'],
+    gapTone: 'clear',
+    gapPoints: 9,
+    locals: 204,
+    visitors: 96,
+    drive: '11 min · 4.8 km',
+    outsideFameRank: null,
+    isActive: true,
+    address: 'Road No. 12, Banjara Hills',
+    phone: '040 2355 4477',
+    hours: '8am – 1am',
+    waitTime: 'Rarely a wait; tables free up fast after 9pm',
+    servingHours: 'Kitchen slows for a lull 3–6pm, back to full speed by 7pm',
+    dishes: 9,
+    gem: false,
+  },
+  {
+    id: '00000000-0000-0000-0000-0000000000f4',
+    slug: 'restaurants/chutneys',
+    name: 'Chutneys',
+    type: 'eat',
+    vibe: 'Tiffin',
+    categoryId: C.breakfastAndTiffin,
+    neighborhood: 'Banjara Hills',
+    areaId: A.banjaraHills,
+    priceLevel: '₹350 / head',
+    reason:
+      'Six chutneys with every order, refilled without asking, and they stop serving breakfast the moment the batter runs out.',
+    history:
+      'Grew from one Banjara Hills tiffin room into a small local chain without ever changing the chutney list.',
+    tags: ['Family', 'Parents', 'Breakfast'],
+    gapTone: 'clear',
+    gapPoints: 7,
+    locals: 289,
+    visitors: 133,
+    drive: '9 min · 3.7 km',
+    outsideFameRank: null,
+    isActive: true,
+    address: 'Road No. 3, Banjara Hills',
+    phone: '040 2335 1180',
+    hours: '7am – 11pm',
+    waitTime: '15–25 min on weekend mornings, no wait on weekdays',
+    servingHours: 'Breakfast batter usually runs out by 10:30am on weekends',
+    dishes: 14,
+    gem: false,
+  },
+  {
+    id: '00000000-0000-0000-0000-0000000000f5',
+    slug: 'restaurants/cafe-bahar',
+    name: 'Cafe Bahar',
+    type: 'eat',
+    vibe: 'Date night',
+    categoryId: C.biryaniAndKebab,
+    neighborhood: 'Basheerbagh',
+    areaId: null,
+    priceLevel: '₹400 / head',
+    reason: 'Charcoal, not gas, and the boneless biryani has not changed price in three years.',
+    history:
+      'Opened in 1981 next to the old cinema, and the charcoal ovens have never been swapped for gas.',
+    tags: ['Celebration', 'Friends'],
+    gapTone: 'thin',
+    gapPoints: 2,
+    locals: 61,
+    visitors: 112,
+    drive: '16 min · 6.8 km',
+    outsideFameRank: null,
+    isActive: true,
+    address: 'Bashir Bagh Road, Basheerbagh',
+    phone: '040 2320 4747',
+    hours: '11am – 12am',
+    waitTime: '30–40 min on Friday and Saturday nights',
+    servingHours: 'Biryani batches come out on the hour from 12pm to 11pm',
+    dishes: 11,
+    gem: false,
+  },
+  {
+    id: '00000000-0000-0000-0000-0000000000f6',
+    slug: 'restaurants/subhan-bakery',
+    name: 'Subhan Bakery',
+    type: 'eat',
+    vibe: 'Food truck / stall',
+    categoryId: C.cafes,
+    neighborhood: 'Nampally',
+    areaId: A.nampally,
+    priceLevel: '₹100 / head',
+    reason:
+      'Ranked 4th in the city for Osmania biscuits by people who live here, and 214th by everyone else. Open since 1948.',
+    history:
+      'Founded in 1948 near Nampally station; three generations of the same family have run the ovens since.',
+    tags: ['Solo', 'Friends'],
+    gapTone: 'clear',
+    gapPoints: 21,
+    locals: 507,
+    visitors: 19,
+    drive: '27 min · 12.6 km',
+    outsideFameRank: 214,
+    isActive: true,
+    address: 'Nampally Station Road',
+    phone: '040 2461 5566',
+    hours: '6am – 10pm',
+    waitTime: 'Under 5 min, it is a walk-up counter',
+    servingHours: 'Two bakes a day, 6am and 3pm — biscuits sell out within two hours each time',
+    dishes: 4,
+    gem: true,
+  },
+  {
+    id: '00000000-0000-0000-0000-0000000000f7',
+    slug: 'restaurants/rayalaseema-ruchulu',
+    name: 'Rayalaseema Ruchulu',
+    type: 'eat',
+    vibe: 'Diner',
+    categoryId: C.biryaniAndKebab,
+    neighborhood: 'Jubilee Hills',
+    areaId: A.jubileeHills,
+    priceLevel: '₹600 / head',
+    reason:
+      'Andhra heat without the apology — the natu kodi is cooked to order and takes forty minutes.',
+    history:
+      'Opened to bring unfiltered Rayalaseema heat to Jubilee Hills, where most menus had been toned down.',
+    tags: ['Celebration', 'Family'],
+    gapTone: 'clear',
+    gapPoints: 6,
+    locals: 233,
+    visitors: 141,
+    drive: '7 min · 2.9 km',
+    outsideFameRank: null,
+    isActive: true,
+    address: 'Road No. 45, Jubilee Hills',
+    phone: '040 2354 9090',
+    hours: '12pm – 11pm',
+    waitTime: 'Natu kodi is cooked to order — budget 40 min from ordering to plate',
+    servingHours: 'Order the natu kodi before 8:30pm if you want it before closing',
+    dishes: 16,
+    gem: false,
+  },
+  {
+    id: '00000000-0000-0000-0000-0000000000f8',
+    slug: 'restaurants/simply-south',
+    name: 'Simply South',
+    type: 'eat',
+    vibe: 'Michelin-style',
+    categoryId: C.breakfastAndTiffin,
+    neighborhood: 'Filmnagar',
+    areaId: null,
+    priceLevel: '₹750 / head',
+    reason:
+      'Chettinad, Coorg and Kerala on one menu, and the appam batter is fermented on site overnight.',
+    history:
+      'Started as a weekend pop-up serving three regional South Indian cuisines before opening as a full restaurant.',
+    tags: ['Couple', 'Work lunch'],
+    gapTone: 'close',
+    gapPoints: 4,
+    locals: 178,
+    visitors: 204,
+    drive: '13 min · 5.4 km',
+    outsideFameRank: null,
+    isActive: true,
+    address: 'Road No. 2, Filmnagar',
+    phone: '040 2354 1717',
+    hours: '12pm – 11pm',
+    waitTime: '10–20 min at lunch, walk-in most evenings',
+    servingHours:
+      'Appam batter is fermented overnight, so it is freshest before 10am and after 6pm',
+    dishes: 13,
+    gem: false,
+  },
+  // Below-threshold fixture (§16 Phase 1 requirement) — real handoff data
+  // (name/neighborhood/category/locals from the prototype's CAT_ROWS mock);
+  // remaining fields are fixture placeholders, same as supabase/seed.sql.
+  {
+    id: '00000000-0000-0000-0000-0000000000f9',
+    slug: 'restaurants/mehfil',
+    name: 'Mehfil',
+    type: 'eat',
+    vibe: 'Diner',
+    categoryId: C.biryaniAndKebab,
+    neighborhood: 'Alwal',
+    areaId: A.alwal,
+    priceLevel: '₹350 / head',
+    reason:
+      '[fixture placeholder — source gives only the catalogue-row summary] A neighbourhood biryani spot in Alwal, seeded specifically to exercise the below-threshold "not enough evidence" path.',
+    history: null,
+    tags: ['Family'],
+    gapTone: 'thin',
+    gapPoints: null,
+    locals: 9,
+    visitors: 3,
+    drive: '38 min · 19.1 km',
+    outsideFameRank: null,
+    isActive: true,
+    address: '[fixture placeholder address], Alwal',
+    phone: '[fixture placeholder phone]',
+    hours: '12pm – 11pm',
+    waitTime: undefined,
+    servingHours: undefined,
+    dishes: 6,
+    gem: false,
+  },
+  // Referenced by name in the prototype's admin mock tables (CAT_ROWS,
+  // CLAIM_ROWS, REPORT_ROWS, AUDIT_ROWS) as a "0 ratings · Closed" catalogue
+  // example — added here as a real place so the admin screens (S43/S48/S49)
+  // can link their mock rows to an actual fixture record.
+  {
+    id: '00000000-0000-0000-0000-0000000000f10',
+    slug: 'restaurants/deccan-grill-house',
+    name: 'Deccan Grill House',
+    type: 'eat',
+    vibe: 'Diner',
+    categoryId: C.biryaniAndKebab,
+    neighborhood: 'Banjara Hills',
+    areaId: A.banjaraHills,
+    priceLevel: '₹350 / head',
+    reason:
+      '[fixture placeholder — source gives only the catalogue-row summary] Marked closed in the admin catalogue mock.',
+    history: null,
+    tags: [],
+    gapTone: null,
+    gapPoints: null,
+    locals: 0,
+    visitors: 0,
+    drive: null,
+    outsideFameRank: null,
+    isActive: false,
+    address: '[fixture placeholder address], Banjara Hills',
+    phone: '[fixture placeholder phone]',
+    hours: '—',
+    waitTime: undefined,
+    servingHours: undefined,
+    dishes: undefined,
+    gem: false,
+  },
+  // Explore places (EXPLORE array, e1-e8). Note: the source carries no
+  // locals/visitors/gapTone for any of these except Charminar (locals=47,
+  // from the prototype's CAT_ROWS mock) — see supabase/README.md "Known
+  // characteristic" for what this means for demoing the Explore door.
+  {
+    id: '00000000-0000-0000-0000-0000000000e1',
+    slug: 'places/durgam-cheruvu',
+    name: 'Durgam Cheruvu',
+    type: 'explore',
+    vibe: 'Sightseeing',
+    categoryId: C.lakesAndViewpoints,
+    neighborhood: 'Madhapur',
+    areaId: A.madhapur,
+    priceLevel: 'Free entry',
+    reason:
+      'Three kilometres of shaded path around the water, and the west bank is empty until about 8am.',
+    history:
+      'A natural lake bridged in 2019 by the glass cable bridge, which turned a quiet lake edge into a walking route.',
+    tags: [],
+    gapTone: null,
+    gapPoints: null,
+    locals: 0,
+    visitors: 0,
+    drive: null,
+    outsideFameRank: null,
+    isActive: true,
+    address: 'Madhapur, near the cable bridge',
+    phone: '—',
+    hours: '5:30am – 8pm',
+    crowdLevel: 'Quiet before 8am, busy 5–7pm on weekends',
+    best: '6am to 8:30am',
+  },
+  {
+    id: '00000000-0000-0000-0000-0000000000e2',
+    slug: 'places/qutb-shahi-tombs',
+    name: 'Qutb Shahi Tombs',
+    type: 'explore',
+    vibe: 'Historical',
+    categoryId: C.historical,
+    neighborhood: 'Ibrahim Bagh',
+    areaId: null,
+    priceLevel: '₹50 entry',
+    reason: 'Thirty domes across a walkable site, and the last ticket goes at 4:30pm sharp.',
+    history:
+      'The necropolis of the Qutb Shahi dynasty, built between the 16th and 17th centuries beside Golconda Fort.',
+    tags: [],
+    gapTone: null,
+    gapPoints: null,
+    locals: 0,
+    visitors: 0,
+    drive: null,
+    outsideFameRank: null,
+    isActive: true,
+    address: 'Ibrahim Bagh, near Golconda',
+    phone: '040 2351 3355',
+    hours: '9:30am – 5pm',
+    crowdLevel: 'Rarely crowded; busiest with tour groups 10am–12pm',
+    best: '3pm to 5pm',
+  },
+  {
+    id: '00000000-0000-0000-0000-0000000000e3',
+    slug: 'places/ananthagiri-hills',
+    name: 'Ananthagiri Hills',
+    type: 'explore',
+    vibe: 'Sightseeing',
+    categoryId: C.lakesAndViewpoints,
+    neighborhood: '92 km out',
+    areaId: null,
+    priceLevel: 'Free entry',
+    reason:
+      'Ninety-two kilometres out and most of it is forest — the fog sits in the valley until about ten.',
+    history:
+      'A reserve forest and coffee-growing hill range that has stayed undeveloped despite being under two hours from the city.',
+    tags: [],
+    gapTone: null,
+    gapPoints: null,
+    locals: 0,
+    visitors: 0,
+    drive: null,
+    outsideFameRank: null,
+    isActive: true,
+    address: 'Vikarabad district',
+    phone: '—',
+    hours: 'Open all day',
+    crowdLevel: 'Empty on weekdays; day-trip crowds on Sunday mornings',
+    best: 'Sunrise',
+  },
+  {
+    id: '00000000-0000-0000-0000-0000000000e4',
+    slug: 'places/golconda-fort',
+    name: 'Golconda Fort',
+    type: 'explore',
+    vibe: 'Historical',
+    categoryId: C.historical,
+    neighborhood: 'Golconda',
+    areaId: null,
+    priceLevel: '₹25 entry',
+    reason:
+      'A clap at the entrance is heard at the summit, 380 steps up. Go at 4pm and the climb is in shade.',
+    history:
+      "A 13th-century fort that became the seat of the Qutb Shahi kingdom and the source of the Koh-i-Noor diamond's cutting.",
+    tags: [],
+    gapTone: null,
+    gapPoints: null,
+    locals: 0,
+    visitors: 0,
+    drive: null,
+    outsideFameRank: null,
+    isActive: true,
+    address: 'Ibrahim Bagh, Golconda',
+    phone: '040 2351 3984',
+    hours: '9am – 5:30pm',
+    crowdLevel: 'Peak crowds 4–6pm for the sound-and-light show; quiet mid-morning',
+    best: '4pm to sunset',
+  },
+  {
+    id: '00000000-0000-0000-0000-0000000000e5',
+    slug: 'places/charminar',
+    name: 'Charminar',
+    type: 'explore',
+    vibe: 'Devotional',
+    categoryId: C.historical,
+    neighborhood: 'Old City',
+    areaId: A.oldCity,
+    priceLevel: '₹25 entry',
+    reason:
+      'Four hundred and thirty years old, and the bangle lanes behind it are the actual reason to come.',
+    history:
+      'Built in 1591 to mark the founding of Hyderabad, at the centre of four historic roads that still meet there.',
+    tags: [],
+    gapTone: 'thin',
+    gapPoints: null,
+    locals: 47,
+    visitors: 0,
+    drive: null,
+    outsideFameRank: null,
+    isActive: true,
+    address: 'Char Kaman, Old City',
+    phone: '040 2452 0591',
+    hours: '9:30am – 5:30pm',
+    crowdLevel: 'Always busy; the bangle lanes peak in the evening',
+    best: 'Late afternoon',
+  },
+  {
+    id: '00000000-0000-0000-0000-0000000000e6',
+    slug: 'places/kbr-national-park',
+    name: 'KBR National Park',
+    type: 'explore',
+    vibe: 'Sightseeing',
+    categoryId: C.lakesAndViewpoints,
+    neighborhood: 'Jubilee Hills',
+    areaId: A.jubileeHills,
+    priceLevel: '₹25 entry',
+    reason:
+      'Six kilometres of trail inside the city, and peacocks on the inner loop most mornings before seven.',
+    history:
+      "Once part of the Nizam's private hunting grounds, fenced off as a protected park in 1998.",
+    tags: [],
+    gapTone: null,
+    gapPoints: null,
+    locals: 0,
+    visitors: 0,
+    drive: null,
+    outsideFameRank: null,
+    isActive: true,
+    address: 'Road No. 2, Jubilee Hills',
+    phone: '—',
+    hours: '5:30am – 10am, 4pm – 7pm',
+    crowdLevel: 'Quiet on the inner loop before 7am, busiest with joggers 6–8am',
+    best: 'Before 7am',
+  },
+  {
+    id: '00000000-0000-0000-0000-0000000000e7',
+    slug: 'places/prabhat-nightlife',
+    name: 'AutoLounge Rooftop',
+    type: 'explore',
+    vibe: 'Nightlife / clubs',
+    categoryId: C.nightlife,
+    neighborhood: 'Gachibowli',
+    areaId: null,
+    priceLevel: '₹1,200 / head',
+    reason:
+      'The only rooftop in Gachibowli that keeps the sound system below a level where you can still order a drink by talking.',
+    history:
+      'Opened in 2021 in a converted terrace above a co-working building, aimed at the tech-park crowd nearby.',
+    tags: [],
+    gapTone: null,
+    gapPoints: null,
+    locals: 0,
+    visitors: 0,
+    drive: null,
+    outsideFameRank: null,
+    isActive: true,
+    address: 'Financial District, Gachibowli',
+    phone: '040 4012 8890',
+    hours: '6pm – 1am',
+    crowdLevel: 'Fills up after 10pm on Friday and Saturday; easy entry on weekdays',
+    best: '9pm to midnight',
+  },
+  {
+    id: '00000000-0000-0000-0000-0000000000e8',
+    slug: 'places/hicc-live',
+    name: 'HICC Novotel Lawns',
+    type: 'explore',
+    vibe: 'Concerts',
+    categoryId: C.concertsAndEvents,
+    neighborhood: 'Madhapur',
+    areaId: A.madhapur,
+    priceLevel: 'Varies by show',
+    reason:
+      "The lawn holds the city's biggest touring acts, and the back third has the clearest sightline to the stage.",
+    history:
+      "Built as a convention-centre lawn in 2005, it has hosted the city's largest ticketed concerts since.",
+    tags: [],
+    gapTone: null,
+    gapPoints: null,
+    locals: 0,
+    visitors: 0,
+    drive: null,
+    outsideFameRank: null,
+    isActive: true,
+    address: 'HITEC City, Madhapur',
+    phone: '040 4919 1919',
+    hours: 'Event dependent',
+    crowdLevel: 'Packed for major shows; check the specific event for entry times',
+    best: 'Gates usually open 2 hours before showtime',
+  },
+];
+
+export function placeById(id: string): Place | undefined {
+  return places.find((p) => p.id === id);
+}
+
+export function placeBySlug(slug: string): Place | undefined {
+  return places.find((p) => p.slug === slug);
+}

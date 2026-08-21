@@ -1,0 +1,32 @@
+:root {
+  /* Corner radii — soft, never pill-shaped except for chips and avatars */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px; /* default card */
+  --radius-xl: 20px; /* photo cards, sheets */
+  --radius-2xl: 28px; /* bottom sheets, hero media */
+  --radius-pill: 999px;
+  --radius-circle: 50%;
+
+  /* Borders */
+  --border-width: 1px;
+  --border-width-strong: 1.5px;
+  --border-hair: 1px solid var(--border-hairline); /* @kind other */
+
+  /* Elevation — low, cool-grey, never black */
+  --shadow-none: none;
+  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.05);
+  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.07), 0 1px 3px rgba(15, 23, 42, 0.04);
+  --shadow-lg: 0 12px 32px rgba(15, 23, 42, 0.1), 0 2px 6px rgba(15, 23, 42, 0.04);
+  --shadow-sheet: 0 -8px 32px rgba(11, 47, 54, 0.14);
+  --shadow-focus: 0 0 0 3px rgba(15, 118, 110, 0.22);
+  --shadow-focus-coral: 0 0 0 3px rgba(255, 107, 107, 0.28);
+  --shadow-inset-hair: inset 0 0 0 1px var(--border-hairline);
+
+  /* Blur — used only for sticky bars over scrolling content */
+  --blur-bar: saturate(150%) blur(12px); /* @kind other */
+  --bar-scrim: rgba(255, 255, 255, 0.82);
+  --bar-scrim-dark: rgba(11, 47, 54, 0.72);
+}

@@ -1,0 +1,466 @@
+// The 52-screen catalogue, per design_handoff_madli/README.md. Drives the dev
+// harness's persona/state switcher and "All screens" tray (§7 of the Phase 2
+// prompt) and the router in routes.tsx. `states` lists the variants that
+// screen's own README table specifies — the dev harness uses this to offer a
+// state picker instead of a generic one.
+export type ScreenGroup =
+  | 'Marketing'
+  | 'App shell & onboarding'
+  | 'Discovery core loop'
+  | 'Personal state'
+  | 'Owner'
+  | 'Admin';
+
+export interface ScreenMeta {
+  id: string;
+  name: string;
+  path: string;
+  group: ScreenGroup;
+  states: string[];
+  roles: string;
+  realDivergence?: boolean;
+}
+
+export const screenRegistry: ScreenMeta[] = [
+  // Marketing
+  {
+    id: 'S1',
+    name: 'Landing page',
+    path: '/landing',
+    group: 'Marketing',
+    states: ['default'],
+    roles: 'Guest',
+  },
+  {
+    id: 'S2',
+    name: 'How it works',
+    path: '/how-it-works',
+    group: 'Marketing',
+    states: ['default'],
+    roles: 'Guest',
+  },
+  {
+    id: 'S3',
+    name: 'Gem of the town',
+    path: '/gem-of-the-town',
+    group: 'Marketing',
+    states: ['default', 'new gem'],
+    roles: 'All',
+  },
+  {
+    id: 'S4',
+    name: 'Neighbourhood page',
+    path: '/neighbourhoods/:area',
+    group: 'Marketing',
+    states: ['default', 'empty'],
+    roles: 'Guest, User',
+  },
+  {
+    id: 'S5',
+    name: 'Legal and static',
+    path: '/legal',
+    group: 'Marketing',
+    states: ['default'],
+    roles: 'All',
+  },
+
+  // App shell & onboarding
+  {
+    id: 'S6',
+    name: 'First open / splash',
+    path: '/splash',
+    group: 'App shell & onboarding',
+    states: ['default'],
+    roles: 'Guest',
+  },
+  {
+    id: 'S7',
+    name: 'Home — two doors',
+    path: '/',
+    group: 'App shell & onboarding',
+    states: ['default', 'personalized'],
+    roles: 'Guest, User',
+  },
+  {
+    id: 'S8',
+    name: 'Location permission',
+    path: '/location-permission',
+    group: 'App shell & onboarding',
+    states: ['default', 'denied'],
+    roles: 'Guest, User',
+  },
+  {
+    id: 'S9',
+    name: 'Manual area entry',
+    path: '/area',
+    group: 'App shell & onboarding',
+    states: ['default', 'no results'],
+    roles: 'Guest, User',
+  },
+  {
+    id: 'S10',
+    name: 'Out of coverage',
+    path: '/out-of-coverage',
+    group: 'App shell & onboarding',
+    states: ['default'],
+    roles: 'Guest, User',
+  },
+  {
+    id: 'S11',
+    name: 'Signup',
+    path: '/signup',
+    group: 'App shell & onboarding',
+    states: ['default', 'validation error'],
+    roles: 'Guest → User',
+  },
+  {
+    id: 'S12',
+    name: 'OTP verification',
+    path: '/verify-otp',
+    group: 'App shell & onboarding',
+    states: ['default', 'wrong code', 'expired'],
+    roles: 'Guest → User',
+  },
+  {
+    id: 'S13',
+    name: 'Login',
+    path: '/login',
+    group: 'App shell & onboarding',
+    states: ['default', 'invalid'],
+    roles: 'User, Owner',
+  },
+  {
+    id: 'S14',
+    name: 'Forgot password',
+    path: '/forgot-password',
+    group: 'App shell & onboarding',
+    states: ['request sent', 'reset form', 'success'],
+    roles: 'Guest → User',
+  },
+
+  // Discovery core loop
+  {
+    id: 'S52',
+    name: 'Search entry',
+    path: '/search',
+    group: 'Discovery core loop',
+    states: ['default'],
+    roles: 'Guest, User',
+  },
+  {
+    id: 'S15',
+    name: 'Intake',
+    path: '/intake',
+    group: 'Discovery core loop',
+    states: ['default'],
+    roles: 'Guest, User',
+    realDivergence: true,
+  },
+  {
+    id: 'S16',
+    name: 'Filters and tags',
+    path: '/filters',
+    group: 'Discovery core loop',
+    states: ['default', 'saved sets'],
+    roles: 'Guest, User',
+  },
+  {
+    id: 'S17',
+    name: 'Results — food',
+    path: '/results/eat',
+    group: 'Discovery core loop',
+    states: ['default', 'loading', 'empty', 'guest capped'],
+    roles: 'Guest, User',
+    realDivergence: true,
+  },
+  {
+    id: 'S18',
+    name: 'Results — visit places',
+    path: '/results/explore',
+    group: 'Discovery core loop',
+    states: ['default', 'loading', 'map view', 'empty'],
+    roles: 'Guest, User',
+    realDivergence: true,
+  },
+  {
+    id: 'S19',
+    name: 'Place detail',
+    path: '/places/:slug',
+    group: 'Discovery core loop',
+    states: ['guest', 'shared link', 'user', 'owner', 'admin'],
+    roles: 'All',
+    realDivergence: true,
+  },
+  {
+    id: 'S20',
+    name: 'Bridge tap',
+    path: '/places/:slug/bridge',
+    group: 'Discovery core loop',
+    states: ['default', 'locked'],
+    roles: 'User',
+    realDivergence: true,
+  },
+  {
+    id: 'S21',
+    name: 'Map and directions',
+    path: '/places/:slug/map',
+    group: 'Discovery core loop',
+    states: ['default'],
+    roles: 'Guest, User',
+    realDivergence: true,
+  },
+  {
+    id: 'S22',
+    name: 'Share sheet',
+    path: '/share',
+    group: 'Discovery core loop',
+    states: ['default'],
+    roles: 'All',
+  },
+
+  // Personal state
+  {
+    id: 'S23',
+    name: 'Bookmarks and wishlist',
+    path: '/bookmarks',
+    group: 'Personal state',
+    states: ['default', 'empty', 'nearby'],
+    roles: 'User',
+  },
+  {
+    id: 'S24',
+    name: 'Saved plan detail',
+    path: '/plans/:id',
+    group: 'Personal state',
+    states: ['default', 'shared link'],
+    roles: 'User',
+  },
+  {
+    id: 'S25',
+    name: 'Log a visit — trigger',
+    path: '/log-visit',
+    group: 'Personal state',
+    states: ['default'],
+    roles: 'Guest, User',
+  },
+  {
+    id: 'S26',
+    name: 'Log a visit — comparison',
+    path: '/log-visit/compare',
+    group: 'Personal state',
+    states: ['normal', 'first in category'],
+    roles: 'Guest, User',
+  },
+  {
+    id: 'S27',
+    name: 'Log a visit — landed',
+    path: '/log-visit/landed',
+    group: 'Personal state',
+    states: ['user', 'guest'],
+    roles: 'Guest, User',
+  },
+  {
+    id: 'S28',
+    name: 'Save your list (guest gate)',
+    path: '/save-your-list',
+    group: 'Personal state',
+    states: ['default'],
+    roles: 'Guest',
+  },
+  {
+    id: 'S29',
+    name: 'Ranking onboarding',
+    path: '/ranking-onboarding',
+    group: 'Personal state',
+    states: ['default'],
+    roles: 'User',
+  },
+  {
+    id: 'S30',
+    name: 'Post-visit nudge',
+    path: '/post-visit-nudge',
+    group: 'Personal state',
+    states: ['default'],
+    roles: 'User',
+  },
+  {
+    id: 'S31',
+    name: 'My ranked list',
+    path: '/my-list',
+    group: 'Personal state',
+    states: ['default', 'empty'],
+    roles: 'User',
+    realDivergence: true,
+  },
+  {
+    id: 'S32',
+    name: 'Profile',
+    path: '/profile',
+    group: 'Personal state',
+    states: ['default'],
+    roles: 'User',
+  },
+  {
+    id: 'S33',
+    name: 'Settings — main',
+    path: '/settings',
+    group: 'Personal state',
+    states: ['default'],
+    roles: 'User',
+  },
+  {
+    id: 'S34',
+    name: 'Settings — claim a business',
+    path: '/settings/claim',
+    group: 'Personal state',
+    states: ['default'],
+    roles: 'User → Owner',
+  },
+  {
+    id: 'S35',
+    name: 'Notification settings',
+    path: '/settings/notifications',
+    group: 'Personal state',
+    states: ['default'],
+    roles: 'User',
+  },
+  {
+    id: 'S36',
+    name: 'Privacy settings',
+    path: '/settings/privacy',
+    group: 'Personal state',
+    states: ['default', 'delete confirm'],
+    roles: 'User',
+  },
+
+  // Owner
+  {
+    id: 'S37',
+    name: 'Claim request form',
+    path: '/claim/:slug',
+    group: 'Owner',
+    states: ['default', 'validation error'],
+    roles: 'User → Owner',
+  },
+  {
+    id: 'S38',
+    name: 'Claim status',
+    path: '/claim/:slug/status',
+    group: 'Owner',
+    states: ['pending', 'verified', 'rejected'],
+    roles: 'Owner',
+  },
+  {
+    id: 'S39',
+    name: 'Owner — edit listing',
+    path: '/owner/:slug/edit',
+    group: 'Owner',
+    states: ['default'],
+    roles: 'Owner',
+  },
+  {
+    id: 'S40',
+    name: 'Owner profile',
+    path: '/owner/profile',
+    group: 'Owner',
+    states: ['default'],
+    roles: 'Owner',
+  },
+
+  // Admin
+  {
+    id: 'S41',
+    name: 'Admin login',
+    path: '/admin/login',
+    group: 'Admin',
+    states: ['default', 'invalid credentials', 'access-denied'],
+    roles: 'Admin',
+  },
+  {
+    id: 'S42',
+    name: 'Analytics dashboard',
+    path: '/admin',
+    group: 'Admin',
+    states: ['default', 'loading'],
+    roles: 'Admin',
+    realDivergence: true,
+  },
+  {
+    id: 'S43',
+    name: 'Catalogue — list',
+    path: '/admin/catalogue',
+    group: 'Admin',
+    states: ['default'],
+    roles: 'Admin',
+    realDivergence: true,
+  },
+  {
+    id: 'S44',
+    name: 'Catalogue — add / edit',
+    path: '/admin/catalogue/:id/edit',
+    group: 'Admin',
+    states: ['create', 'edit'],
+    roles: 'Admin',
+  },
+  {
+    id: 'S45',
+    name: 'Catalogue — bulk import',
+    path: '/admin/catalogue/bulk-import',
+    group: 'Admin',
+    states: ['upload', 'preview/validate', 'success/error summary'],
+    roles: 'Admin',
+  },
+  {
+    id: 'S46',
+    name: 'Ranking and trust',
+    path: '/admin/ranking',
+    group: 'Admin',
+    states: ['default', 'override confirm'],
+    roles: 'Admin',
+  },
+  {
+    id: 'S47',
+    name: 'Gem selection',
+    path: '/admin/gems',
+    group: 'Admin',
+    states: ['default'],
+    roles: 'Admin',
+  },
+  {
+    id: 'S48',
+    name: 'Business claims queue',
+    path: '/admin/claims',
+    group: 'Admin',
+    states: ['default'],
+    roles: 'Admin',
+  },
+  {
+    id: 'S49',
+    name: 'Reports and moderation',
+    path: '/admin/reports',
+    group: 'Admin',
+    states: ['default'],
+    roles: 'Admin',
+  },
+  {
+    id: 'S50',
+    name: 'Roles, accounts, audit log',
+    path: '/admin/roles',
+    group: 'Admin',
+    states: ['default'],
+    roles: 'Admin',
+    realDivergence: true,
+  },
+  {
+    id: 'S51',
+    name: 'Location history access',
+    path: '/admin/location-history',
+    group: 'Admin',
+    states: ['access-gate', 'granted view'],
+    roles: 'Admin',
+  },
+];
+
+export function screenById(id: string): ScreenMeta | undefined {
+  return screenRegistry.find((s) => s.id === id);
+}
