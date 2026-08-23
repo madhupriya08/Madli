@@ -4,8 +4,7 @@ import { AppShell } from '../layout/AppShell';
 import { Card } from '../../components/core/Card';
 import { Button } from '../../components/core/Button';
 import { usePersona } from '../../dev/PersonaContext';
-import { useLogRankedVisit } from '../../data/hooks';
-import { pickComparisonTargets } from '../../data/rankedEntries';
+import { useLogRankedVisit, useComparisonTargets } from '../../data/hooks';
 import { placeById } from '../../fixtures/places';
 import { appConfig } from '../../fixtures/appConfig';
 import type { Tier } from '../../fixtures/mockDb';
@@ -27,17 +26,28 @@ export function LogVisitComparisonScreen() {
   const state = location.state as NavState | null;
   const [step, setStep] = useState<1 | 2>(1);
   const [choice1, setChoice1] = useState<boolean | null>(null);
+  const newPlace = state ? placeById(state.placeId) : undefined;
+  const { data: targets, isLoading: targetsLoading } = useComparisonTargets(
+    userId,
+    newPlace?.categoryId,
+  );
 
-  if (!state) {
+  if (!state || !newPlace) {
     navigate('/log-visit');
     return null;
   }
 
-  const newPlace = placeById(state.placeId)!;
-  const targets = pickComparisonTargets(userId, newPlace.categoryId);
-  const compareTarget1 = targets.first ? placeById(targets.first) : undefined;
-  const compareTarget2 = targets.second ? placeById(targets.second) : undefined;
+  const compareTarget1 = targets?.first ? placeById(targets.first) : undefined;
+  const compareTarget2 = targets?.second ? placeById(targets.second) : undefined;
   const secondComparisonSkippable = appConfig.secondComparisonMode !== 'always';
+
+  if (targetsLoading) {
+    return (
+      <AppShell title="Which do you prefer?" onBack={() => navigate(-1)} showTabBar={false}>
+        <div style={{ padding: 'var(--space-6) var(--gutter-mobile)' }} aria-busy="true" />
+      </AppShell>
+    );
+  }
 
   const submit = async (preferredNew1?: boolean, preferredNew2?: boolean) => {
     const result = await logVisit.mutateAsync({

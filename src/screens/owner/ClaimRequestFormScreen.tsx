@@ -3,8 +3,10 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { AppShell } from '../layout/AppShell';
 import { Input } from '../../components/forms/Input';
 import { Button } from '../../components/core/Button';
+import { useToast } from '../../components/feedback/ToastProvider';
 import { useSubmitBusinessClaim } from '../../data/hooks';
 import { placeBySlug } from '../../fixtures/places';
+import { usePersona } from '../../dev/PersonaContext';
 
 const MAPS_LINK_PATTERN = /^https?:\/\/(www\.)?(maps\.google\.|goo\.gl\/maps)/i;
 
@@ -15,6 +17,8 @@ export function ClaimRequestFormScreen() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const submitClaim = useSubmitBusinessClaim();
+  const { userId } = usePersona();
+  const { show } = useToast();
   const place = slug ? placeBySlug(decodeURIComponent(slug)) : undefined;
 
   const [mapsLink, setMapsLink] = useState('');
@@ -45,6 +49,7 @@ export function ClaimRequestFormScreen() {
     setSubmitting(true);
     try {
       await submitClaim.mutateAsync({
+        userId,
         placeId: place.id,
         businessName,
         contactName: 'You',
@@ -53,6 +58,8 @@ export function ClaimRequestFormScreen() {
         mapsLink,
       });
       navigate(`/claim/${slug}/status`);
+    } catch (err) {
+      show(err instanceof Error ? err.message : 'Could not submit your claim.', { tone: 'error' });
     } finally {
       setSubmitting(false);
     }

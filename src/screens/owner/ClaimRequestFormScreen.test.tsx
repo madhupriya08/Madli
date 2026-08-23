@@ -1,8 +1,29 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '../../test/renderWithProviders';
 import { ClaimRequestFormScreen } from './ClaimRequestFormScreen';
+
+// The two "accepts..." cases below submit successfully — mocked here the
+// same way any component test mocks an external service, so the assertion
+// is about the form's own validation gate, not a real network round trip.
+// The real submission path (a real business_claims insert, then the full
+// call → admin-marks-called → admin-approves lifecycle) was independently
+// verified against the live project — see PHASE_3_COMPLETION_REPORT.md §4.
+vi.mock('../../data/businessClaims', () => ({
+  submitBusinessClaim: vi.fn().mockResolvedValue({
+    id: 'claim-test',
+    placeId: '00000000-0000-0000-0000-0000000000f1',
+    businessName: 'Hotel Shadab',
+    contactName: 'You',
+    claimedRole: 'Owner',
+    contactPhone: '9876543210',
+    mapsLink: 'https://maps.google.com/?q=hotel+shadab',
+    ageLabel: '',
+    status: 'pending',
+    calledAt: null,
+  }),
+}));
 
 // Hotel Shadab — a real fixture place, so useParams()/placeBySlug() resolves.
 const SLUG = 'restaurants/hotel-shadab';

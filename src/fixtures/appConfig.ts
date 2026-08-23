@@ -1,10 +1,10 @@
 /**
- * Mirrors the real `app_config` table (Phase 1, supabase/migrations/20260820100200_areas_categories_config.sql).
- * Same keys, same default values — one source of truth for the six product
- * config flags plus the ranking threshold, exactly like the real table.
- *
- * TODO(phase-3): replace this module with a TanStack Query hook reading
- * `supabase.from('app_config').select()`.
+ * Phase 3: loaded for real from `app_config` at app bootstrap (see
+ * `loadLiveConfig()` in `src/lib/liveConfig.ts`, awaited once in
+ * `src/main.tsx` before the app renders) — never a per-render fetch, since
+ * this is a handful of static config flags read synchronously all over the
+ * app. Defaults below are the Phase 1 seed values and only serve as the
+ * pre-load shape (e.g., in a unit test that never calls loadLiveConfig()).
  */
 export interface AppConfig {
   rankingThresholdLocals: number;

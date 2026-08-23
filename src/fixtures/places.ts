@@ -1,10 +1,11 @@
-// Mirrors Phase 1's `places` + `place_eat_details` + `place_explore_details`
-// tables (same ids/values as supabase/seed.sql), lifted verbatim from the
-// design handoff's prototype (FOOD/EXPLORE arrays). Do not invent new places
-// here — see PHASE_2_HANDOFF.md "Fixtures" for why.
-//
-// TODO(phase-3): replace this static array with a TanStack Query hook reading
-// `supabase.from('places').select('*, place_eat_details(*), place_explore_details(*)')`.
+// Phase 1 seed values (same ids/values as supabase/seed.sql), lifted verbatim
+// from the design handoff's prototype (FOOD/EXPLORE arrays). This array is
+// mutated in place with real data from `places` + `place_eat_details` +
+// `place_explore_details` at app bootstrap — see `loadLiveConfig()` in
+// `src/lib/liveConfig.ts` for why a startup prefetch rather than a
+// per-screen hook, and `src/main.tsx` for where it's awaited. The values
+// below only matter before that load completes (e.g. a unit test that never
+// calls loadLiveConfig()).
 
 export type PlaceType = 'eat' | 'explore';
 export type GapTone = 'clear' | 'close' | 'thin';

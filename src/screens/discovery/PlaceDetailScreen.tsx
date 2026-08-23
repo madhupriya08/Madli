@@ -11,8 +11,13 @@ import { EmptyState } from '../../components/feedback/EmptyState';
 import { usePersona } from '../../dev/PersonaContext';
 import { places } from '../../fixtures/places';
 import { categoryName } from '../../fixtures/categories';
-import { businessClaimsSeed } from '../../fixtures/admin';
-import { useAddBookmark, useBookmarks, useRemoveBookmark } from '../../data/hooks';
+import {
+  useAddBookmark,
+  useBookmarks,
+  useRemoveBookmark,
+  useBusinessClaims,
+  useOwnsVerifiedClaim,
+} from '../../data/hooks';
 
 // S19: five role states on one screen. Shared link unlocks everything — no
 // cap, no lock — because shared links must open fully with no account and
@@ -32,6 +37,15 @@ export function PlaceDetailScreen() {
 
   const decodedSlug = slug ? decodeURIComponent(slug) : undefined;
   const place = places.find((p) => p.slug === decodedSlug);
+  // Real per-place check against the signed-in user's own claims (real
+  // owns_verified_claim() RPC) — replaces Phase 2's fixture simplification
+  // ("the Owner persona owns whichever place has a verified claim"), so this
+  // is correct for any real Owner account, not just the one fixture that
+  // happened to match. Verified live end-to-end (submit → admin calls →
+  // admin approves → this check flips true for that user) in
+  // PHASE_3_COMPLETION_REPORT.md §4.
+  const { data: ownsThisClaim = false } = useOwnsVerifiedClaim(place?.id);
+  const { data: existingClaims = [] } = useBusinessClaims({ placeId: place?.id });
 
   if (!place) {
     return (
@@ -45,11 +59,8 @@ export function PlaceDetailScreen() {
     );
   }
 
-  const claim = businessClaimsSeed.find((c) => c.placeId === place.id && c.status === 'verified');
-  // Mock simplification: the single "owner" persona owns whichever place has
-  // a verified claim (mirrors the Phase 1 owner test account, verified on
-  // Cafe Bahar only) — Phase 3 checks the real signed-in user's claim instead.
-  const isOwnerOfThis = persona === 'owner' && !!claim;
+  const alreadyVerifiedByAnyone = existingClaims.some((c) => c.status === 'verified');
+  const isOwnerOfThis = persona !== 'guest' && ownsThisClaim;
   const guestLocked = persona === 'guest' && !isSharedLink;
   const isBookmarked = bookmarks.some((b) => b.placeId === place.id);
 
@@ -138,7 +149,7 @@ export function PlaceDetailScreen() {
         <span>{place.hours}</span>
       </div>
 
-      {!claim && persona === 'user' ? (
+      {!alreadyVerifiedByAnyone && persona !== 'guest' && !isOwnerOfThis ? (
         <button
           onClick={() => navigate(`/claim/${slug}`)}
           style={{

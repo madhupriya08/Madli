@@ -20,7 +20,7 @@ const NAV = [
 export function AdminShell({ title, children }: { title: string; children: ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { persona, setPersona } = usePersona();
+  const { persona, signOut } = usePersona();
 
   if (persona !== 'admin') {
     return (
@@ -80,7 +80,7 @@ export function AdminShell({ title, children }: { title: string; children: React
         ))}
         <button
           onClick={() => {
-            setPersona('guest');
+            void signOut();
             navigate('/admin/login');
           }}
           style={{

@@ -16,8 +16,8 @@ const CONFIRM_PHRASE = 'DELETE';
 // and that read is logged.
 export function PrivacySettingsScreen() {
   const navigate = useNavigate();
-  const { userId, setPersona } = usePersona();
-  const deleteAccount = useDeleteOwnAccount(userId);
+  const { signOut } = usePersona();
+  const deleteAccount = useDeleteOwnAccount();
   const [showConfirm, setShowConfirm] = useState(false);
   const [typedPhrase, setTypedPhrase] = useState('');
   const [shareLocationHistory, setShareLocationHistory] = useState(true);
@@ -92,7 +92,7 @@ export function PrivacySettingsScreen() {
             disabled={!canDelete}
             onClick={async () => {
               await deleteAccount.mutateAsync();
-              setPersona('guest');
+              await signOut();
               navigate('/landing');
             }}
           >

@@ -4,7 +4,7 @@ import { Input } from '../../components/forms/Input';
 import { Button } from '../../components/core/Button';
 import { Logo } from '../../components/core/Logo';
 import { usePersona } from '../../dev/PersonaContext';
-import { mockLogin } from '../../lib/mockAuth';
+import { login } from '../../lib/auth';
 import { logAdminLoginAttempt } from '../../data/admin';
 
 // S41: dark teal, no consumer nav, no logo lockup — switching into Admin
@@ -21,7 +21,7 @@ export function AdminLoginScreen() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const result = await mockLogin(email, password);
+      const result = await login(email, password);
       if (result.role !== 'admin') {
         await logAdminLoginAttempt(email, 'access_denied', result.userId);
         setError('This account does not have admin access.');

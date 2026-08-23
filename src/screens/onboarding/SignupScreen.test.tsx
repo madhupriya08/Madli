@@ -1,8 +1,20 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '../../test/renderWithProviders';
 import { SignupScreen } from './SignupScreen';
+import * as authModule from '../../lib/auth';
+
+// The success-path test below mocks the real supabase.auth.signUp call (the
+// same way any component test mocks an external service) so it can assert
+// the submit actually completed, not just that no error was showing before
+// the async call resolved. Real signUp behavior (and its real "provider not
+// enabled" case for phone) was verified separately — see
+// PHASE_3_COMPLETION_REPORT.md §6.
+vi.mock('../../lib/auth', async () => {
+  const actual = await vi.importActual<typeof authModule>('../../lib/auth');
+  return { ...actual, signUp: vi.fn().mockResolvedValue(undefined) };
+});
 
 describe('SignupScreen — S11 validation', () => {
   it('shows an inline error and does not navigate on an invalid email', async () => {
@@ -38,7 +50,8 @@ describe('SignupScreen — S11 validation', () => {
     await user.type(screen.getByLabelText('Password'), 'longenough');
     await user.click(screen.getByRole('button', { name: 'Create account' }));
 
-    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+    await waitFor(() => expect(authModule.signUp).toHaveBeenCalledTimes(1));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('switches the field label and validation to phone mode', async () => {

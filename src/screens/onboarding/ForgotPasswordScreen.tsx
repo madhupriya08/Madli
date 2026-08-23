@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { AppShell } from '../layout/AppShell';
 import { Input } from '../../components/forms/Input';
 import { Button } from '../../components/core/Button';
-import { mockRequestPasswordReset, mockResetPassword } from '../../lib/mockAuth';
+import { requestPasswordReset, resetPassword } from '../../lib/auth';
 
 type Stage = 'request' | 'sent' | 'reset' | 'success';
 
@@ -18,7 +18,7 @@ export function ForgotPasswordScreen() {
   const requestReset = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await mockRequestPasswordReset(email);
+      await requestPasswordReset(email);
       setStage('sent');
       setError(null);
     } catch (err) {
@@ -29,7 +29,7 @@ export function ForgotPasswordScreen() {
   const submitNewPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await mockResetPassword(password);
+      await resetPassword(password);
       setStage('success');
       setError(null);
     } catch (err) {

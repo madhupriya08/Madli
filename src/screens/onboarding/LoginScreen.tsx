@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { AppShell } from '../layout/AppShell';
 import { Input } from '../../components/forms/Input';
 import { Button } from '../../components/core/Button';
-import { mockLogin } from '../../lib/mockAuth';
+import { login } from '../../lib/auth';
 import { usePersona } from '../../dev/PersonaContext';
 
 // S13: consumer login only — Admin never touches this screen (S41 is a
@@ -22,9 +22,12 @@ export function LoginScreen() {
     setSubmitting(true);
     setError(null);
     try {
-      const result = await mockLogin(email, password);
-      setPersona(result.role === 'admin' ? 'user' : result.role); // consumer login never grants admin
-      navigate(result.role === 'owner' ? '/owner/profile' : '/');
+      const result = await login(email, password);
+      // Consumer login never grants admin, even for a real admin account —
+      // S41 is a separate surface. Owner is derived from a verified claim,
+      // not the profiles.role column.
+      setPersona(result.hasVerifiedClaim ? 'owner' : 'user');
+      navigate(result.hasVerifiedClaim ? '/owner/profile' : '/');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Invalid email or password.');
     } finally {

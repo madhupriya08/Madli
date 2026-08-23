@@ -4,7 +4,7 @@ import { AppShell } from '../layout/AppShell';
 import { Tabs } from '../../components/navigation/Tabs';
 import { Input } from '../../components/forms/Input';
 import { Button } from '../../components/core/Button';
-import { mockSignUp, validateSignup, type SignupInput } from '../../lib/mockAuth';
+import { signUp, validateSignup, type SignupInput } from '../../lib/auth';
 import { useToast } from '../../components/feedback/ToastProvider';
 
 // S11: phone and email are a segmented toggle, not two forms; Google sits
@@ -30,8 +30,8 @@ export function SignupScreen() {
     setSubmitting(true);
     setError(null);
     try {
-      await mockSignUp({ method, identifier, password });
-      navigate('/verify-otp');
+      await signUp({ method, identifier, password });
+      navigate('/verify-otp', { state: { method, identifier } });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong.');
     } finally {

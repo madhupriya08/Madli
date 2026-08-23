@@ -7,7 +7,7 @@ import { Dialog } from '../../components/feedback/Dialog';
 import { useToast } from '../../components/feedback/ToastProvider';
 import { useAdminOverrideRanking } from '../../data/hooks';
 import { places } from '../../fixtures/places';
-import { MOCK_ADMIN_ID, usePersona } from '../../dev/PersonaContext';
+import { usePersona } from '../../dev/PersonaContext';
 
 const ABUSE_QUEUE = [
   {
@@ -109,7 +109,6 @@ export function RankingAndTrustScreen() {
                   gapTone: 'clear',
                   gapPoints: place.gapPoints,
                   reason,
-                  adminEmail: MOCK_ADMIN_ID,
                 });
                 show('Override logged.');
                 setConfirming(null);

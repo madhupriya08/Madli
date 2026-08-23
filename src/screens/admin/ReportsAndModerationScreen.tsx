@@ -4,10 +4,9 @@ import { Tabs } from '../../components/navigation/Tabs';
 import { Badge } from '../../components/core/Badge';
 import { Button } from '../../components/core/Button';
 import { useToast } from '../../components/feedback/ToastProvider';
-import { useReports } from '../../data/hooks';
-import { adminResolveReport } from '../../data/admin';
+import { useReports, useResolveReport } from '../../data/hooks';
 import { placeById } from '../../fixtures/places';
-import { useQueryClient } from '@tanstack/react-query';
+import { usePersona } from '../../dev/PersonaContext';
 
 // S49: two queues in one table, separated by filter. Bulk resolve exists
 // because duplicate reports arrive in clusters — not modeled at length here.
@@ -15,7 +14,8 @@ export function ReportsAndModerationScreen() {
   const [filter, setFilter] = useState<'all' | 'duplicate_listing' | 'other'>('all');
   const { data: reports = [] } = useReports();
   const { show } = useToast();
-  const qc = useQueryClient();
+  const { userId: adminId } = usePersona();
+  const resolveReport = useResolveReport();
 
   const filtered = reports.filter((r) => {
     if (filter === 'all') return true;
@@ -62,8 +62,12 @@ export function ReportsAndModerationScreen() {
                   <Button
                     size="sm"
                     onClick={async () => {
-                      await adminResolveReport(r.id, 'resolved', 'Handled by admin');
-                      void qc.invalidateQueries({ queryKey: ['reports'] });
+                      await resolveReport.mutateAsync({
+                        reportId: r.id,
+                        status: 'resolved',
+                        outcome: 'Handled by admin',
+                        adminId,
+                      });
                       show('Report resolved.');
                     }}
                   >

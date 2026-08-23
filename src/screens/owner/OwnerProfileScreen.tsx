@@ -2,14 +2,17 @@ import { useNavigate } from 'react-router-dom';
 import { AppShell } from '../layout/AppShell';
 import { Card } from '../../components/core/Card';
 import { Button } from '../../components/core/Button';
-import { businessClaimsSeed } from '../../fixtures/admin';
+import { useBusinessClaims } from '../../data/hooks';
+import { usePersona } from '../../dev/PersonaContext';
 import { placeById } from '../../fixtures/places';
 
 // S40: deliberately not a User profile — no ranked list, no local status.
 // Stating that in the UI prevents the obvious support question.
 export function OwnerProfileScreen() {
   const navigate = useNavigate();
-  const claims = businessClaimsSeed.filter((c) => c.status === 'verified');
+  const { userId } = usePersona();
+  const { data: allClaims = [] } = useBusinessClaims({ userId });
+  const claims = allClaims.filter((c) => c.status === 'verified');
 
   return (
     <AppShell title="Owner profile" showTabBar={false}>

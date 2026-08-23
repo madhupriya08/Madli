@@ -2,16 +2,20 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { AppShell } from '../layout/AppShell';
 import { Badge } from '../../components/core/Badge';
 import { placeBySlug } from '../../fixtures/places';
-import { businessClaimsSeed } from '../../fixtures/admin';
+import { useBusinessClaims } from '../../data/hooks';
+import { usePersona } from '../../dev/PersonaContext';
 
 // S38: status pill uses the global pattern. Pending is neutral, never
 // amber — waiting is not a warning. Pending copy names the number we'll ring.
 export function ClaimStatusScreen() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
+  const { userId } = usePersona();
   const place = slug ? placeBySlug(decodeURIComponent(slug)) : undefined;
-  const claim = place ? businessClaimsSeed.find((c) => c.placeId === place.id) : undefined;
+  const { data: claims = [], isLoading } = useBusinessClaims({ placeId: place?.id, userId });
+  const claim = claims[0];
 
+  if (isLoading) return null;
   if (!place || !claim) {
     navigate(-1);
     return null;

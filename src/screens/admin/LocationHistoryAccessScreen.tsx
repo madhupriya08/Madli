@@ -6,8 +6,8 @@ import { Button } from '../../components/core/Button';
 import { Badge } from '../../components/core/Badge';
 import { useAdminReadLocationHistory } from '../../data/hooks';
 import { locationHistoryReasonOptions } from '../../fixtures/admin';
-import { MOCK_ADMIN_ID, MOCK_USER_ID, usePersona } from '../../dev/PersonaContext';
-import type { LocationHistoryFixture } from '../../fixtures/admin';
+import { MOCK_USER_ID, usePersona } from '../../dev/PersonaContext';
+import type { LocationHistoryRow } from '../../data/admin';
 
 // S51: the gate is the design. A reason is required, written verbatim, and
 // the log entry is created before the data loads. Once granted, a persistent
@@ -20,7 +20,7 @@ export function LocationHistoryAccessScreen() {
     locationHistoryReasonOptions[0].value,
   );
   const [reasonDetail, setReasonDetail] = useState('');
-  const [rows, setRows] = useState<LocationHistoryFixture[] | null>(null);
+  const [rows, setRows] = useState<LocationHistoryRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const grant = async () => {
@@ -33,7 +33,6 @@ export function LocationHistoryAccessScreen() {
       const data = await readHistory.mutateAsync({
         targetUserId: MOCK_USER_ID,
         reason,
-        adminId: MOCK_ADMIN_ID,
       });
       setRows(data);
       setError(null);

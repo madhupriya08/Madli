@@ -1,16 +1,28 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { AppShell } from '../layout/AppShell';
 import { Button } from '../../components/core/Button';
-import { mockVerifyOtp } from '../../lib/mockAuth';
+import { verifyOtp } from '../../lib/auth';
+
+interface NavState {
+  method: 'email' | 'phone';
+  identifier: string;
+}
 
 // S12: six boxes, resend timer, change-number link. Wrong-code and
 // expired-code are different states with different actions. Verified users
 // land in ranking onboarding (S29), not home.
+//
+// Real Supabase phone OTP verification is wired in (src/lib/auth.ts,
+// verifyOtp) but genuinely non-functional in this project — no SMS provider
+// is configured (open since Phase 1, §8), so a real phone signup here always
+// errors. Kept fully wired, not silently faked, per the Phase 3 prompt.
 export function OtpVerificationScreen() {
   const [code, setCode] = useState(['', '', '', '', '', '']);
   const [status, setStatus] = useState<'idle' | 'checking' | 'wrong' | 'expired'>('idle');
   const navigate = useNavigate();
+  const location = useLocation();
+  const state = location.state as NavState | null;
 
   const setDigit = (i: number, v: string) => {
     if (!/^[0-9]?$/.test(v)) return;
@@ -21,7 +33,7 @@ export function OtpVerificationScreen() {
 
   const submit = async () => {
     setStatus('checking');
-    const outcome = await mockVerifyOtp(code.join(''));
+    const outcome = await verifyOtp(state?.identifier ?? '', code.join(''));
     if (outcome === 'correct') {
       navigate('/ranking-onboarding');
     } else {
@@ -41,8 +53,7 @@ export function OtpVerificationScreen() {
         }}
       >
         <p style={{ font: 'var(--type-body)', color: 'var(--text-body)' }}>
-          Enter the six-digit code we sent you. (Dev: <code>123456</code> succeeds,{' '}
-          <code>000000</code> is wrong, <code>999999</code> is expired.)
+          Enter the six-digit code we sent you.
         </p>
         <div
           style={{ display: 'flex', gap: 'var(--space-2)' }}

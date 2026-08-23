@@ -2,10 +2,9 @@ import { AdminShell } from '../layout/AdminShell';
 import { Badge } from '../../components/core/Badge';
 import { Button } from '../../components/core/Button';
 import { useToast } from '../../components/feedback/ToastProvider';
-import { useBusinessClaims } from '../../data/hooks';
-import { adminMarkClaimCalled, adminResolveClaim } from '../../data/businessClaims';
+import { useBusinessClaims, useAdminMarkClaimCalled, useAdminResolveClaim } from '../../data/hooks';
 import { placeById } from '../../fixtures/places';
-import { useQueryClient } from '@tanstack/react-query';
+import { usePersona } from '../../dev/PersonaContext';
 
 // S48: the other side of S37/S38. The Maps link and phone number are on the
 // row because they're what the reviewer acts on. Mark-as-called is separate
@@ -13,9 +12,9 @@ import { useQueryClient } from '@tanstack/react-query';
 export function BusinessClaimsQueueScreen() {
   const { data: claims = [] } = useBusinessClaims();
   const { show } = useToast();
-  const qc = useQueryClient();
-
-  const refresh = () => void qc.invalidateQueries({ queryKey: ['businessClaims'] });
+  const { userId: adminId } = usePersona();
+  const markCalled = useAdminMarkClaimCalled();
+  const resolveClaim = useAdminResolveClaim();
 
   return (
     <AdminShell title="Business claims">
@@ -62,8 +61,7 @@ export function BusinessClaimsQueueScreen() {
                       size="sm"
                       variant="secondary"
                       onClick={async () => {
-                        await adminMarkClaimCalled(c.id);
-                        refresh();
+                        await markCalled.mutateAsync({ claimId: c.id, adminId });
                         show('Marked as called.');
                       }}
                     >
@@ -75,8 +73,7 @@ export function BusinessClaimsQueueScreen() {
                       <Button
                         size="sm"
                         onClick={async () => {
-                          await adminResolveClaim(c.id, 'verified');
-                          refresh();
+                          await resolveClaim.mutateAsync({ claimId: c.id, status: 'verified', adminId });
                           show('Claim approved.');
                         }}
                       >
@@ -86,8 +83,7 @@ export function BusinessClaimsQueueScreen() {
                         size="sm"
                         variant="ghost"
                         onClick={async () => {
-                          await adminResolveClaim(c.id, 'rejected');
-                          refresh();
+                          await resolveClaim.mutateAsync({ claimId: c.id, status: 'rejected', adminId });
                           show('Claim rejected.');
                         }}
                       >

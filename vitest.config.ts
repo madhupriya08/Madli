@@ -2,6 +2,13 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
+    // Scoped to this suite only — without this, Vitest's default include
+    // glob also picks up src/**/*.test.tsx (needs jsdom + the frontend's own
+    // config, see vitest.frontend.config.ts) and e2e/**/*.spec.ts (Playwright
+    // specs, which crash when collected by a runner other than Playwright's
+    // own). Found by actually running `npm test` for the first time in
+    // Phase 3 — see PHASE_3_COMPLETION_REPORT.md §3.
+    include: ['tests/**/*.test.ts'],
     environment: 'node',
     globals: false,
     testTimeout: 20000,

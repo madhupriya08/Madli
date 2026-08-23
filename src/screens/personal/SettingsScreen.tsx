@@ -8,7 +8,7 @@ import { usePersona } from '../../dev/PersonaContext';
 // one inverted block on the page. Sign out is a ghost button at the bottom.
 export function SettingsScreen() {
   const navigate = useNavigate();
-  const { setPersona } = usePersona();
+  const { signOut } = usePersona();
 
   return (
     <AppShell title="Settings">
@@ -43,7 +43,7 @@ export function SettingsScreen() {
         </Card>
         <button
           onClick={() => {
-            setPersona('guest');
+            void signOut();
             navigate('/landing');
           }}
           style={{

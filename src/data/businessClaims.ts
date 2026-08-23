@@ -1,22 +1,39 @@
-// Mirrors business_claims: submitting user gets status='pending' (neutral,
-// never a warning — the handoff is explicit), only admin-mode mock actions
-// change status/calledAt/resolution fields.
-//
-// TODO(phase-3): replace with `supabase.from('business_claims')` calls.
-import { mockDb } from '../fixtures/mockDb';
+// Phase 3: real Supabase calls. Submitting user gets status='pending'
+// (neutral, never a warning). Only an admin session can change
+// status/calledAt/resolution fields — enforced by a real trigger, same as
+// the owner-edit protection on `places`.
+import { supabase } from '../lib/supabaseClient';
 import type { BusinessClaimFixture, ClaimStatus } from '../fixtures/admin';
+
+function rowToClaim(row: Record<string, unknown>): BusinessClaimFixture {
+  return {
+    id: row.id as string,
+    placeId: row.place_id as string,
+    businessName: row.business_name as string,
+    contactName: (row.contact_name as string | null) ?? '',
+    claimedRole: row.claimed_role as string,
+    contactPhone: row.contact_phone as string,
+    mapsLink: row.maps_link as string,
+    ageLabel: '', // derived from created_at at the call site if needed
+    status: row.status as ClaimStatus,
+    calledAt: row.called_at as string | null,
+  };
+}
 
 export async function getBusinessClaims(filter?: {
   userId?: string;
   placeId?: string;
 }): Promise<BusinessClaimFixture[]> {
-  return mockDb.businessClaims.filter((c) => {
-    if (filter?.placeId && c.placeId !== filter.placeId) return false;
-    return true;
-  });
+  let query = supabase.from('business_claims').select('*');
+  if (filter?.placeId) query = query.eq('place_id', filter.placeId);
+  if (filter?.userId) query = query.eq('user_id', filter.userId);
+  const { data, error } = await query.order('created_at', { ascending: false });
+  if (error) throw error;
+  return data.map(rowToClaim);
 }
 
 export async function submitBusinessClaim(input: {
+  userId: string;
   placeId: string;
   businessName: string;
   contactName: string;
@@ -24,34 +41,40 @@ export async function submitBusinessClaim(input: {
   contactPhone: string;
   mapsLink: string;
 }): Promise<BusinessClaimFixture> {
-  const claim: BusinessClaimFixture = {
-    id: mockDb.nextId('claim'),
-    placeId: input.placeId,
-    businessName: input.businessName,
-    contactName: input.contactName,
-    claimedRole: input.claimedRole,
-    contactPhone: input.contactPhone,
-    mapsLink: input.mapsLink,
-    ageLabel: 'Just now',
-    status: 'pending',
-    calledAt: null,
-  };
-  mockDb.businessClaims.push(claim);
-  return claim;
+  const { data, error } = await supabase
+    .from('business_claims')
+    .insert({
+      user_id: input.userId,
+      place_id: input.placeId,
+      business_name: input.businessName,
+      contact_name: input.contactName,
+      claimed_role: input.claimedRole,
+      contact_phone: input.contactPhone,
+      maps_link: input.mapsLink,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return rowToClaim(data);
 }
 
 /** Admin-only: mark the verification phone call as done — separate from approval (S48). */
-export async function adminMarkClaimCalled(claimId: string): Promise<void> {
-  const claim = mockDb.businessClaims.find((c) => c.id === claimId);
-  if (!claim) throw new Error(`claim ${claimId} not found`);
-  claim.calledAt = new Date().toISOString();
+export async function adminMarkClaimCalled(claimId: string, adminId: string): Promise<void> {
+  const { error } = await supabase
+    .from('business_claims')
+    .update({ called_at: new Date().toISOString(), called_by: adminId })
+    .eq('id', claimId);
+  if (error) throw error;
 }
 
 export async function adminResolveClaim(
   claimId: string,
   status: Extract<ClaimStatus, 'verified' | 'rejected'>,
+  adminId: string,
 ): Promise<void> {
-  const claim = mockDb.businessClaims.find((c) => c.id === claimId);
-  if (!claim) throw new Error(`claim ${claimId} not found`);
-  claim.status = status;
+  const { error } = await supabase
+    .from('business_claims')
+    .update({ status, resolved_at: new Date().toISOString(), resolved_by: adminId })
+    .eq('id', claimId);
+  if (error) throw error;
 }

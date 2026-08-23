@@ -92,6 +92,7 @@ credentials — rotate/delete before anything production-adjacent):
 | Role | Email | Password | Notes |
 |---|---|---|---|
 | Admin (superadmin) | `admin.superadmin@dev.madli.test` | `MadliDev!2026` | `role=admin`, `admin_tier=superadmin`, both dangerous-capability grants (`can_override_ranking`, `can_access_location_history`) |
+| Admin (moderation, partial grant) | `admin.moderation@dev.madli.test` | `MadliDev!2026` | `role=admin`, `admin_tier=moderation`, **not** `can_override_ranking` (real permission-denial testing — see `e2e/admin.spec.ts`) — created in Phase 3, see `PHASE_4_HANDOFF.md` for the one-query check to reconfirm its exact grants against the live project |
 | User | `user.test@dev.madli.test` | `MadliDev!2026` | plain `role=user` |
 | Owner | `owner.test@dev.madli.test` | `MadliDev!2026` | `role=user` + a **verified** `business_claims` row on Cafe Bahar (`00000000-0000-0000-0000-0000000000f5`) — mirrors the prototype's own "Imran A. · Owner · Verified" example |
 
