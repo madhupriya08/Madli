@@ -14,14 +14,17 @@ resolve before anyone else can see this work:
 - Plain `git push`/`git ls-remote` against `https://github.com/madhupriya08/Madli` fails with
   `repository not found`, even for a read-only `ls-remote` — this session has no git-level
   credentials wired for this repo at all.
-- The GitHub MCP tools are authenticated as a **different** GitHub account
-  (`chsreemayee`, confirmed via `get_me`) than the repo owner (`madhupriya08`) — `list_branches`
-  against `madhupriya08/madli` returns a real `404`, meaning that account cannot see this repo
-  either.
+- The GitHub MCP tools are authenticated as a **different** GitHub account than the repo owner
+  (`madhupriya08`) — confirmed **twice**, across two separate MCP reconnects in this same session,
+  with two different resulting identities (`chsreemayee`, then later `prashanthreddya0707-cmyk`,
+  both confirmed via `get_me`). `list_branches` against `madhupriya08/Madli` returns a real `404`
+  for both. This rules out "just a transient reconnect" — it's an access-grant problem that survives
+  a fresh MCP connection with a completely different backing account.
 - This is an access/configuration problem, not a transient network error — retrying won't fix it.
   A human needs to either: reconnect this session's GitHub integration under the `madhupriya08`
-  account (or grant `chsreemayee`/whatever App is installed access to this repo), or manually pull
-  the `claude/phase-1-completion-amma9f` branch from wherever this container's local clone ends up
+  account (claude.ai Settings → Connectors), or grant whichever account/App is installed access to
+  this repo (an org owner does this at claude.ai/admin-settings/claude-tag), or manually pull the
+  `claude/phase-1-completion-amma9f` branch from wherever this container's local clone ends up
   preserved, or ask the next session (once access is fixed) to push it.
 - **Nothing is lost**: the local commit exists (`git log` on that branch shows it), it's just not on
   GitHub yet. Do not re-do this phase's work — once access is fixed, a plain `git push -u origin
