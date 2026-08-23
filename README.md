@@ -1,14 +1,10 @@
-# Madli — Frontend (Phase 3: real Supabase integration)
+# Madli
 
-Locally-ranked food and travel app for Hyderabad. This is the Phase 3 frontend: all 52 screens
-from Phase 2, now wired to the real Phase 1 Supabase backend — real auth, real reads/writes, real
-RLS, real triggers, real RPCs. No mock data layer remains in `src/data/`.
-
-Phase 1 (Supabase backend) lives in `supabase/` and `tests/`. See `PHASE_1_COMPLETION_REPORT.md`,
-`PHASE_1_CHECKLIST.md` for what it built. Phase 2 (frontend UI over a mock data layer) is described
-in `PHASE_2_COMPLETION_REPORT.md`, `PHASE_2_CHECKLIST.md`, `PHASE_3_HANDOFF.md` (Phase 2's handoff
-into this phase). This phase's own results are `PHASE_3_COMPLETION_REPORT.md`,
-`PHASE_3_CHECKLIST.md`, and `PHASE_4_HANDOFF.md` (this phase's handoff into the next one).
+Locally-ranked food and travel app for Hyderabad — "three picks, one reason, two minutes." Real
+Supabase backend, real frontend integration, a committed Playwright E2E suite, and an automated
+accessibility scan across the full 52-screen catalogue. Built across four phases (backend → UI →
+integration → final QA); this document is the current, single front door — for the phase-by-phase
+history and full evidence behind every claim below, see "Where to find more" at the bottom.
 
 ## Running it
 
@@ -26,10 +22,26 @@ screen if the real startup fetch (`src/lib/liveConfig.ts`) fails.
 The dev server always opens onto the **dev harness** (`src/dev/DevHarness.tsx`) — a left rail with
 a persona switcher (Guest/User/Owner/Admin, plus admin tier and grants), a breakpoint switcher
 (mobile 390 / desktop 1280), and an "All screens" tray listing all 52 screens by group. The
-Guest/User/Owner/Admin quick-switch is a dev-only convenience that still bypasses real login
+Guest/User/Owner/Admin quick-switch is a dev-only convenience that bypasses real login
 (`src/dev/PersonaContext.tsx` documents this explicitly) — a real `LoginScreen`/`AdminLoginScreen`
 sign-in creates a real Supabase session first and converges on the same state shape. The harness is
 stripped from production builds (`import.meta.env.PROD` early-return in `DevHarness.tsx`).
+
+## Environment variables
+
+Copy `.env.example` to `.env.local` and fill in real values — see that file for the full list and
+what each is for. In short:
+
+- `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` — the frontend's pair (Vite only exposes
+  `VITE_`-prefixed vars to the browser). `SUPABASE_URL` / `SUPABASE_ANON_KEY` (unprefixed) are the
+  same two values, read by Phase 1's backend test suite (`tests/`, plain Node/dotenv).
+- `SUPABASE_SERVICE_ROLE_KEY` — documented for completeness; **nothing in this app actually needs
+  it**. Every operation that must bypass RLS does so through a `SECURITY DEFINER` Postgres function
+  (a Postgres-level privilege), not this key. It must never appear in `src/`.
+- `TEST_ADMIN_EMAIL` / `TEST_USER_EMAIL` / `TEST_OWNER_EMAIL` / `TEST_ADMIN2_EMAIL` /
+  `TEST_ACCOUNT_PASSWORD` — dev-only fixture accounts (see "Test accounts" below).
+- SMS provider and Google OAuth client credentials are commented out — neither is configured (see
+  "Auth provider status").
 
 ## Commands
 
@@ -41,19 +53,43 @@ stripped from production builds (`import.meta.env.PROD` early-return in `DevHarn
 | `npm run typecheck` | `tsc -b --noEmit`, strict mode |
 | `npm run lint` / `lint:fix` | ESLint (typescript-eslint + react-hooks + react-refresh) |
 | `npm run format` | Prettier over `src/**/*.{ts,tsx,css}` |
-| `npm run test:frontend` | Vitest + RTL suite (`src/**/*.test.{ts,tsx}`) — network-free; the client is mocked at the module boundary, not the fixture layer |
+| `npm run test:frontend` | Vitest + RTL suite (`src/**/*.test.{ts,tsx}`) — network-free; the client is mocked at the module boundary |
 | `npm run test:frontend:watch` | Same, in watch mode |
-| `npm test` / `npm run test:watch` | Phase 1's **backend** Vitest suite (`tests/`, `vitest.config.ts`) — real Supabase round trips, requires `.env.local` |
-| `npx playwright test` | The Phase 3 E2E suite (`e2e/`) — a real browser against a real running dev server and the real live Supabase project. See `PHASE_3_COMPLETION_REPORT.md` for the real result of running it, including any environment constraints hit. |
+| `npm test` / `npm run test:watch` | Phase 1's **backend** Vitest suite (`tests/`, root `vitest.config.ts`) — real Supabase round trips, requires `.env.local` |
+| `npx playwright test` | The full E2E suite (`e2e/`) — see "E2E and accessibility" below |
 | `npx playwright show-report` | Open the HTML report from the last E2E run |
 
 `npm test`'s root `vitest.config.ts` is scoped to `include: ['tests/**/*.test.ts']` specifically so
 it cannot accidentally collect `src/**/*.test.tsx` (needs jsdom + `vitest.frontend.config.ts`) or
 `e2e/**/*.spec.ts` (needs Playwright's own runner) — both crash under the wrong runner if collected
-together. This was a real, previously-unnoticed bug: nobody had run `npm test` end to end until
-Phase 3, because Phase 1 verified everything via direct SQL instead (this sandbox blocks outbound
-HTTPS to `*.supabase.co`, so even Phase 3 could only confirm the fix, not get a fully green
-`npm test` run here — see `PHASE_3_COMPLETION_REPORT.md` §3).
+together.
+
+## Data model & RLS — the short version
+
+Full detail lives in `supabase/README.md` and the migration files themselves
+(`supabase/migrations/`, applied in filename order); this is the load-bearing shape.
+
+- **17 tables, RLS enabled on every one.** Reference data (`places`, `categories`, `areas`,
+  `app_config`) is public-read; everything a user creates (`bookmarks`, `plans`, `ranked_entries`,
+  `business_claims`, `location_history`) is owner-scoped by default.
+- **`is_admin()` / `can_override_ranking()` / `can_access_location_history()` /
+  `owns_verified_claim(place_id)`** — `SECURITY DEFINER` helper functions, `search_path` locked,
+  used inside other tables' policies (the standard Supabase pattern for avoiding RLS recursion).
+- **Owner-edit protection** is a Postgres **trigger** (`fn_protect_ranking_fields()`), not a
+  table split — an owner can edit their listing's practical details (phone, hours, description)
+  but never the ranking-relevant fields (locals, visitors, gap, rank), enforced server-side
+  regardless of what the UI happens to expose.
+- **`location_history`** has no admin SELECT policy at all — the only path is
+  `fn_admin_read_location_history()`, which logs the access *before* returning data, in one
+  transaction (a real, verified log-before-read guarantee, not just a comment).
+- **`plans`** share-link access is a real RLS policy keyed on an `x-share-token` request header,
+  not a query filter — an anonymous client sending only that header gets back exactly the one
+  matching plan.
+- **Every admin-gated `SECURITY DEFINER` function** (`fn_admin_read_location_history`,
+  `fn_admin_override_ranking`, `fn_admin_list_accounts`, etc.) is explicitly `revoke`d from
+  `public` and `anon` and only `grant`ed to `authenticated` — Supabase's default privilege grants
+  silently re-open `EXECUTE` to `anon`/`authenticated` on a new function otherwise, a real bug
+  class this repo's own history hit once and now avoids from the start on every new function.
 
 ## Auth provider status
 
@@ -61,59 +97,99 @@ HTTPS to `*.supabase.co`, so even Phase 3 could only confirm the fix, not get a 
   `supabase.auth` calls against the live project.
 - **Phone OTP**: code-complete (`src/lib/auth.ts`'s `signUp`/`verifyOtp` call the real
   `supabase.auth` phone methods) but **not functional** — no SMS provider is configured on this
-  Supabase project (open since Phase 1, `.env.example` §"SMS provider"). Calling it returns the
-  project's real "provider not enabled" error; it is not faked as working.
+  Supabase project. Calling it returns the project's real "provider not enabled" error; it is not
+  faked as working. This is a pending product/infra decision (choose and configure a provider in
+  Supabase Auth settings), not a code gap.
 - **Google OAuth**: same status — `signInWithGoogle()` is wired to the real
   `supabase.auth.signInWithOAuth` call but no OAuth client is configured yet.
 
-## Data layer — now real Supabase calls
+## Data layer
 
 - `src/lib/supabaseClient.ts` — the one `createClient()` call in the app, built from
   `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` only. `supabaseWithShareToken(token)` returns a
   per-request client with an `x-share-token` header, for the anonymous shared-plan read path.
 - `src/data/*.ts` (`places.ts`, `rankedEntries.ts`, `plans.ts`, `businessClaims.ts`, `admin.ts`) —
-  every function is a real `supabase.from(...)` / `supabase.rpc(...)` call. No `TODO(phase-3)`
-  markers remain anywhere in `src/` — grepping for that string returns nothing.
-- `src/lib/auth.ts` — real `supabase.auth` calls, replacing Phase 2's `src/lib/mockAuth.ts` (deleted).
+  every function is a real `supabase.from(...)` / `supabase.rpc(...)` call. No mock data layer
+  remains for any of them.
+- `src/lib/auth.ts` — real `supabase.auth` calls.
 - `src/dev/PersonaContext.tsx` — reflects a real session + `profiles` row on mount
   (`getSession()`/`onAuthStateChange`), while keeping the dev-harness quick-switch for local
   development. See its own header comment for why "Owner" here is a coarse dev-harness concept and
   real per-place ownership must use `useOwnsVerifiedClaim(placeId)` instead.
-- `src/lib/guestSession.tsx` — untouched, as instructed: it is client-side-only state with no
-  backend seam.
-- `src/lib/liveConfig.ts` — a deliberate architectural deviation from a strict per-screen-hook
-  conversion: `places`/`categories`/`areas`/`app_config` are fetched once at startup and used to
-  overwrite the Phase 2 fixture arrays in place, rather than rewriting the 25+ screens that consume
-  them synchronously. Documented in full in the file itself and in
-  `PHASE_3_COMPLETION_REPORT.md` §2.
+- `src/lib/guestSession.tsx` — client-side-only state with no backend seam, deliberately untouched.
+- `src/lib/liveConfig.ts` — `places`/`categories`/`areas`/`app_config` are fetched once at startup
+  and used to overwrite the small set of reference-data fixture arrays those 25+ synchronous call
+  sites already read from, rather than converting every one of those call sites to a loading-aware
+  hook. Documented in full in the file itself.
+- **One still-fixture-backed exception, disclosed, not hidden**: none as of this writing —
+  `RolesAccountsAuditScreen`'s admin-accounts listing (the last one) was converted to a real,
+  admin-gated `fn_admin_list_accounts()` call. If a future change reintroduces a fixture-backed
+  screen, disclose it here the same way.
 
-## E2E suite (`e2e/`)
+## E2E and accessibility (`e2e/`)
 
-Playwright, run against a real dev server and the real live Supabase project — the opposite of
-Phase 2's frontend suite, which deliberately excluded E2E. Covers the core ranking loop, the full
-business-claim lifecycle (submit → admin call → admin approve → owner edit → protected-field
-rejection), admin ranking overrides and the location-history access gate, a guest opening a shared
-plan link with no account, and a dedicated failure-paths spec (network failure at boot, invalid
-credentials, duplicate/invalid data, an unauthorized direct-URL write, an expired session, missing
-resources, and a real Edge Function error). See `e2e/helpers.ts` for the test accounts it drives.
+Playwright, against a real dev server. Two kinds of coverage, for two different constraints:
+
+- **Functional E2E** (`core-loop`, `claim-lifecycle`, `admin`, `shared-plan`, `failure-paths`
+  `.spec.ts`) — runs against the **real live Supabase project**, real login, real RLS, real
+  triggers. Covers the core ranking loop, the full business-claim lifecycle (submit → admin call →
+  admin approve → owner edit → protected-field rejection), admin ranking overrides and the
+  location-history access gate, a guest opening a shared plan link with no account, and named
+  failure paths (network failure, invalid credentials, duplicate/invalid data, an unauthorized
+  direct-URL write, an expired session, a missing resource, a real Edge Function error).
+- **Accessibility + keyboard** (`accessibility.spec.ts`, `keyboard-nav.spec.ts`) — runs against
+  **mocked network responses** (`e2e/mockBoot.ts`, real seed-derived data, not synthetic
+  placeholders) so it works regardless of live network access: an automated axe-core scan of every
+  one of the 52 screens' default state, plus a genuine keyboard-only pass (modal focus trap/escape,
+  tab order, visible focus).
 
 ```
-npx playwright test              # whole suite, headless chromium
-npx playwright test e2e/admin.spec.ts   # one file
+npx playwright test                        # whole suite
+npx playwright test e2e/admin.spec.ts      # one file
+npx playwright test accessibility.spec.ts  # just the a11y scan (no live network needed)
 npx playwright show-report
 ```
 
+`e2e/helpers.ts` has the test accounts the functional specs drive. See the completion reports
+(below) for the real, actually-observed pass/fail result of each run in the environment it was run
+in, including any environment-specific constraints hit along the way — don't assume a clean run
+without checking.
+
+## Test accounts (dev-only — rotate/delete before anything production-adjacent)
+
+| Role | Email | Password | Notes |
+|---|---|---|---|
+| Admin (superadmin) | `admin.superadmin@dev.madli.test` | `MadliDev!2026` | full grants |
+| Admin (moderation, partial grant) | `admin.moderation@dev.madli.test` | `MadliDev!2026` | no `can_override_ranking` — for real permission-denial testing |
+| User | `user.test@dev.madli.test` | `MadliDev!2026` | plain `role=user` |
+| Owner | `owner.test@dev.madli.test` | `MadliDev!2026` | a real **verified** claim on Cafe Bahar |
+
 ## Dev harness usage
 
-- **Persona**: switches `usePersona()` (`src/dev/PersonaContext.tsx`) for local development without
-  a real login. A real session (via `LoginScreen`/`AdminLoginScreen`) takes precedence and reflects
-  the actual signed-in user's real `profiles` row.
+- **Persona**: switches `usePersona()` for local development without a real login. A real session
+  (via `LoginScreen`/`AdminLoginScreen`) takes precedence and reflects the actual signed-in user's
+  real `profiles` row.
 - **Admin tier / grants**: only shown when persona is Admin — toggles `admin_tier` and the two
-  independent boolean grants (`can_override_ranking`, `can_access_location_history`). For real
-  permission testing against an account that does *not* hold every grant, see the second admin test
-  account documented in `PHASE_4_HANDOFF.md`.
-- **Breakpoint**: mobile (390px) / desktop (1280px). The 9 screens with real layout divergence
-  (S15, S17, S18, S19, S20, S21, S31, S42, S43) render genuinely different markup at each, not just
-  reflowed CSS.
+  independent boolean grants (`can_override_ranking`, `can_access_location_history`).
+- **Breakpoint**: mobile (390px) / desktop (1280px). 9 screens (S15, S17, S18, S19, S20, S21, S31,
+  S42, S43) render genuinely different markup at each, not just reflowed CSS.
 - **All screens tray**: every registered screen (`src/screens/registry.ts`), grouped and
   filterable.
+
+## Where to find more
+
+This repo was built across four phases; each phase's own completion report and checklist have the
+full evidence (exact commands run, exact output, every bug found and how) behind the summaries
+above — read them, don't re-derive:
+
+| Phase | What it built | Reports |
+|---|---|---|
+| 1 — Backend | Schema, RLS, Postgres functions, auth, seed data, one Edge Function | `PHASE_1_COMPLETION_REPORT.md`, `PHASE_1_CHECKLIST.md` |
+| 2 — Frontend UI | All 52 screens, 28 design system components, over a mock data layer | `PHASE_2_COMPLETION_REPORT.md`, `PHASE_2_CHECKLIST.md` |
+| 3 — Integration | Every mock seam replaced with real Supabase calls, real auth, a committed Playwright suite | `PHASE_3_COMPLETION_REPORT.md`, `PHASE_3_CHECKLIST.md` |
+| 4 — Final QA | Full audit, the last fixture-backed screen closed, accessibility scan + fixes, production readiness | `PHASE_4_QA_REPORT.md`, `PHASE_4_CHECKLIST.md`, `PRODUCTION_READINESS_SUMMARY.md` |
+
+`supabase/README.md` has the full backend detail (project info, migrations, seed data, the complete
+RLS policy inventory, Edge Function detail). `design_handoff_madli/` is the original design source
+of truth (`README.md`, `CLAUDE.md`, `design-system/`, `prototype/`) — read `CLAUDE.md` first, as it
+itself instructs.

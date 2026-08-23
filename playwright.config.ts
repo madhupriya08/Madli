@@ -28,6 +28,21 @@ export default defineConfig({
         // This sandbox's pre-installed Chromium (see environment docs) — do
         // not run `playwright install`.
         launchOptions: { executablePath: '/opt/pw-browsers/chromium' },
+        // Phase 4 (§4): Node processes here pick up HTTPS_PROXY automatically;
+        // Chromium does not by default, which is why Phase 3 saw 13 browser
+        // requests hang for the full test timeout instead of failing fast —
+        // the underlying host was policy-denied either way, just silently.
+        // Routing the browser through the same proxy turns that into the
+        // same fast, clean CONNECT-403 Node already gets, so a genuinely
+        // blocked host is diagnosed in seconds, not ~5 minutes of timeouts.
+        // `bypass` is required: without it, the *local* dev server
+        // (localhost:5173, this suite's own webServer) also gets routed
+        // through the proxy, which rejects plain-HTTP/absolute-form
+        // requests outright — a real failure mode hit once in this phase
+        // before adding this bypass (PHASE_4_QA_REPORT.md §4).
+        proxy: process.env.HTTPS_PROXY
+          ? { server: process.env.HTTPS_PROXY, bypass: 'localhost,127.0.0.1' }
+          : undefined,
       },
     },
   ],

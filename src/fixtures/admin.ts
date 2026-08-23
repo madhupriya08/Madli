@@ -27,14 +27,13 @@ export interface AdminAccountRow {
   status: AdminAccountStatus;
 }
 
-// ADMIN_ROWS — this is the real evidence Phase 1 used to resolve "admin
-// permission granularity" (multiple real tiers exist, not a single flat role).
-export const adminAccounts: AdminAccountRow[] = [
-  { email: 'priya@madli.app', tier: 'superadmin', lastActive: 'Now', status: 'Active' },
-  { email: 'arjun@madli.app', tier: 'catalogue', lastActive: '26 min ago', status: 'Active' },
-  { email: 'sneha@madli.app', tier: 'moderation', lastActive: '3 h ago', status: 'Active' },
-  { email: 'vikram@madli.app', tier: 'catalogue', lastActive: '12 d ago', status: 'Suspended' },
-];
+// The ADMIN_ROWS fixture array that used to live here (Phase 1's real
+// evidence that "admin permission granularity" needed multiple real tiers,
+// not a single flat role) is gone — Phase 4 §5 replaced it with a real
+// listing (`fn_admin_list_accounts`, called via `useAdminAccounts()`), so it
+// was genuinely dead weight, not still-load-bearing fixture data. The types
+// above remain: they're the shape contract `src/data/admin.ts` maps the real
+// rows into.
 
 export type ClaimStatus = 'pending' | 'verified' | 'rejected';
 

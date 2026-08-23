@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AppShell } from '../layout/AppShell';
 import { RankBadge } from '../../components/trust/RankBadge';
@@ -18,10 +19,13 @@ export function LogVisitLandedScreen() {
   const { persona } = usePersona();
   const state = location.state as LandedState | null;
 
-  if (!state) {
-    navigate('/');
-    return null;
-  }
+  // Phase 4 §9: navigate() moved into an effect, not called during render —
+  // see ClaimStatusScreen for why (PHASE_4_QA_REPORT.md §9).
+  useEffect(() => {
+    if (!state) navigate('/');
+  }, [state, navigate]);
+
+  if (!state) return null;
 
   return (
     <AppShell title="Added to your list" showTabBar={false}>

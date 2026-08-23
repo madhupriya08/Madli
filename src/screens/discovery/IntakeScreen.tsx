@@ -128,6 +128,7 @@ export function IntakeScreen() {
         aria-valuenow={step + 1}
         aria-valuemin={1}
         aria-valuemax={steps.length}
+        aria-label={`Step ${step + 1} of ${steps.length}`}
         style={{ height: 3, background: 'var(--surface-sunken)' }}
       >
         <div

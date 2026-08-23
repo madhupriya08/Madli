@@ -181,11 +181,8 @@ export function useAdminMarkClaimCalled() {
 export function useAdminResolveClaim() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: {
-      claimId: string;
-      status: 'verified' | 'rejected';
-      adminId: string;
-    }) => businessClaimsApi.adminResolveClaim(input.claimId, input.status, input.adminId),
+    mutationFn: (input: { claimId: string; status: 'verified' | 'rejected'; adminId: string }) =>
+      businessClaimsApi.adminResolveClaim(input.claimId, input.status, input.adminId),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['businessClaims'] });
       // A newly-verified claim changes owns_verified_claim() for that user/place.
@@ -218,7 +215,8 @@ export function useAdminOverrideRanking() {
       gapTone: 'clear' | 'close' | 'thin';
       gapPoints: number | null;
       reason: string;
-    }) => adminApi.adminOverrideRanking(input.placeId, input.gapTone, input.gapPoints, input.reason),
+    }) =>
+      adminApi.adminOverrideRanking(input.placeId, input.gapTone, input.gapPoints, input.reason),
     onSuccess: (_data, input) => {
       void qc.invalidateQueries({ queryKey: ['publishedPicks'] });
       void qc.invalidateQueries({ queryKey: ['allPlaces'] });
@@ -262,4 +260,12 @@ export function useResolveReport() {
 
 export function useAuditLog() {
   return useQuery({ queryKey: ['auditLog'], queryFn: adminApi.getAuditLog });
+}
+
+export function useAdminAccounts() {
+  return useQuery({ queryKey: ['adminAccounts'], queryFn: adminApi.listAdminAccounts });
+}
+
+export function useRankedEntriesCount() {
+  return useQuery({ queryKey: ['rankedEntriesCount'], queryFn: adminApi.countRankedEntries });
 }

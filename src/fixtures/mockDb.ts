@@ -1,18 +1,10 @@
-// Mutable in-memory "database" backing the Phase 2 data layer (src/data/).
-// Seeded from the fixtures above; mutated by the data-layer functions as the
-// app runs, exactly like the real Postgres tables Phase 3 will swap in.
-// Module-singleton state — fine for a mock layer, not meant to survive reload.
-import {
-  businessClaimsSeed,
-  reportsSeed,
-  auditLogSeed,
-  locationHistorySeed,
-  type BusinessClaimFixture,
-  type ReportFixture,
-  type AuditLogFixture,
-  type LocationHistoryFixture,
-} from './admin';
-
+// Phase 4 §12: the mutable in-memory "database" this file used to export
+// (`mockDb`, a `MockDb` class instance) backed Phase 2's mock data layer —
+// Phase 3 replaced every one of its real callers with real Supabase calls,
+// and nothing has imported the runtime object since (confirmed by grep: only
+// the type exports below are still referenced). Removed as genuinely dead
+// weight, not load-bearing for anything — the types stay, since
+// `src/data/*.ts` still uses them as the shape contract for real rows.
 export type Tier = 'loved' | 'fine' | 'disliked';
 
 export interface RankedEntry {
@@ -24,13 +16,6 @@ export interface RankedEntry {
   position: number;
 }
 
-export interface Bookmark {
-  id: string;
-  userId: string;
-  placeId: string;
-  createdAt: string;
-}
-
 export interface Plan {
   id: string;
   userId: string;
@@ -39,35 +24,3 @@ export interface Plan {
   name: string | null;
   shareToken: string | null;
 }
-
-export interface LocationHistoryAccessLogEntry {
-  id: string;
-  adminId: string;
-  targetUserId: string;
-  reason: string;
-  accessedAt: string;
-}
-
-function makeId(prefix: string): string {
-  return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
-}
-
-class MockDb {
-  rankedEntries: RankedEntry[] = [];
-  bookmarks: Bookmark[] = [];
-  plans: Plan[] = [];
-  businessClaims: BusinessClaimFixture[] = businessClaimsSeed.map((c) => ({ ...c }));
-  reports: ReportFixture[] = reportsSeed.map((r) => ({ ...r }));
-  auditLog: AuditLogFixture[] = auditLogSeed.map((a) => ({ ...a }));
-  locationHistory: LocationHistoryFixture[] = locationHistorySeed.map((l) => ({ ...l }));
-  locationHistoryAccessLog: LocationHistoryAccessLogEntry[] = [];
-  contributorWeights: Record<string, number> = {};
-  suspendedUserIds: Set<string> = new Set();
-  deletedUserIds: Set<string> = new Set();
-
-  nextId(prefix: string): string {
-    return makeId(prefix);
-  }
-}
-
-export const mockDb = new MockDb();

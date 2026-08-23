@@ -2,7 +2,7 @@ import { AdminShell } from '../layout/AdminShell';
 import { Card } from '../../components/core/Card';
 import { usePersona } from '../../dev/PersonaContext';
 import { places } from '../../fixtures/places';
-import { mockDb } from '../../fixtures/mockDb';
+import { useBusinessClaims, useReports, useRankedEntriesCount } from '../../data/hooks';
 
 // S42: dense desktop, top-5-KPI mobile (real divergence). Loading is
 // skeleton charts — a blank dashboard reads as broken (not modeled at
@@ -31,14 +31,23 @@ export function AnalyticsDashboardScreen() {
   const topFive = METRICS_DESKTOP.slice(0, 5);
   const shown = breakpoint === 'desktop' ? METRICS_DESKTOP : topFive;
 
+  // Real counts (Phase 4 §6 — this screen was still reading Phase 2's mock
+  // store; see fn_admin_count_ranked_entries's migration for why
+  // ranked-visits specifically needed a new admin-gated function while
+  // claims/reports didn't: business_claims/reports RLS already lets an
+  // admin see every row, ranked_entries' RLS is strictly owner-only).
+  const { data: rankedEntriesCount } = useRankedEntriesCount();
+  const { data: allClaims = [] } = useBusinessClaims();
+  const { data: allReports = [] } = useReports();
+
   const values: Record<string, string> = {
     'Total places': String(places.length),
     'Active users (30d)': '—',
-    'Ranked visits logged': String(mockDb.rankedEntries.length),
+    'Ranked visits logged': rankedEntriesCount === undefined ? '…' : String(rankedEntriesCount),
     'Guest → signup rate': '—',
     'Avg. search-to-pick time': '—',
-    'Claims pending': String(mockDb.businessClaims.filter((c) => c.status === 'pending').length),
-    'Reports open': String(mockDb.reports.filter((r) => r.status === 'open').length),
+    'Claims pending': String(allClaims.filter((c) => c.status === 'pending').length),
+    'Reports open': String(allReports.filter((r) => r.status === 'open').length),
   };
 
   return (

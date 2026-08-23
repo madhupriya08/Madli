@@ -14,7 +14,14 @@ import { pickComparisonTargets } from './rankedEntries';
 import type { RankedEntry } from '../fixtures/mockDb';
 
 function entry(placeId: string, position: number): RankedEntry {
-  return { id: `re-${placeId}`, userId: 'u1', placeId, categoryId: 'cat-1', tier: 'loved', position };
+  return {
+    id: `re-${placeId}`,
+    userId: 'u1',
+    placeId,
+    categoryId: 'cat-1',
+    tier: 'loved',
+    position,
+  };
 }
 
 describe('pickComparisonTargets', () => {

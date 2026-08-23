@@ -123,19 +123,29 @@ export function loadLiveConfig(): Promise<void> {
       })),
     );
 
-    const configByKey = new Map(configRes.data.map((row) => [row.key, row.value as Record<string, unknown>]));
+    const configByKey = new Map(
+      configRes.data.map((row) => [row.key, row.value as Record<string, unknown>]),
+    );
     const num = (key: string, field: string, fallback: number) => {
       const v = configByKey.get(key)?.[field];
       return typeof v === 'number' ? v : fallback;
     };
     const str = <T extends string>(key: string, field: string, fallback: T) => {
       const v = configByKey.get(key)?.[field];
-      return (typeof v === 'string' ? (v as T) : fallback);
+      return typeof v === 'string' ? (v as T) : fallback;
     };
 
     Object.assign(appConfig, {
-      rankingThresholdLocals: num('ranking_threshold_locals', 'threshold', appConfig.rankingThresholdLocals),
-      guestPaywallAtSearch: num('guest_paywall_at', 'search_number', appConfig.guestPaywallAtSearch),
+      rankingThresholdLocals: num(
+        'ranking_threshold_locals',
+        'threshold',
+        appConfig.rankingThresholdLocals,
+      ),
+      guestPaywallAtSearch: num(
+        'guest_paywall_at',
+        'search_number',
+        appConfig.guestPaywallAtSearch,
+      ),
       secondComparisonMode: str('second_comparison', 'mode', appConfig.secondComparisonMode),
       homeMode: str('home_mode', 'mode', appConfig.homeMode),
       intakeSteps: num('intake_length', 'steps', appConfig.intakeSteps) as 2 | 3,

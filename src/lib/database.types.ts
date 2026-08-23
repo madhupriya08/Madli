@@ -426,6 +426,20 @@ export type Database = {
         Returns: string;
       };
       fn_admin_capture_rank_snapshot: { Args: Record<string, never>; Returns: number };
+      fn_admin_count_ranked_entries: { Args: Record<string, never>; Returns: number };
+      fn_admin_list_accounts: {
+        Args: Record<string, never>;
+        Returns: {
+          admin_tier: string | null;
+          can_access_location_history: boolean;
+          can_override_ranking: boolean;
+          email: string;
+          id: string;
+          is_suspended: boolean;
+          last_active_at: string | null;
+          role: string;
+        }[];
+      };
       fn_admin_list_gem_candidates: {
         Args: Record<string, never>;
         Returns: Database['public']['Views']['gem_candidates']['Row'][];

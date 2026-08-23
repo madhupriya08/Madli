@@ -1,9 +1,9 @@
-# Madli — Supabase backend (Phase 1)
+# Madli — Supabase backend
 
-Phase 1 deliverable: schema, RLS, Postgres functions, auth wiring, seed data, and
-one Edge Function for **Madli**, a locally-ranked food/travel app for Hyderabad.
-No frontend UI exists yet — that's Phase 2. See `PHASE_2_HANDOFF.md` at the repo
-root before starting that work.
+Schema, RLS, Postgres functions, auth wiring, seed data, and one Edge Function for **Madli**, a
+locally-ranked food/travel app for Hyderabad. Originally Phase 1's deliverable; the frontend
+(`src/`) is now fully integrated against this backend for real — see the root `README.md` for the
+current, whole-repo picture and where each phase's own report lives.
 
 ## Project
 

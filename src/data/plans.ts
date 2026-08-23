@@ -18,7 +18,10 @@ function rowToPlan(row: Record<string, unknown>): Plan {
 }
 
 export async function getBookmarks(userId: string): Promise<{ id: string; placeId: string }[]> {
-  const { data, error } = await supabase.from('bookmarks').select('id, place_id').eq('user_id', userId);
+  const { data, error } = await supabase
+    .from('bookmarks')
+    .select('id, place_id')
+    .eq('user_id', userId);
   if (error) throw error;
   return data.map((b) => ({ id: b.id, placeId: b.place_id }));
 }

@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AppShell } from '../layout/AppShell';
 import { Badge } from '../../components/core/Badge';
@@ -14,12 +15,21 @@ export function ClaimStatusScreen() {
   const place = slug ? placeBySlug(decodeURIComponent(slug)) : undefined;
   const { data: claims = [], isLoading } = useBusinessClaims({ placeId: place?.id, userId });
   const claim = claims[0];
+  const notFound = !isLoading && (!place || !claim);
 
-  if (isLoading) return null;
-  if (!place || !claim) {
-    navigate(-1);
-    return null;
-  }
+  // Phase 4 §9: navigate() belongs in an effect, not the render body — calling
+  // it directly during render (the previous shape here) is a real React
+  // anti-pattern that can leave the whole tree unmounted with no
+  // ErrorBoundary to catch it (found via an automated accessibility scan
+  // hitting exactly this path: a real place with no matching claim, e.g. a
+  // stale bookmark or shared link — PHASE_4_QA_REPORT.md §9).
+  useEffect(() => {
+    if (notFound) navigate(-1);
+  }, [notFound, navigate]);
+
+  if (isLoading || notFound) return null;
+  // Narrowed by `notFound` above, but TypeScript can't see through that.
+  if (!place || !claim) return null;
 
   const tone =
     claim.status === 'verified' ? 'success' : claim.status === 'rejected' ? 'warn' : 'neutral';

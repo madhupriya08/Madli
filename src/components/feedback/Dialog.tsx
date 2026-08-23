@@ -1,5 +1,15 @@
-import { useId, type CSSProperties, type MouseEvent, type ReactNode } from 'react';
+import {
+  useEffect,
+  useId,
+  useRef,
+  type CSSProperties,
+  type MouseEvent,
+  type ReactNode,
+} from 'react';
 import { IconButton } from '../core/IconButton';
+
+const FOCUSABLE_SELECTOR =
+  'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 export interface DialogProps {
   open?: boolean;
@@ -26,6 +36,60 @@ export function Dialog({
   style,
 }: DialogProps) {
   const titleId = useId();
+  const panelRef = useRef<HTMLDivElement>(null);
+  // onClose is an inline arrow function at nearly every call site, so its
+  // identity changes on every parent re-render (e.g. every keystroke in a
+  // sibling input). Reading it via a ref, rather than as an effect
+  // dependency, keeps the setup effect below from re-running — and
+  // re-stealing focus — on every such render. Found as a real regression
+  // this introduced in PrivacySettingsScreen's delete-confirmation input
+  // (Phase 4 §9): typing was interrupted because the dialog kept
+  // re-focusing itself on every keystroke.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
+
+  // Real modal focus management (found missing in the Phase 4 §9
+  // keyboard-only pass — this component had role="dialog"/aria-modal but no
+  // actual focus behavior): move focus into the dialog on open, trap
+  // Tab/Shift+Tab within it, close on Escape, and restore focus to whatever
+  // triggered it on close. Every screen using Dialog (9 of them) gets this
+  // for free. Runs once per open/close transition only (see onCloseRef above
+  // for why onClose itself isn't a dependency).
+  useEffect(() => {
+    if (!open) return;
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    const panel = panelRef.current;
+    const firstFocusable = panel?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
+    (firstFocusable ?? panel)?.focus();
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onCloseRef.current?.();
+        return;
+      }
+      if (e.key !== 'Tab' || !panel) return;
+      const focusable = Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      previouslyFocused?.focus();
+    };
+  }, [open]);
+
   if (!open) return null;
   const sheet = variant === 'sheet';
 
@@ -49,8 +113,10 @@ export function Dialog({
       onClick={handleScrimClick}
     >
       <div
+        ref={panelRef}
         role="dialog"
         aria-modal="true"
+        tabIndex={-1}
         aria-labelledby={title ? titleId : undefined}
         style={{
           width: sheet ? '100%' : `min(100%, ${width}px)`,

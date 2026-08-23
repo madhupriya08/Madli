@@ -61,10 +61,7 @@ function rowToPlace(row: Record<string, unknown>): Place {
 const SELECT_WITH_DETAILS = '*, place_eat_details(*), place_explore_details(*)';
 
 export async function getPublishedPicks(filters: PlaceFilters = {}): Promise<Place[]> {
-  const query = applyFilters(
-    supabase.from('published_picks').select(SELECT_WITH_DETAILS),
-    filters,
-  );
+  const query = applyFilters(supabase.from('published_picks').select(SELECT_WITH_DETAILS), filters);
   const { data, error } = await query;
   if (error) throw error;
   return (data as unknown as Record<string, unknown>[]).map(rowToPlace);

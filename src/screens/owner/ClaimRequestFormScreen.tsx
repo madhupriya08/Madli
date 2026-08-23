@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AppShell } from '../layout/AppShell';
 import { Input } from '../../components/forms/Input';
@@ -28,8 +28,13 @@ export function ClaimRequestFormScreen() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  // Phase 4 §9: navigate() moved into an effect, not called during render —
+  // see ClaimStatusScreen/OwnerEditListingScreen for why (PHASE_4_QA_REPORT.md §9).
+  useEffect(() => {
+    if (!place) navigate(-1);
+  }, [place, navigate]);
+
   if (!place) {
-    navigate(-1);
     return null;
   }
 

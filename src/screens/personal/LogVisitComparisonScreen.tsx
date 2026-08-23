@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AppShell } from '../layout/AppShell';
 import { Card } from '../../components/core/Card';
@@ -32,10 +32,13 @@ export function LogVisitComparisonScreen() {
     newPlace?.categoryId,
   );
 
-  if (!state || !newPlace) {
-    navigate('/log-visit');
-    return null;
-  }
+  // Phase 4 §9: navigate() moved into an effect, not called during render —
+  // see ClaimStatusScreen for why (PHASE_4_QA_REPORT.md §9).
+  useEffect(() => {
+    if (!state || !newPlace) navigate('/log-visit');
+  }, [state, newPlace, navigate]);
+
+  if (!state || !newPlace) return null;
 
   const compareTarget1 = targets?.first ? placeById(targets.first) : undefined;
   const compareTarget2 = targets?.second ? placeById(targets.second) : undefined;

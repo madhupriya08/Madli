@@ -1,15 +1,12 @@
 import { AdminShell } from '../layout/AdminShell';
 import { Badge } from '../../components/core/Badge';
 import { usePersona } from '../../dev/PersonaContext';
-import { adminAccounts } from '../../fixtures/admin';
-import { useAuditLog } from '../../data/hooks';
+import { useAuditLog, useAdminAccounts } from '../../data/hooks';
 
-// The admin-accounts table below is still fixture data, not a Phase 3 seam:
-// there is no real query that can produce it. `profiles` (readable via RLS)
-// has no email column — email lives in `auth.users`, which the client
-// cannot query at all — and there is no "list all admins with last-active"
-// view/RPC in Phase 1's schema to call instead. Building one is new backend
-// scope this phase wasn't asked for (see PHASE_4_HANDOFF.md).
+// Phase 4 §5: real admin-accounts listing via fn_admin_list_accounts (a
+// SECURITY DEFINER function joining auth.users.email with profiles,
+// admin-gated) — replaces Phase 2/3's fixture data. See
+// PHASE_4_QA_REPORT.md §5 for the design decision and live verification.
 
 // S50: the audit log is marked read-only and stated as immutable — it sits
 // below the account table because it's the proof, not the control.
@@ -19,6 +16,7 @@ import { useAuditLog } from '../../data/hooks';
 export function RolesAccountsAuditScreen() {
   const { breakpoint } = usePersona();
   const { data: auditLog = [] } = useAuditLog();
+  const { data: adminAccounts = [] } = useAdminAccounts();
 
   return (
     <AdminShell title="Roles, accounts, audit log">

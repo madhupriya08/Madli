@@ -73,7 +73,11 @@ export function BusinessClaimsQueueScreen() {
                       <Button
                         size="sm"
                         onClick={async () => {
-                          await resolveClaim.mutateAsync({ claimId: c.id, status: 'verified', adminId });
+                          await resolveClaim.mutateAsync({
+                            claimId: c.id,
+                            status: 'verified',
+                            adminId,
+                          });
                           show('Claim approved.');
                         }}
                       >
@@ -83,7 +87,11 @@ export function BusinessClaimsQueueScreen() {
                         size="sm"
                         variant="ghost"
                         onClick={async () => {
-                          await resolveClaim.mutateAsync({ claimId: c.id, status: 'rejected', adminId });
+                          await resolveClaim.mutateAsync({
+                            claimId: c.id,
+                            status: 'rejected',
+                            adminId,
+                          });
                           show('Claim rejected.');
                         }}
                       >

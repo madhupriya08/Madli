@@ -28,7 +28,9 @@ export function SavedPlanDetailScreen() {
   const { show } = useToast();
   const createShareToken = useCreatePlanShareToken();
 
-  const { data: sharedPlan, isLoading: sharedLoading } = useSharedPlan(isSharedLink ? id : undefined);
+  const { data: sharedPlan, isLoading: sharedLoading } = useSharedPlan(
+    isSharedLink ? id : undefined,
+  );
   const { data: ownPlans = [], isLoading: ownLoading } = usePlans(isSharedLink ? '' : userId);
   const plan = isSharedLink ? sharedPlan : ownPlans.find((p) => p.id === id);
 

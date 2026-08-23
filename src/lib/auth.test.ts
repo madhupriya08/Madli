@@ -9,9 +9,9 @@ import { validateSignup } from './auth';
 
 describe('validateSignup', () => {
   it('rejects a malformed email', () => {
-    expect(validateSignup({ method: 'email', identifier: 'not-an-email', password: 'longenough' })).toBe(
-      'Enter a valid email address.',
-    );
+    expect(
+      validateSignup({ method: 'email', identifier: 'not-an-email', password: 'longenough' }),
+    ).toBe('Enter a valid email address.');
   });
 
   it('accepts a well-formed email with a long-enough password', () => {
@@ -33,8 +33,8 @@ describe('validateSignup', () => {
   });
 
   it('rejects a password shorter than 8 characters even with a valid email', () => {
-    expect(validateSignup({ method: 'email', identifier: 'person@example.com', password: 'short' })).toBe(
-      'Password must be at least 8 characters.',
-    );
+    expect(
+      validateSignup({ method: 'email', identifier: 'person@example.com', password: 'short' }),
+    ).toBe('Password must be at least 8 characters.');
   });
 });
