@@ -12,6 +12,7 @@ import { useGuestSession } from '../../lib/guestSession';
 import { usePublishedPicks } from '../../data/hooks';
 import { categoryName } from '../../fixtures/categories';
 import type { Place } from '../../fixtures/places';
+import { placePhotoUrl } from '../../lib/placePhoto';
 
 /**
  * S17 (Eat) and S18 (Explore) share this exact implementation by design — the
@@ -154,6 +155,7 @@ export function ResultsScreen({ door }: { door: 'eat' | 'explore' }) {
                   gapPoints={p.gapPoints ?? undefined}
                   locals={p.locals}
                   visitors={p.visitors}
+                  photoSrc={placePhotoUrl(p.slug)}
                   photoLabel={p.name}
                   onClick={() => navigate(`/places/${encodeURIComponent(p.slug)}`)}
                 />

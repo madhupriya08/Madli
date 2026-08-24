@@ -2,6 +2,7 @@ import { MarketingShell } from '../layout/MarketingShell';
 import { PickCard } from '../../components/trust/PickCard';
 import { places } from '../../fixtures/places';
 import { categoryName } from '../../fixtures/categories';
+import { placePhotoUrl } from '../../lib/placePhoto';
 
 // S2: placed before signup on purpose — the mechanic is the pitch. The live
 // PickCard row here is the same component the app uses; what's described is
@@ -64,6 +65,7 @@ export function HowItWorksPage() {
               gapPoints={p.gapPoints ?? undefined}
               locals={p.locals}
               visitors={p.visitors}
+              photoSrc={placePhotoUrl(p.slug)}
               photoLabel={p.name}
             />
           ))}

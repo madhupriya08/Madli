@@ -6,6 +6,7 @@ import { areas } from '../../fixtures/areas';
 import { places } from '../../fixtures/places';
 import { categoryName } from '../../fixtures/categories';
 import { appConfig } from '../../fixtures/appConfig';
+import { placePhotoUrl } from '../../lib/placePhoto';
 
 // S4: the SEO surface, and the honest one — coverage depth printed per
 // neighbourhood. Empty state uses the real threshold: about 50 local ratings
@@ -65,6 +66,7 @@ export function NeighbourhoodPage() {
                 gapPoints={p.gapPoints ?? undefined}
                 locals={p.locals}
                 visitors={p.visitors}
+                photoSrc={placePhotoUrl(p.slug)}
                 photoLabel={p.name}
               />
             ))}

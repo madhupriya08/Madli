@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from 'react';
+import { useState, type CSSProperties, type ReactNode } from 'react';
 
 export interface PhotoFrameProps {
   src?: string;
@@ -28,6 +28,18 @@ export function PhotoFrame({
   children,
   style,
 }: PhotoFrameProps) {
+  // Photography is currently served from a public placeholder host (see
+  // src/lib/placePhoto.ts), so a load can fail for reasons that have nothing
+  // to do with this app: offline, a content blocker, a corporate proxy. On
+  // failure fall back to the labelled placeholder this component already
+  // renders for a missing src, rather than leaving the browser's broken-image
+  // glyph in a card the whole product's credibility rests on.
+  // Records *which* src failed rather than a bare boolean: a new src is then
+  // retried automatically, with no reset effect, so one failure can't poison
+  // the slot for every later place rendered through the same component.
+  const [failedSrc, setFailedSrc] = useState<string | undefined>(undefined);
+  const showImage = Boolean(src) && failedSrc !== src;
+
   return (
     <div
       style={{
@@ -35,14 +47,16 @@ export function PhotoFrame({
         aspectRatio: children && !ratio ? undefined : ratio,
         borderRadius: radius,
         overflow: 'hidden',
-        background: src ? 'var(--surface-sunken)' : 'var(--brand-cream)',
+        background: showImage ? 'var(--surface-sunken)' : 'var(--brand-cream)',
         ...style,
       }}
     >
-      {src ? (
+      {showImage ? (
         <img
           src={src}
           alt={alt || label || ''}
+          loading="lazy"
+          onError={() => setFailedSrc(src)}
           style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
         />
       ) : (

@@ -8,6 +8,7 @@ import { usePersona } from '../../dev/PersonaContext';
 import { useCreatePlan } from '../../data/hooks';
 import { places, placeBySlug } from '../../fixtures/places';
 import { categoryName } from '../../fixtures/categories';
+import { placePhotoUrl } from '../../lib/placePhoto';
 
 // S20: Guest sees the whole module as a teaser and the tap opens the signup
 // prompt rather than the plan. "Save the pair as a plan" writes into
@@ -64,6 +65,8 @@ export function BridgeTapScreen() {
           locals={eatPlace.locals}
           visitors={eatPlace.visitors}
           gapTone={eatPlace.gapTone ?? 'clear'}
+          photoSrc={placePhotoUrl(eatPlace.slug)}
+          photoLabel={eatPlace.name}
         />
         <PickCard
           rank={1}
@@ -72,6 +75,8 @@ export function BridgeTapScreen() {
           neighborhood={explorePick.neighborhood}
           reason={explorePick.reason}
           gapTone="clear"
+          photoSrc={placePhotoUrl(explorePick.slug)}
+          photoLabel={explorePick.name}
         />
       </div>
       <div style={{ padding: '0 var(--gutter) var(--space-6)' }}>

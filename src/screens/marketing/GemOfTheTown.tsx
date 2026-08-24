@@ -4,6 +4,7 @@ import { PickCard } from '../../components/trust/PickCard';
 import { Badge } from '../../components/core/Badge';
 import { places } from '../../fixtures/places';
 import { categoryName } from '../../fixtures/categories';
+import { placePhotoUrl } from '../../lib/placePhoto';
 
 // S3: view-only for every role, including Admin (curation happens on S47).
 // Local rank against outside fame, side by side — the gap is the editorial
@@ -51,6 +52,7 @@ export function GemOfTheTownPage() {
             gapPoints={gem.gapPoints ?? undefined}
             locals={gem.locals}
             visitors={gem.visitors}
+            photoSrc={placePhotoUrl(gem.slug)}
             photoLabel={gem.name}
           />
         </div>

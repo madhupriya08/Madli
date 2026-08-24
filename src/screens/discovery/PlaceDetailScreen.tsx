@@ -11,6 +11,7 @@ import { EmptyState } from '../../components/feedback/EmptyState';
 import { usePersona } from '../../dev/PersonaContext';
 import { places } from '../../fixtures/places';
 import { categoryName } from '../../fixtures/categories';
+import { placePhotoUrl } from '../../lib/placePhoto';
 import {
   useAddBookmark,
   useBookmarks,
@@ -65,7 +66,12 @@ export function PlaceDetailScreen() {
   const isBookmarked = bookmarks.some((b) => b.placeId === place.id);
 
   const media = (
-    <PhotoFrame label={place.name} ratio={breakpoint === 'desktop' ? '4 / 3' : '16 / 10'}>
+    <PhotoFrame
+      src={placePhotoUrl(place.slug, 1000, 750)}
+      alt={place.name}
+      label={place.name}
+      ratio={breakpoint === 'desktop' ? '4 / 3' : '16 / 10'}
+    >
       <div style={{ position: 'absolute', top: 12, left: 12 }}>
         {place.gem ? <Badge tone="onImage">Local gem</Badge> : null}
       </div>

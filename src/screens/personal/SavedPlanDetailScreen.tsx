@@ -9,6 +9,7 @@ import { usePersona } from '../../dev/PersonaContext';
 import { usePlans, useSharedPlan, useCreatePlanShareToken } from '../../data/hooks';
 import { placeById } from '../../fixtures/places';
 import { categoryName } from '../../fixtures/categories';
+import { placePhotoUrl } from '../../lib/placePhoto';
 
 // S24: map plus both stops, reflowed. Shared-link state shows the same
 // content to an anonymous visitor via the plan's share token — for real: the
@@ -83,6 +84,8 @@ export function SavedPlanDetailScreen() {
           locals={eat.locals}
           visitors={eat.visitors}
           gapTone={eat.gapTone ?? 'clear'}
+          photoSrc={placePhotoUrl(eat.slug)}
+          photoLabel={eat.name}
         />
         <PickCard
           rank={1}
@@ -91,6 +94,8 @@ export function SavedPlanDetailScreen() {
           neighborhood={explore.neighborhood}
           reason={explore.reason}
           gapTone="clear"
+          photoSrc={placePhotoUrl(explore.slug)}
+          photoLabel={explore.name}
         />
         {isSharedLink ? null : (
           <Button
