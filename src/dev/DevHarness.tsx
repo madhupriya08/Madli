@@ -48,8 +48,16 @@ export function DevHarness({ children }: { children: ReactNode }) {
     </div>
   );
 
+  // Production never renders this wrapper at all — not even the frame div
+  // `content` uses in dev. That frame's width came from `persona.breakpoint`,
+  // a dev-harness-only toggle with no UI outside this sidebar, so in a real
+  // build it was permanently stuck at its 'mobile' default (390px), no
+  // matter the visitor's actual screen — every screen got force-narrowed on
+  // desktop. Real per-shell width (AppShell's --app-frame-width column,
+  // AdminShell's and MarketingShell's own full-width layouts) is what should
+  // decide this, so production gets the bare children, unconstrained.
   if (import.meta.env.PROD) {
-    return content;
+    return children;
   }
 
   const filtered = screenRegistry.filter(

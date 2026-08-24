@@ -42,7 +42,16 @@ export function AppShell({
   const activeTab = TABS.find((t) => t.path === location.pathname)?.value;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        minHeight: '100vh',
+        width: '100%',
+        maxWidth: 'var(--app-frame-width)',
+        margin: '0 auto',
+      }}
+    >
       <TopBar title={title} subtitle={subtitle} onBack={onBack} trailing={trailing} />
       <main style={{ flex: 1 }}>{children}</main>
       {showTabBar && persona !== 'guest' ? (
