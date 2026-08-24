@@ -30,4 +30,27 @@
   --stack-tight: var(--space-2);
   --stack: var(--space-4);
   --stack-loose: var(--space-6);
+
+  /* Responsive aliases. The pairs above state both ends of the design
+     handoff's two breakpoints but do not themselves switch; screens read
+     these three, so a single media query moves the whole app between
+     mobile (390px frame) and desktop (1280 canvas, content capped at 1160).
+     Before these existed, every screen referenced var(--gutter-mobile) and
+     var(--section-y-mobile) literally, which is why the app had no desktop
+     layout at any width. */
+  --gutter: var(--gutter-mobile);
+  --section-y: var(--section-y-mobile);
+  --app-max: var(--app-frame-width);
+}
+
+/* 1024px: the handoff names the two breakpoints (390 / 1280) but not the
+   switch-over point. See src/lib/useBreakpoint.ts — the JS side uses the
+   same query, so CSS reflow and the markup-level divergence screens change
+   over together rather than at two different widths. */
+@media (min-width: 1024px) {
+  :root {
+    --gutter: var(--gutter-desktop);
+    --section-y: var(--section-y-desktop);
+    --app-max: var(--content-max);
+  }
 }

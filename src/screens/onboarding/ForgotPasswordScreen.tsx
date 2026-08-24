@@ -39,7 +39,7 @@ export function ForgotPasswordScreen() {
 
   return (
     <AppShell title="Reset your password" onBack={() => navigate(-1)} showTabBar={false}>
-      <div style={{ padding: 'var(--space-6) var(--gutter-mobile)', maxWidth: 420 }}>
+      <div style={{ padding: 'var(--space-6) var(--gutter)', maxWidth: 420 }}>
         {stage === 'request' ? (
           <form
             onSubmit={requestReset}

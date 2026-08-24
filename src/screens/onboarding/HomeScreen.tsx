@@ -29,7 +29,7 @@ export function HomeScreen() {
 
   return (
     <AppShell title="Madli">
-      <div style={{ padding: 'var(--space-6) var(--gutter-mobile)' }}>
+      <div style={{ padding: 'var(--space-6) var(--gutter)' }}>
         <h1 style={{ font: 'var(--type-h2)', marginBottom: 'var(--space-2)' }}>
           {personalized ? 'Welcome back' : 'Where to start?'}
         </h1>

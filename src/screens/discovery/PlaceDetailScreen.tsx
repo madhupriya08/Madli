@@ -187,7 +187,7 @@ export function PlaceDetailScreen() {
           flexDirection: breakpoint === 'desktop' ? undefined : 'column',
           gridTemplateColumns: breakpoint === 'desktop' ? '1fr 1fr' : undefined,
           gap: 'var(--space-7)',
-          padding: 'var(--space-6) var(--gutter-mobile)',
+          padding: 'var(--space-6) var(--gutter)',
         }}
       >
         {media}

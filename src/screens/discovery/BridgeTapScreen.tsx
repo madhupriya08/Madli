@@ -34,7 +34,7 @@ export function BridgeTapScreen() {
   if (persona === 'guest') {
     return (
       <AppShell title="Pair it with something to do" onBack={() => navigate(-1)} showTabBar={false}>
-        <div style={{ padding: 'var(--space-6) var(--gutter-mobile)', textAlign: 'center' }}>
+        <div style={{ padding: 'var(--space-6) var(--gutter)', textAlign: 'center' }}>
           <p style={{ font: 'var(--type-body)', marginBottom: 'var(--space-5)' }}>
             Sign up to save {eatPlace.name} paired with a nearby Explore pick as a plan.
           </p>
@@ -52,7 +52,7 @@ export function BridgeTapScreen() {
           flexDirection: breakpoint === 'desktop' ? undefined : 'column',
           gridTemplateColumns: breakpoint === 'desktop' ? '1fr 1fr' : undefined,
           gap: 'var(--space-6)',
-          padding: 'var(--space-6) var(--gutter-mobile)',
+          padding: 'var(--space-6) var(--gutter)',
         }}
       >
         <PickCard
@@ -74,7 +74,7 @@ export function BridgeTapScreen() {
           gapTone="clear"
         />
       </div>
-      <div style={{ padding: '0 var(--gutter-mobile) var(--space-6)' }}>
+      <div style={{ padding: '0 var(--gutter) var(--space-6)' }}>
         <Button
           disabled={saved}
           onClick={async () => {

@@ -9,7 +9,7 @@ export function LegalPage() {
         style={{
           maxWidth: 'var(--prose-max)',
           margin: '0 auto',
-          padding: 'var(--section-y-mobile) var(--gutter-mobile)',
+          padding: 'var(--section-y) var(--gutter)',
         }}
       >
         <h1 style={{ font: 'var(--type-h1)', marginBottom: 'var(--space-6)' }}>

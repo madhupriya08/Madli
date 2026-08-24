@@ -45,7 +45,7 @@ export function OtpVerificationScreen() {
     <AppShell title="Verify your number" onBack={() => navigate(-1)} showTabBar={false}>
       <div
         style={{
-          padding: 'var(--space-6) var(--gutter-mobile)',
+          padding: 'var(--space-6) var(--gutter)',
           display: 'flex',
           flexDirection: 'column',
           gap: 'var(--space-5)',

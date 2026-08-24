@@ -47,7 +47,7 @@ export function LogVisitComparisonScreen() {
   if (targetsLoading) {
     return (
       <AppShell title="Which do you prefer?" onBack={() => navigate(-1)} showTabBar={false}>
-        <div style={{ padding: 'var(--space-6) var(--gutter-mobile)' }} aria-busy="true" />
+        <div style={{ padding: 'var(--space-6) var(--gutter)' }} aria-busy="true" />
       </AppShell>
     );
   }
@@ -72,7 +72,7 @@ export function LogVisitComparisonScreen() {
     // First-in-category path.
     return (
       <AppShell title="Almost done" onBack={() => navigate(-1)} showTabBar={false}>
-        <div style={{ padding: 'var(--space-6) var(--gutter-mobile)', textAlign: 'center' }}>
+        <div style={{ padding: 'var(--space-6) var(--gutter)', textAlign: 'center' }}>
           <p style={{ font: 'var(--type-body)', marginBottom: 'var(--space-5)' }}>
             {newPlace.name} is the first place you&apos;ve ranked in this category — nothing to
             compare it against yet.
@@ -88,7 +88,7 @@ export function LogVisitComparisonScreen() {
 
   return (
     <AppShell title="Which do you prefer?" onBack={() => navigate(-1)} showTabBar={false}>
-      <div style={{ padding: 'var(--space-6) var(--gutter-mobile)' }}>
+      <div style={{ padding: 'var(--space-6) var(--gutter)' }}>
         <p
           style={{
             font: 'var(--type-caption)',

@@ -73,7 +73,7 @@ export function ResultsScreen({ door }: { door: 'eat' | 'explore' }) {
 
   return (
     <AppShell title={door === 'eat' ? 'Eat' : 'Explore'} onBack={() => navigate(-1)}>
-      <div style={{ padding: 'var(--space-5) var(--gutter-mobile)' }}>
+      <div style={{ padding: 'var(--space-5) var(--gutter)' }}>
         {door === 'explore' ? (
           <div style={{ marginBottom: 'var(--space-5)' }}>
             <Tabs

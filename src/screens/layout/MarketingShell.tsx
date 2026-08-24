@@ -12,7 +12,7 @@ export function MarketingShell({ children }: { children: ReactNode }) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: 'var(--space-5) var(--gutter-mobile)',
+          padding: 'var(--space-5) var(--gutter)',
           maxWidth: 'var(--content-max)',
           margin: '0 auto',
         }}

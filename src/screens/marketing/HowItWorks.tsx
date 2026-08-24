@@ -14,7 +14,7 @@ export function HowItWorksPage() {
         style={{
           maxWidth: 'var(--prose-max)',
           margin: '0 auto',
-          padding: 'var(--section-y-mobile) var(--gutter-mobile)',
+          padding: 'var(--section-y) var(--gutter)',
         }}
       >
         <h1 style={{ font: 'var(--type-h1)', marginBottom: 'var(--space-5)' }}>
@@ -40,7 +40,7 @@ export function HowItWorksPage() {
         style={{
           maxWidth: 'var(--content-max)',
           margin: '0 auto',
-          padding: '0 var(--gutter-mobile) var(--section-y-mobile)',
+          padding: '0 var(--gutter) var(--section-y)',
         }}
       >
         <div

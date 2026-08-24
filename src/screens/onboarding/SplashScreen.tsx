@@ -17,7 +17,7 @@ export function SplashScreen() {
         alignItems: 'center',
         justifyContent: 'center',
         gap: 'var(--space-9)',
-        padding: 'var(--gutter-mobile)',
+        padding: 'var(--gutter)',
         textAlign: 'center',
       }}
     >

@@ -18,7 +18,7 @@ export function GemOfTheTownPage() {
         style={{
           maxWidth: 'var(--content-max)',
           margin: '0 auto',
-          padding: 'var(--section-y-mobile) var(--gutter-mobile)',
+          padding: 'var(--section-y) var(--gutter)',
         }}
       >
         {variant === 'new gem' ? (

@@ -97,7 +97,7 @@ export function MyRankedListScreen() {
 
   return (
     <AppShell title="My ranked list">
-      <div style={{ padding: 'var(--space-5) var(--gutter-mobile)' }}>
+      <div style={{ padding: 'var(--space-5) var(--gutter)' }}>
         {breakpoint === 'desktop' ? (
           <div
             style={{

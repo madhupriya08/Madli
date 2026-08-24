@@ -31,7 +31,7 @@ export function TopBar({
         alignItems: 'center',
         gap: 'var(--space-3)',
         minHeight: 56,
-        padding: '10px var(--gutter-mobile)',
+        padding: '10px var(--gutter)',
         background: 'var(--bar-scrim)',
         backdropFilter: 'var(--blur-bar)',
         WebkitBackdropFilter: 'var(--blur-bar)',

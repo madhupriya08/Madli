@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { useIsDesktop } from '../lib/useBreakpoint';
 
 /**
  * Phase 3: this now reflects a real `supabase.auth` session + `profiles`
@@ -71,8 +72,18 @@ export function PersonaProvider({ children }: { children: ReactNode }) {
   const [adminTier, setAdminTier] = useState<AdminTier>('superadmin');
   const [canOverrideRanking, setCanOverrideRanking] = useState(true);
   const [canAccessLocationHistory, setCanAccessLocationHistory] = useState(true);
-  const [breakpoint, setBreakpoint] = useState<Breakpoint>('mobile');
   const [sessionUserId, setSessionUserId] = useState<string | null>(null);
+
+  // `breakpoint` follows the real viewport. Until now it was a plain
+  // useState('mobile') that only the dev harness could ever change, so a
+  // production build was permanently "mobile" on every device — the reason
+  // a laptop got the 390px phone layout. The dev harness's Mobile/Desktop
+  // buttons still work: they set an explicit override that wins over the
+  // media query, which is the whole point of being able to preview the
+  // other layout on one machine.
+  const isDesktop = useIsDesktop();
+  const [breakpointOverride, setBreakpointOverride] = useState<Breakpoint | null>(null);
+  const breakpoint: Breakpoint = breakpointOverride ?? (isDesktop ? 'desktop' : 'mobile');
 
   useEffect(() => {
     let cancelled = false;
@@ -139,7 +150,7 @@ export function PersonaProvider({ children }: { children: ReactNode }) {
       setAdminTier,
       setCanOverrideRanking,
       setCanAccessLocationHistory,
-      setBreakpoint,
+      setBreakpoint: setBreakpointOverride,
       signOut,
     }),
     [persona, adminTier, canOverrideRanking, canAccessLocationHistory, breakpoint, sessionUserId],

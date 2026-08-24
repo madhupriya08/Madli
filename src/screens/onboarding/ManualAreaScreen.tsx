@@ -20,7 +20,7 @@ export function ManualAreaScreen() {
 
   return (
     <AppShell title="Choose your area" onBack={() => navigate(-1)} showTabBar={false}>
-      <div style={{ padding: 'var(--space-6) var(--gutter-mobile)' }}>
+      <div style={{ padding: 'var(--space-6) var(--gutter)' }}>
         <div style={{ marginBottom: 'var(--space-6)' }}>
           <SearchField
             value={query}

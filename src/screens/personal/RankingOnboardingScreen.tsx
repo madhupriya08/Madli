@@ -14,7 +14,7 @@ export function RankingOnboardingScreen() {
     <AppShell title="Rank a favourite" showTabBar={false}>
       <div
         style={{
-          padding: 'var(--space-7) var(--gutter-mobile)',
+          padding: 'var(--space-7) var(--gutter)',
           display: 'flex',
           flexDirection: 'column',
           gap: 'var(--space-5)',

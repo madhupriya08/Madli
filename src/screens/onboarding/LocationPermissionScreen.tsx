@@ -15,7 +15,7 @@ export function LocationPermissionScreen() {
     <AppShell title="Find places near you" onBack={() => navigate(-1)} showTabBar={false}>
       <div
         style={{
-          padding: 'var(--space-9) var(--gutter-mobile)',
+          padding: 'var(--space-9) var(--gutter)',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',

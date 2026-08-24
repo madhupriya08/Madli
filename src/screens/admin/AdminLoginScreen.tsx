@@ -43,7 +43,7 @@ export function AdminLoginScreen() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: 'var(--gutter-mobile)',
+        padding: 'var(--gutter)',
       }}
     >
       <form

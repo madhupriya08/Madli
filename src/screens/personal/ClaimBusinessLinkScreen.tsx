@@ -14,7 +14,7 @@ export function ClaimBusinessLinkScreen() {
     <AppShell title="Claim a business" onBack={() => navigate(-1)} showTabBar={false}>
       <div
         style={{
-          padding: 'var(--space-6) var(--gutter-mobile)',
+          padding: 'var(--space-6) var(--gutter)',
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
           gap: 'var(--space-6)',
@@ -39,7 +39,7 @@ export function ClaimBusinessLinkScreen() {
           </ul>
         </div>
       </div>
-      <div style={{ padding: '0 var(--gutter-mobile) var(--space-6)' }}>
+      <div style={{ padding: '0 var(--gutter) var(--space-6)' }}>
         <p
           style={{
             font: 'var(--type-body-sm)',

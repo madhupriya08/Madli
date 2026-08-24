@@ -51,7 +51,7 @@ export function SavedPlanDetailScreen() {
     <AppShell title={plan.name ?? 'Saved plan'} onBack={() => navigate(-1)}>
       <div
         style={{
-          padding: 'var(--space-6) var(--gutter-mobile)',
+          padding: 'var(--space-6) var(--gutter)',
           display: 'flex',
           flexDirection: 'column',
           gap: 'var(--space-5)',

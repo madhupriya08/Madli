@@ -11,7 +11,8 @@ history and full evidence behind every claim below, see "Where to find more" at 
 ```
 npm install
 cp .env.example .env.local   # fill in the real Supabase URL + anon key + test account password
-npm run dev                  # http://localhost:5173, dev harness enabled
+npm run dev                  # http://localhost:5173 — the app exactly as a visitor sees it
+npm run dev:harness          # same, plus the dev persona/breakpoint/all-screens rail
 ```
 
 Without a real `.env.local`, the app fails fast at boot with a visible error screen ("Madli
@@ -19,13 +20,37 @@ couldn't load") rather than silently showing stale mock data — `src/lib/supaba
 if `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` are missing, and `src/main.tsx` shows that error
 screen if the real startup fetch (`src/lib/liveConfig.ts`) fails.
 
-The dev server always opens onto the **dev harness** (`src/dev/DevHarness.tsx`) — a left rail with
+`npm run dev:harness` opens onto the **dev harness** (`src/dev/DevHarness.tsx`) — a left rail with
 a persona switcher (Guest/User/Owner/Admin, plus admin tier and grants), a breakpoint switcher
 (mobile 390 / desktop 1280), and an "All screens" tray listing all 52 screens by group. The
 Guest/User/Owner/Admin quick-switch is a dev-only convenience that bypasses real login
 (`src/dev/PersonaContext.tsx` documents this explicitly) — a real `LoginScreen`/`AdminLoginScreen`
-sign-in creates a real Supabase session first and converges on the same state shape. The harness is
-stripped from production builds (`import.meta.env.PROD` early-return in `DevHarness.tsx`).
+sign-in creates a real Supabase session first and converges on the same state shape.
+
+The rail is **opt-in**, not the default: plain `npm run dev` renders the app exactly as production
+does, so what you see locally is what a visitor gets. It is enabled by `VITE_DEV_HARNESS=1`, set by
+the `.env.harness` mode file (`vite --mode harness`) so it behaves identically in PowerShell, cmd,
+and POSIX shells, and it is stripped from production builds regardless
+(`import.meta.env.PROD` early-return in `DevHarness.tsx`).
+
+## Responsive layout
+
+Two breakpoints, per the design handoff's §Responsive: mobile (390px frame) and desktop (1280
+canvas, content capped at 1160). The switch-over is **1024px**, declared once in each of the two
+places that need it and kept identical:
+
+- CSS — `public/design-system/tokens/spacing.css` defines `--gutter`, `--section-y` and `--app-max`
+  and swaps all three in one `@media (min-width: 1024px)` block. Screens reference those aliases,
+  never `--gutter-mobile`/`--gutter-desktop` directly, so reflow is a token change, not a per-screen
+  edit.
+- JS — `src/lib/useBreakpoint.ts` (`useSyncExternalStore` over `matchMedia`) feeds
+  `usePersona().breakpoint`, which the 9 real-divergence screens branch on. The harness's
+  Mobile/Desktop buttons set an override that wins over the media query, for previewing the other
+  layout on one machine.
+
+`AppShell` is the consumer-app chrome: a centered column capped at `--app-max`, with the four
+primary destinations rendered as a bottom `TabBar` on mobile and as a row inside the `TopBar` on
+desktop (the handoff specifies the destinations but not where they sit on the wide canvas).
 
 ## Environment variables
 
@@ -47,7 +72,8 @@ what each is for. In short:
 
 | Command | What it does |
 |---|---|
-| `npm run dev` | Start the Vite dev server with the dev harness, against the real Supabase project in `.env.local` |
+| `npm run dev` | Start the Vite dev server against the real Supabase project in `.env.local` — no dev harness, same as production |
+| `npm run dev:harness` | Same, with the dev persona/breakpoint/all-screens rail (`vite --mode harness`) |
 | `npm run build` | `tsc -b` (type-check) then `vite build` — production build to `dist/` |
 | `npm run preview` | Serve the production build locally |
 | `npm run typecheck` | `tsc -b --noEmit`, strict mode |
@@ -166,13 +192,16 @@ without checking.
 
 ## Dev harness usage
 
+Run `npm run dev:harness` (plain `npm run dev` does not render the rail).
+
 - **Persona**: switches `usePersona()` for local development without a real login. A real session
   (via `LoginScreen`/`AdminLoginScreen`) takes precedence and reflects the actual signed-in user's
   real `profiles` row.
 - **Admin tier / grants**: only shown when persona is Admin — toggles `admin_tier` and the two
   independent boolean grants (`can_override_ranking`, `can_access_location_history`).
-- **Breakpoint**: mobile (390px) / desktop (1280px). 9 screens (S15, S17, S18, S19, S20, S21, S31,
-  S42, S43) render genuinely different markup at each, not just reflowed CSS.
+- **Breakpoint**: mobile (390px) / desktop (1280px) — an explicit override of the real viewport
+  media query, so both layouts can be reviewed on one machine. 9 screens (S15, S17, S18, S19, S20,
+  S21, S31, S42, S43) render genuinely different markup at each, not just reflowed CSS.
 - **All screens tray**: every registered screen (`src/screens/registry.ts`), grouped and
   filterable.
 

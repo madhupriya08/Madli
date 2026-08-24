@@ -38,7 +38,7 @@ export function MapScreen() {
         display: 'flex',
         flexDirection: 'column',
         gap: 'var(--space-4)',
-        padding: breakpoint === 'desktop' ? 0 : 'var(--space-5) var(--gutter-mobile)',
+        padding: breakpoint === 'desktop' ? 0 : 'var(--space-5) var(--gutter)',
       }}
     >
       <p style={{ font: 'var(--type-body)', color: 'var(--text-body)' }}>

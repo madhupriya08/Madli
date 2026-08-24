@@ -24,6 +24,11 @@ const ADMIN_TIERS: { value: AdminTier; label: string }[] = [
  * the design prototype's own left-rail switcher: persona, breakpoint, and an
  * "All screens" tray, since that's the only practical way to review 52
  * screens without 200 manual logins against a real backend.
+ *
+ * Opt-in, not on-by-default: `npm run dev` should show the same app a real
+ * visitor gets, so the rail only appears when VITE_DEV_HARNESS=1 is set
+ * (`npm run dev:harness`, and Playwright's own webServer for the
+ * accessibility/keyboard specs, which drive personas through it).
  */
 export function DevHarness({ children }: { children: ReactNode }) {
   const persona = usePersona();
@@ -48,15 +53,16 @@ export function DevHarness({ children }: { children: ReactNode }) {
     </div>
   );
 
-  // Production never renders this wrapper at all — not even the frame div
-  // `content` uses in dev. That frame's width came from `persona.breakpoint`,
-  // a dev-harness-only toggle with no UI outside this sidebar, so in a real
-  // build it was permanently stuck at its 'mobile' default (390px), no
-  // matter the visitor's actual screen — every screen got force-narrowed on
-  // desktop. Real per-shell width (AppShell's --app-frame-width column,
-  // AdminShell's and MarketingShell's own full-width layouts) is what should
-  // decide this, so production gets the bare children, unconstrained.
-  if (import.meta.env.PROD) {
+  // Neither production nor a plain `npm run dev` renders this wrapper at all
+  // — not even the frame div `content` uses. That frame's width came from
+  // `persona.breakpoint`, which until this change no visitor could ever
+  // influence, so a real build was permanently stuck at its 'mobile' default
+  // (390px) no matter the screen — every screen got force-narrowed on
+  // desktop. Width now belongs to the shells (AppShell's responsive
+  // --app-max column, AdminShell's and MarketingShell's own full-width
+  // layouts), driven by a real media query, so the bare children are
+  // returned here and the app looks the same in dev as in production.
+  if (import.meta.env.PROD || import.meta.env.VITE_DEV_HARNESS !== '1') {
     return children;
   }
 

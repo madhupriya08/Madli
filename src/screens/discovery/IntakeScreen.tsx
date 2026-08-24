@@ -141,7 +141,7 @@ export function IntakeScreen() {
       </div>
       <div
         style={{
-          padding: 'var(--space-6) var(--gutter-mobile)',
+          padding: 'var(--space-6) var(--gutter)',
           display: 'flex',
           flexDirection: 'column',
           gap: 'var(--space-5)',

@@ -47,7 +47,12 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run dev -- --port 5173 --strictPort',
+    // dev:harness, not dev: accessibility.spec.ts and keyboard-nav.spec.ts
+    // reach role-gated screens through the harness rail's persona buttons and
+    // its "All screens" links. Plain `npm run dev` no longer renders that rail
+    // (it is opt-in now, so the dev server matches production), which would
+    // leave both specs unable to get past the guest surface.
+    command: 'npm run dev:harness -- --port 5173 --strictPort',
     url: 'http://localhost:5173',
     reuseExistingServer: !process.env.CI,
     timeout: 30_000,

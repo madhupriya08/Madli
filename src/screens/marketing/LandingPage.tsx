@@ -28,7 +28,7 @@ export function LandingPage() {
         style={{
           maxWidth: 'var(--content-max)',
           margin: '0 auto',
-          padding: 'var(--section-y-mobile) var(--gutter-mobile)',
+          padding: 'var(--section-y) var(--gutter)',
           textAlign: 'center',
           display: 'flex',
           flexDirection: 'column',
@@ -54,7 +54,7 @@ export function LandingPage() {
         style={{
           maxWidth: 'var(--content-max)',
           margin: '0 auto',
-          padding: '0 var(--gutter-mobile) var(--section-y-mobile)',
+          padding: '0 var(--gutter) var(--section-y)',
           display: 'grid',
           gap: 'var(--space-6)',
           gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
@@ -76,7 +76,7 @@ export function LandingPage() {
           style={{
             maxWidth: 560,
             margin: '0 auto',
-            padding: '0 var(--gutter-mobile) var(--section-y-mobile)',
+            padding: '0 var(--gutter) var(--section-y)',
           }}
         >
           <h2

@@ -21,7 +21,7 @@ export function BookmarksScreen() {
 
   return (
     <AppShell title="Bookmarks">
-      <div style={{ padding: 'var(--space-5) var(--gutter-mobile)' }}>
+      <div style={{ padding: 'var(--space-5) var(--gutter)' }}>
         <div style={{ marginBottom: 'var(--space-5)' }}>
           <Tabs
             items={[
