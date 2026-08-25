@@ -12,6 +12,7 @@ import { useGuestSession } from '../../lib/guestSession';
 import { useDiscovery } from '../../data/useDiscovery';
 import { useSearch } from '../../lib/searchState';
 import { GoogleMapView, type MapMarker } from '../../components/map/GoogleMapView';
+import { track } from '../../lib/analytics';
 import { categoryName } from '../../fixtures/categories';
 import { places as catalogue } from '../../fixtures/places';
 import { placePhotoUrl } from '../../lib/placePhoto';
@@ -78,6 +79,27 @@ export function ResultsScreen({ door }: { door: 'eat' | 'explore' }) {
   const ranked = discovery?.ranked ?? [];
   const unranked = discovery?.unranked ?? [];
   const threshold = discovery?.threshold ?? 0;
+
+  // One event per resolved result set. Counts and filters only — no place
+  // names, no coordinates, nothing that identifies where a person is.
+  useEffect(() => {
+    if (isLoading || !discovery) return;
+    track('results_shown', {
+      door,
+      ranked_count: discovery.ranked.length,
+      unranked_count: discovery.unranked.length,
+      threshold: discovery.threshold,
+      used_catalogue_fallback: usedFallback,
+      has_vibe: search.vibe !== null,
+      has_area: search.areaText.trim() !== '',
+      constraint_mode: search.constraintMode,
+      area_type: search.areaType,
+      allows_pets: search.allowsPets,
+      serves_pet_food: search.servesPetFood,
+    });
+    // discovery is the signal; the search fields are read at fire time.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [discovery, isLoading, door, usedFallback]);
 
   const markers: MapMarker[] = useMemo(() => {
     const out: MapMarker[] = [];
@@ -216,7 +238,10 @@ export function ResultsScreen({ door }: { door: 'eat' | 'explore' }) {
                     visitors={r.place.visitors}
                     photoSrc={placePhotoUrl(r.place.slug)}
                     photoLabel={r.place.name}
-                    onClick={() => navigate(`/places/${encodeURIComponent(r.place.slug)}`)}
+                    onClick={() => {
+                      track('pick_opened', { door, rank: i + 1, from: 'results_list' });
+                      navigate(`/places/${encodeURIComponent(r.place.slug)}`);
+                    }}
                   />
                 ))}
               </div>

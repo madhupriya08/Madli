@@ -8,6 +8,7 @@ import { GuestSessionProvider } from './lib/guestSession';
 import { SearchProvider } from './lib/searchState';
 import { ToastProvider } from './components/feedback/ToastProvider';
 import { loadLiveConfig } from './lib/liveConfig';
+import { initAnalytics } from './lib/analytics';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -19,6 +20,8 @@ const rootEl = document.getElementById('root');
 if (!rootEl) throw new Error('#root element not found');
 
 function renderApp() {
+  // No-ops entirely without VITE_POSTHOG_KEY.
+  initAnalytics();
   createRoot(rootEl!).render(
     <StrictMode>
       <QueryClientProvider client={queryClient}>

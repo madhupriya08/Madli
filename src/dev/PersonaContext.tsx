@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useIsDesktop } from '../lib/useBreakpoint';
+import { identify, resetAnalytics } from '../lib/analytics';
 
 /**
  * Phase 3: this now reflects a real `supabase.auth` session + `profiles`
@@ -135,6 +136,8 @@ export function PersonaProvider({ children }: { children: ReactNode }) {
       if (cancelled) return;
       setHasSession(Boolean(session));
       setSessionLoading(false);
+      // Id only — never the email address (see src/lib/analytics.ts).
+      if (session?.user.id) identify(session.user.id);
       void applySession(session?.user.id);
     }
 
@@ -178,6 +181,9 @@ export function PersonaProvider({ children }: { children: ReactNode }) {
     setSessionLoading(false);
     setSessionUserId(null);
     setPersonaState('guest');
+    // Unlink this browser from the person who just left, so the next
+    // session's events are not attributed to them.
+    resetAnalytics();
     await supabase.auth.signOut();
   };
 

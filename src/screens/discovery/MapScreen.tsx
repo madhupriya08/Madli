@@ -7,6 +7,7 @@ import { usePersona } from '../../dev/PersonaContext';
 import { useSearch, type LatLng } from '../../lib/searchState';
 import { fetchRoute, type RouteResult } from '../../lib/routes';
 import { placeBySlug } from '../../fixtures/places';
+import { track } from '../../lib/analytics';
 
 // S21: a real route now, not a labelled panel — Google draws the map and the
 // polyline, and the travel time is the one Directions returns rather than the
@@ -108,15 +109,19 @@ export function MapScreen() {
       ) : null}
       <Button
         variant="secondary"
-        onClick={() =>
+        onClick={() => {
+          track('directions_opened', {
+            has_coordinates: destination !== null,
+            had_route: route !== null,
+          });
           window.open(
             destination
               ? `https://www.google.com/maps/dir/?api=1&destination=${destination.lat},${destination.lng}`
               : `https://maps.google.com/?q=${encodeURIComponent(place?.address ?? '')}`,
             '_blank',
             'noopener',
-          )
-        }
+          );
+        }}
       >
         Open in Google Maps
       </Button>

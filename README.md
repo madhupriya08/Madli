@@ -33,6 +33,29 @@ the `.env.harness` mode file (`vite --mode harness`) so it behaves identically i
 and POSIX shells, and it is stripped from production builds regardless
 (`import.meta.env.PROD` early-return in `DevHarness.tsx`).
 
+## Analytics (PostHog)
+
+Off unless `VITE_POSTHOG_KEY` is set — no init, no network call, no events. That is the default
+for tests, CI and any checkout without a key.
+
+Set the *project* key (`phc_…`), which is public and write-only. Never a personal key (`phx_…`):
+this value ships in the client bundle. `VITE_POSTHOG_HOST` picks the region and defaults to
+`https://us.i.posthog.com`; sending to the wrong region silently drops every event.
+
+Defaults are deliberately conservative, because Madli holds location history, business-claim
+details and a delete-my-account flow:
+
+- **autocapture off** — the forms carry addresses and phone numbers, and capturing every click
+  and field by default would collect them. Events are named explicitly in `src/lib/analytics.ts`
+  instead, as a closed union so a typo cannot silently become a missing funnel step.
+- **session recording off** — same reason, more so.
+- **`person_profiles: 'identified_only'`** — anonymous browsing creates no person profile.
+- **`identify()` sends the Supabase user id and nothing else** — never an email or a name — and
+  sign-out calls `reset()` so the next person on that browser is not attributed to the last.
+- **Page-view paths are redacted** — `/plans/:id` is a real, permanent share token on a shared
+  link, so it is replaced with `/plans/:token` before anything is sent. Place slugs are public and
+  are left intact.
+
 ## Responsive layout
 
 Two breakpoints, per the design handoff's §Responsive: mobile (390px frame) and desktop (1280
