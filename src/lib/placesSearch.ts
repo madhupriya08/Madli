@@ -1,6 +1,6 @@
 /// <reference types="google.maps" />
-import { loadGoogleMaps, asMapsError } from './googleMaps';
-import type { AreaType, Door, LatLng } from './searchState';
+import { loadGoogleMaps, asMapsError, getMapsApiKey } from './googleMaps';
+import { haversineMeters, type AreaType, type Door, type LatLng } from './searchState';
 
 /**
  * Google Places, reached through the Maps JavaScript `places` library rather
@@ -8,13 +8,10 @@ import type { AreaType, Door, LatLng } from './searchState';
  *
  * That choice keeps the browser key the only key: the JS library is covered
  * by the same referrer-restricted Maps key already in the bundle, so nothing
- * here needs an Edge Function or a server-side secret. If a future need does
- * require the REST API (server-side ranking, scheduled imports), that call
- * belongs in an Edge Function with its own secret — not a second key here.
+ * here needs an Edge Function or a server-side secret.
  *
- * Google's job stops at *finding candidates*. Nothing in this module reads
- * Google ratings, review counts or "prominence" into Madli's ranking; that
- * comes from `locals`/`visitors` and `fn_log_ranked_visit` alone.
+ * Search uses the person's filters as the query. Rating and review count are
+ * kept so discovery can order by what people actually wrote on Google.
  */
 
 export interface GoogleCandidate {
@@ -23,9 +20,23 @@ export interface GoogleCandidate {
   address: string;
   location: LatLng;
   types: string[];
-  /** Google's own rating. Displayed nowhere; kept only for debugging a search. */
   googleRating?: number;
+  reviewCount?: number;
+  editorialSummary?: string;
+  /** Hero shot — first Google photo, when available. */
+  photoUrl?: string;
+  /** Up to ten Google photo URLs for the detail gallery. */
+  photoUrls?: string[];
   openNow?: boolean;
+}
+
+export interface GooglePlaceDetails extends GoogleCandidate {
+  phone?: string;
+  hours?: string;
+  website?: string;
+  googleMapsUri?: string;
+  /** Photo credit lines required when showing Google photos. */
+  photoAttributions?: string[];
 }
 
 /**
@@ -71,6 +82,8 @@ export interface SearchCandidatesInput {
   allowsPets?: boolean;
   servesPetFood?: boolean;
   maxResults?: number;
+  /** When false, keep the named-area query as Google returned it. */
+  clipToRadius?: boolean;
 }
 
 function includedTypesFor(input: SearchCandidatesInput): string[] {
@@ -82,26 +95,41 @@ function includedTypesFor(input: SearchCandidatesInput): string[] {
   return intersection.length > 0 ? intersection : base;
 }
 
+const VIBE_QUERY: Record<string, string> = {
+  'Quick bite': 'quick bite casual',
+  'Date night': 'romantic date night',
+  Family: 'family friendly',
+  Solo: 'casual for one',
+  Celebration: 'celebration',
+  'Late night': 'late night',
+  Sightseeing: 'sightseeing landmarks',
+  Historical: 'historical landmarks',
+  Outdoors: 'parks outdoors viewpoints',
+  Nightlife: 'nightlife',
+  'Family day': 'family friendly attractions',
+  Quiet: 'quiet peaceful places',
+};
+
 /**
- * Builds the free-text query for the cases nearby-search cannot express.
- *
- * A vibe ("Late night", "Date night") and the pet filters are not Place
- * types or fields — Google has no structured "serves pet food" flag — so
- * they are folded into a text query instead of being silently dropped. That
- * is honest about what the filter can actually do: it biases the search, it
- * does not guarantee the attribute.
+ * Free-text query that carries vibe, pets, and area — Google has no structured
+ * field for those, so they are folded into words rather than dropped.
  */
-function textQueryFor(input: SearchCandidatesInput): string | null {
+function textQueryFor(input: SearchCandidatesInput): string {
   const parts: string[] = [];
-  if (input.vibe) parts.push(input.vibe);
+  if (input.vibe) parts.push(VIBE_QUERY[input.vibe] ?? input.vibe);
   if (input.allowsPets) parts.push('pet friendly');
   if (input.servesPetFood) parts.push('serves pet food');
-  if (parts.length === 0) return null;
 
   const subject = input.door === 'eat' ? 'restaurants' : 'places to visit';
   const where = input.areaText?.trim() ? ` in ${input.areaText.trim()}` : '';
   return `${parts.join(' ')} ${subject}${where}`.trim();
 }
+
+type PlacePhotoLike = {
+  getURI?: (opts?: { maxWidth?: number; maxHeight?: number }) => string;
+  toJSON?: (key?: string) => unknown;
+  authorAttributions?: Array<{ displayName?: string | null }>;
+};
 
 type PlaceLike = {
   id?: string | null;
@@ -110,11 +138,55 @@ type PlaceLike = {
   location?: { lat: () => number; lng: () => number } | null;
   types?: string[] | null;
   rating?: number | null;
+  userRatingCount?: number | null;
+  editorialSummary?: string | null;
+  photos?: PlacePhotoLike[] | null;
+  nationalPhoneNumber?: string | null;
+  websiteURI?: string | null;
+  googleMapsURI?: string | null;
+  regularOpeningHours?: { weekdayDescriptions?: string[] | null } | null;
 };
+
+function mediaUrlFromPhotoJson(json: unknown): string | undefined {
+  if (!json || typeof json !== 'object') return undefined;
+  const name = (json as { name?: unknown }).name;
+  if (typeof name !== 'string' || !name.includes('/photos/')) return undefined;
+  const key = getMapsApiKey();
+  if (!key) return undefined;
+  // Places Photo (New) media endpoint — works as an <img src> with the same key.
+  return `https://places.googleapis.com/v1/${name}/media?maxHeightPx=800&key=${encodeURIComponent(key)}`;
+}
+
+function photoEntriesOf(p: PlaceLike): { urls: string[]; attributions: string[] } {
+  const urls: string[] = [];
+  const attributions: string[] = [];
+  for (const photo of p.photos ?? []) {
+    let url: string | undefined;
+    try {
+      // Official sample uses a single dimension — both can produce empty results.
+      url = photo.getURI?.({ maxHeight: 800 });
+    } catch {
+      url = undefined;
+    }
+    if (!url) {
+      try {
+        url = mediaUrlFromPhotoJson(photo.toJSON?.());
+      } catch {
+        url = undefined;
+      }
+    }
+    if (!url) continue;
+    urls.push(url);
+    const credit = photo.authorAttributions?.[0]?.displayName;
+    if (credit) attributions.push(credit);
+  }
+  return { urls, attributions };
+}
 
 function toCandidate(p: PlaceLike): GoogleCandidate | null {
   const loc = p.location;
   if (!p.id || !loc) return null;
+  const { urls } = photoEntriesOf(p);
   return {
     placeId: p.id,
     name: p.displayName ?? 'Unnamed place',
@@ -122,53 +194,97 @@ function toCandidate(p: PlaceLike): GoogleCandidate | null {
     location: { lat: loc.lat(), lng: loc.lng() },
     types: p.types ?? [],
     googleRating: p.rating ?? undefined,
+    reviewCount: p.userRatingCount ?? undefined,
+    editorialSummary: p.editorialSummary ?? undefined,
+    photoUrl: urls[0],
+    photoUrls: urls,
   };
 }
 
-const FIELDS = ['id', 'displayName', 'formattedAddress', 'location', 'types', 'rating'];
+const SEARCH_FIELDS = [
+  'id',
+  'displayName',
+  'formattedAddress',
+  'location',
+  'types',
+  'rating',
+  'userRatingCount',
+  'editorialSummary',
+  'photos',
+];
+
+const DETAIL_FIELDS = [
+  ...SEARCH_FIELDS,
+  'nationalPhoneNumber',
+  'websiteURI',
+  'googleMapsURI',
+  'regularOpeningHours',
+];
+
+function withinRadius(
+  candidates: GoogleCandidate[],
+  center: LatLng,
+  radiusMeters: number,
+): GoogleCandidate[] {
+  return candidates.filter((c) => haversineMeters(center, c.location) <= radiusMeters);
+}
 
 /**
  * Candidates for the current door + filters.
  *
- * Text search when the person expressed something only words can carry (a
- * vibe, a pet requirement); nearby search otherwise, which is both cheaper
- * and better at "what is actually around this point".
+ * Always a text search so vibe, pets, and area actually reach Google. Results
+ * outside the travel radius from the search origin are dropped.
  */
 export async function searchCandidates(input: SearchCandidatesInput): Promise<GoogleCandidate[]> {
   const maps = await loadGoogleMaps();
   const maxResults = input.maxResults ?? 20;
 
   try {
-    const { Place, SearchNearbyRankPreference } = (await maps.importLibrary(
-      'places',
-    )) as google.maps.PlacesLibrary;
+    const { Place } = (await maps.importLibrary('places')) as google.maps.PlacesLibrary;
 
-    const textQuery = textQueryFor(input);
-
-    if (textQuery) {
-      const { places } = await Place.searchByText({
-        textQuery,
-        fields: FIELDS,
-        locationBias: {
-          center: new maps.LatLng(input.center.lat, input.center.lng),
-          radius: input.radiusMeters,
-        },
-        maxResultCount: maxResults,
-      });
-      return (places ?? []).map(toCandidate).filter((c): c is GoogleCandidate => c !== null);
-    }
-
-    const { places } = await Place.searchNearby({
-      fields: FIELDS,
-      locationRestriction: {
+    const { places } = await Place.searchByText({
+      textQuery: textQueryFor(input),
+      fields: SEARCH_FIELDS,
+      locationBias: {
         center: new maps.LatLng(input.center.lat, input.center.lng),
         radius: input.radiusMeters,
       },
-      includedPrimaryTypes: includedTypesFor(input),
+      includedType: input.door === 'eat' ? 'restaurant' : includedTypesFor(input)[0],
       maxResultCount: maxResults,
-      rankPreference: SearchNearbyRankPreference.POPULARITY,
     });
-    return (places ?? []).map(toCandidate).filter((c): c is GoogleCandidate => c !== null);
+
+    const candidates = (places ?? [])
+      .map(toCandidate)
+      .filter((c): c is GoogleCandidate => c !== null);
+
+    if (input.clipToRadius === false) return candidates;
+    return withinRadius(candidates, input.center, input.radiusMeters);
+  } catch (err) {
+    throw asMapsError(err, 'Places API (New)');
+  }
+}
+
+export async function fetchPlaceDetails(placeId: string): Promise<GooglePlaceDetails> {
+  const maps = await loadGoogleMaps();
+  try {
+    const { Place } = (await maps.importLibrary('places')) as google.maps.PlacesLibrary;
+    // Search sometimes returns resource names ("places/ChIJ…"); Place wants the id.
+    const id = placeId.startsWith('places/') ? placeId.slice('places/'.length) : placeId;
+    const place = new Place({ id });
+    await place.fetchFields({ fields: DETAIL_FIELDS });
+    const like = place as unknown as PlaceLike;
+    const candidate = toCandidate(like);
+    if (!candidate) throw new Error(`place ${placeId} has no location`);
+    const { attributions } = photoEntriesOf(like);
+    const hours = place.regularOpeningHours?.weekdayDescriptions?.join(' · ');
+    return {
+      ...candidate,
+      phone: place.nationalPhoneNumber ?? undefined,
+      hours: hours || undefined,
+      website: place.websiteURI ?? undefined,
+      googleMapsUri: place.googleMapsURI ?? undefined,
+      photoAttributions: attributions.length > 0 ? attributions : undefined,
+    };
   } catch (err) {
     throw asMapsError(err, 'Places API (New)');
   }

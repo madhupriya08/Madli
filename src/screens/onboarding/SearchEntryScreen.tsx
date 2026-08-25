@@ -4,6 +4,7 @@ import { AppShell } from '../layout/AppShell';
 import { SearchField } from '../../components/forms/SearchField';
 import { Button } from '../../components/core/Button';
 import { usePersona } from '../../dev/PersonaContext';
+import { useSearch } from '../../lib/searchState';
 
 // S52: what the bottom-nav Search tab opens — not part of the linear intake
 // flow. The escape hatch at the bottom goes to guided intake, so the two
@@ -13,6 +14,8 @@ export function SearchEntryScreen() {
   const [query, setQuery] = useState('');
   const navigate = useNavigate();
   const { persona } = usePersona();
+  const { search } = useSearch();
+  const resultsPath = search.door === 'explore' ? '/results/explore' : '/results/eat';
 
   return (
     <AppShell title="Search">
@@ -27,7 +30,7 @@ export function SearchEntryScreen() {
         <SearchField
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          onSubmit={() => navigate('/results/eat')}
+          onSubmit={() => navigate(resultsPath)}
           onClear={() => setQuery('')}
           size="lg"
         />

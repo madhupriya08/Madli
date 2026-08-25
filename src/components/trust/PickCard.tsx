@@ -27,6 +27,8 @@ export interface PickCardProps {
   layout?: 'vertical' | 'horizontal';
   onClick?: () => void;
   style?: CSSProperties;
+  /** When false, skip gap/sample-size (Google-only picks have no Madli stats). */
+  showStats?: boolean;
 }
 
 /**
@@ -54,6 +56,7 @@ export function PickCard({
   layout = 'vertical',
   onClick,
   style,
+  showStats = true,
 }: PickCardProps) {
   const [hover, setHover] = useState(false);
   const horizontal = layout === 'horizontal';
@@ -132,17 +135,19 @@ export function PickCard({
             {reason}
           </ReasonNote>
         ) : null}
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 'var(--space-2)',
-            marginTop: 'auto',
-          }}
-        >
-          <RankGap tone={gapTone} points={gapPoints} note={gapNote} />
-          <SampleSize locals={locals} visitors={visitors} window={dataWindow} />
-        </div>
+        {showStats ? (
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 'var(--space-2)',
+              marginTop: 'auto',
+            }}
+          >
+            <RankGap tone={gapTone} points={gapPoints} note={gapNote} />
+            <SampleSize locals={locals} visitors={visitors} window={dataWindow} />
+          </div>
+        ) : null}
       </div>
     </Wrapper>
   );

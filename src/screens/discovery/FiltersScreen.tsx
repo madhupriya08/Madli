@@ -13,12 +13,11 @@ const AREA_TYPES: AreaType[] = ['Indoor', 'Outdoor', 'Mixed'];
 // switches — allows pets and serves pet food are different questions. Area
 // type only exists behind the Explore door; on Eat it's absent, not disabled.
 // "Save this set" is User only.
-export function FiltersScreen({ door = 'eat' }: { door?: 'eat' | 'explore' }) {
+export function FiltersScreen() {
   const { breakpoint, persona } = usePersona();
   const navigate = useNavigate();
-  // Filters write straight into the shared search state, so "Apply" carries
-  // the choices to results rather than discarding them on navigate.
   const { search, setSearch } = useSearch();
+  const door = search.door;
   const { allowsPets, servesPetFood, areaType } = search;
   const setAllowsPets = (v: boolean) => setSearch({ allowsPets: v });
   const setServesPetFood = (v: boolean) => setSearch({ servesPetFood: v });

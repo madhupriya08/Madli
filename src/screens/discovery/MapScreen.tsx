@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { AppShell } from '../layout/AppShell';
 import { Button } from '../../components/core/Button';
 import { GoogleMapView } from '../../components/map/GoogleMapView';
@@ -7,6 +8,7 @@ import { usePersona } from '../../dev/PersonaContext';
 import { useSearch, type LatLng } from '../../lib/searchState';
 import { fetchRoute, type RouteResult } from '../../lib/routes';
 import { placeBySlug } from '../../fixtures/places';
+import { fetchPlaceDetails } from '../../lib/placesSearch';
 import { track } from '../../lib/analytics';
 
 // S21: a real route now, not a labelled panel — Google draws the map and the
@@ -20,10 +22,21 @@ export function MapScreen() {
   const navigate = useNavigate();
   const { breakpoint } = usePersona();
   const { effectiveCenter } = useSearch();
-  const place = slug ? placeBySlug(decodeURIComponent(slug)) : undefined;
+  const decoded = slug ? decodeURIComponent(slug) : undefined;
+  const place = decoded ? placeBySlug(decoded) : undefined;
+  const googleQuery = useQuery({
+    queryKey: ['googlePlace', decoded],
+    queryFn: () => fetchPlaceDetails(decoded!),
+    enabled: Boolean(decoded) && !place,
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
 
-  const destination: LatLng | null =
-    place?.lat != null && place.lng != null ? { lat: place.lat, lng: place.lng } : null;
+  const destination: LatLng | null = place?.lat != null && place.lng != null
+    ? { lat: place.lat, lng: place.lng }
+    : googleQuery.data?.location ?? null;
+  const destinationName = place?.name ?? googleQuery.data?.name ?? 'Destination';
+  const destinationAddress = place?.address ?? googleQuery.data?.address ?? '';
 
   // The result is stored together with the trip it belongs to, so a stale
   // route is discarded by comparison during render rather than by clearing
@@ -73,7 +86,7 @@ export function MapScreen() {
               {
                 id: 'destination',
                 position: destination,
-                title: place?.name ?? 'Destination',
+                title: destinationName,
                 rank: 1,
               },
             ]
@@ -117,7 +130,7 @@ export function MapScreen() {
           window.open(
             destination
               ? `https://www.google.com/maps/dir/?api=1&destination=${destination.lat},${destination.lng}`
-              : `https://maps.google.com/?q=${encodeURIComponent(place?.address ?? '')}`,
+              : `https://maps.google.com/?q=${encodeURIComponent(destinationAddress)}`,
             '_blank',
             'noopener',
           );

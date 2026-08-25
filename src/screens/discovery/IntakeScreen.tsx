@@ -2,18 +2,19 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppShell } from '../layout/AppShell';
 import { Tag } from '../../components/core/Tag';
-import { Tabs } from '../../components/navigation/Tabs';
 import { Input } from '../../components/forms/Input';
 import { Button } from '../../components/core/Button';
 import { usePersona } from '../../dev/PersonaContext';
-import { useSearch, type ConstraintMode } from '../../lib/searchState';
+import { useSearch } from '../../lib/searchState';
 
-const VIBES = ['Quick bite', 'Date night', 'Family', 'Solo', 'Celebration', 'Late night'];
+const EAT_VIBES = ['Quick bite', 'Date night', 'Family', 'Solo', 'Celebration', 'Late night'];
+const EXPLORE_VIBES = ['Sightseeing', 'Historical', 'Outdoors', 'Nightlife', 'Family day', 'Quiet'];
 
 // S15: real divergence, not a reflow. Desktop holds all steps in one panel
 // because a 1280 canvas can show the whole ask at once; mobile walks one step
 // at a time with a progress bar. "Skip and browse" is always visible. The
-// constraint step is a toggle (time vs radius), never both at once.
+// constraint step is two fields — minutes and kilometres — not one input
+    // whose label flips. The last field edited is the one that drives radius.
 export function IntakeScreen() {
   const { breakpoint } = usePersona();
   const navigate = useNavigate();
@@ -22,10 +23,11 @@ export function IntakeScreen() {
   // away, dropping every answer — results queried on `type` alone. It now
   // writes into the shared search state that results and the map read.
   const { search, setSearch } = useSearch();
-  const { vibe, constraintMode, constraintValue, areaText: area } = search;
+  const { vibe, timeMinutes, radiusKm, areaText: area, door } = search;
+  const vibes = door === 'explore' ? EXPLORE_VIBES : EAT_VIBES;
   const setVibe = (v: string | null) => setSearch({ vibe: v });
-  const setConstraintMode = (m: ConstraintMode) => setSearch({ constraintMode: m });
-  const setConstraintValue = (v: string) => setSearch({ constraintValue: v });
+  const setTimeMinutes = (v: string) => setSearch({ timeMinutes: v, constraintMode: 'time' });
+  const setRadiusKm = (v: string) => setSearch({ radiusKm: v, constraintMode: 'radius' });
   // Typing a new area invalidates the coordinates resolved for the old one.
   const setArea = (v: string) => setSearch({ areaText: v, areaPlaceId: null });
 
@@ -34,8 +36,8 @@ export function IntakeScreen() {
       title: 'What are you after?',
       body: (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
-          {VIBES.map((v) => (
-            <Tag key={v} selected={vibe === v} onClick={() => setVibe(v)}>
+          {vibes.map((v) => (
+            <Tag key={v} selected={vibe === v} onClick={() => setVibe(vibe === v ? null : v)}>
               {v}
             </Tag>
           ))}
@@ -46,20 +48,23 @@ export function IntakeScreen() {
       title: 'Time or distance?',
       body: (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-          <Tabs
-            items={[
-              { value: 'time', label: 'How much time' },
-              { value: 'radius', label: 'How far' },
-            ]}
-            value={constraintMode}
-            onChange={(v) => setConstraintMode(v as 'time' | 'radius')}
+          <Input
+            label="Minutes you have"
+            value={timeMinutes}
+            onChange={(e) => setTimeMinutes(e.target.value)}
+            type="number"
+            placeholder="e.g. 20"
           />
           <Input
-            label={constraintMode === 'time' ? 'Minutes you have' : 'Distance (km)'}
-            value={constraintValue}
-            onChange={(e) => setConstraintValue(e.target.value)}
+            label="Distance (km)"
+            value={radiusKm}
+            onChange={(e) => setRadiusKm(e.target.value)}
             type="number"
+            placeholder="e.g. 5"
           />
+          <p style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>
+            Fill one. The last field you edit is what we search with.
+          </p>
         </div>
       ),
     },
@@ -77,8 +82,7 @@ export function IntakeScreen() {
   ];
 
   const skipAndBrowse = () => {
-    setSearch({ door: 'eat' });
-    navigate('/results/eat');
+    navigate(door === 'explore' ? '/results/explore' : '/results/eat');
   };
   const finish = () => navigate('/filters');
 

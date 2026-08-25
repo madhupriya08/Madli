@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
 
-export type Rank = 1 | 2 | 3;
+export type Rank = 1 | 2 | 3 | 4 | 5;
 
 export interface RankBadgeProps {
   rank?: Rank;
@@ -13,6 +13,8 @@ const TONE: Record<Rank, { fill: string; ring: string; ink: string }> = {
   1: { fill: 'var(--rank-1)', ring: 'rgba(15,118,110,0.18)', ink: 'var(--white)' },
   2: { fill: 'var(--rank-2)', ring: 'rgba(56,189,248,0.22)', ink: 'var(--teal-900)' },
   3: { fill: 'var(--rank-3)', ring: 'rgba(100,116,139,0.20)', ink: 'var(--white)' },
+  4: { fill: 'var(--rank-3)', ring: 'rgba(100,116,139,0.20)', ink: 'var(--white)' },
+  5: { fill: 'var(--rank-3)', ring: 'rgba(100,116,139,0.20)', ink: 'var(--white)' },
 };
 
 const SIZES = {
@@ -21,7 +23,7 @@ const SIZES = {
   lg: { box: 46, font: 26, ring: 4 },
 };
 
-/** The numeral 1, 2 or 3 in Cooper BT. Only ever those three ranks. */
+/** The pick numeral in Cooper BT. */
 export function RankBadge({ rank = 1, size = 'md', variant = 'solid', style }: RankBadgeProps) {
   const s = SIZES[size];
   const t = TONE[rank];

@@ -19,7 +19,8 @@ export function ManualAreaScreen() {
   const [homeArea, setHomeArea] = useState<string | null>(null);
   const navigate = useNavigate();
   const { persona } = usePersona();
-  const { setSearch } = useSearch();
+  const { search, setSearch } = useSearch();
+  const resultsPath = search.door === 'explore' ? '/results/explore' : '/results/eat';
   const filtered = areas.filter((a) => a.name.toLowerCase().includes(query.toLowerCase()));
 
   // Google autocomplete sits *alongside* the seeded neighbourhoods rather
@@ -61,7 +62,7 @@ export function ManualAreaScreen() {
 
   const chooseSeededArea = (name: string) => {
     setSearch({ areaText: name, areaPlaceId: null, centerSource: 'area' });
-    navigate(name === 'Alwal' ? '/neighbourhoods/Alwal' : '/results/eat');
+    navigate(name === 'Alwal' ? '/neighbourhoods/Alwal' : resultsPath);
   };
 
   const chooseSuggestion = async (s: AreaSuggestion) => {
@@ -73,7 +74,7 @@ export function ManualAreaScreen() {
       // Keep the typed area even if coordinates could not be resolved — the
       // text still narrows the search, it just cannot centre the map.
     }
-    navigate('/results/eat');
+    navigate(resultsPath);
   };
 
   return (

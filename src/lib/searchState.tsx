@@ -30,9 +30,16 @@ export interface SearchState {
   door: Door;
   /** Intake step 1 — a vibe chip, or null if skipped. */
   vibe: string | null;
-  /** Intake step 2 — the person has a time in mind or a distance, never both. */
+  /** Intake step 2 — which of the two fields last drove the search radius. */
   constraintMode: ConstraintMode;
-  /** Raw input; empty string means "not specified". Minutes or km per constraintMode. */
+  /** Minutes budget. Empty means unspecified. Independent of radiusKm. */
+  timeMinutes: string;
+  /** Distance in km. Empty means unspecified. Independent of timeMinutes. */
+  radiusKm: string;
+  /**
+   * @deprecated Kept in sync with timeMinutes/radiusKm so older sessionStorage
+   * blobs and analytics that still read constraintValue keep working.
+   */
   constraintValue: string;
   /** Intake step 3 / S9 — free-typed area text. */
   areaText: string;
@@ -53,6 +60,8 @@ const DEFAULT_STATE: SearchState = {
   door: 'eat',
   vibe: null,
   constraintMode: 'time',
+  timeMinutes: '',
+  radiusKm: '',
   constraintValue: '',
   areaText: '',
   areaPlaceId: null,
@@ -71,17 +80,41 @@ const DEFAULT_STATE: SearchState = {
  */
 export const DEFAULT_CENTER: LatLng = { lat: 17.385, lng: 78.4867 };
 
+/** True when the person already chose a real origin (GPS or typed area). */
+export function hasSearchOrigin(search: SearchState): boolean {
+  return (
+    search.center != null &&
+    (search.centerSource === 'geolocation' || search.centerSource === 'area')
+  );
+}
+
+/** Straight-line distance in metres. Used to keep catalogue places inside the search radius. */
+export function haversineMeters(a: LatLng, b: LatLng): number {
+  const R = 6_371_000;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const lat1 = toRad(a.lat);
+  const lat2 = toRad(b.lat);
+  const h = Math.sin(dLat / 2) ** 2 + Math.sin(dLng / 2) ** 2 * Math.cos(lat1) * Math.cos(lat2);
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
 const STORAGE_KEY = 'madli.search';
 
 function readStored(): SearchState {
   try {
     const raw = sessionStorage.getItem(STORAGE_KEY);
     if (!raw) return DEFAULT_STATE;
-    const parsed = JSON.parse(raw) as Partial<SearchState>;
-    // Spread over the defaults rather than trusting the blob: a stored shape
-    // from an older build must not leave a field undefined at a call site
-    // that assumes it exists.
-    return { ...DEFAULT_STATE, ...parsed };
+    const parsed = JSON.parse(raw) as Partial<SearchState> & { constraintValue?: string };
+    const next = { ...DEFAULT_STATE, ...parsed };
+    // Older blobs only had constraintValue + constraintMode.
+    if (!parsed.timeMinutes && !parsed.radiusKm && parsed.constraintValue) {
+      if (next.constraintMode === 'radius') next.radiusKm = parsed.constraintValue;
+      else next.timeMinutes = parsed.constraintValue;
+    }
+    next.constraintValue = next.constraintMode === 'radius' ? next.radiusKm : next.timeMinutes;
+    return next;
   } catch {
     return DEFAULT_STATE;
   }
@@ -139,6 +172,13 @@ export function SearchProvider({ children }: { children: ReactNode }) {
   const setSearch = useCallback((patch: Partial<SearchState>) => {
     setState((prev) => {
       const next = { ...prev, ...patch };
+      if (patch.timeMinutes !== undefined && patch.constraintMode === undefined) {
+        next.constraintMode = 'time';
+      }
+      if (patch.radiusKm !== undefined && patch.constraintMode === undefined) {
+        next.constraintMode = 'radius';
+      }
+      next.constraintValue = next.constraintMode === 'radius' ? next.radiusKm : next.timeMinutes;
       writeStored(next);
       return next;
     });
@@ -155,7 +195,10 @@ export function SearchProvider({ children }: { children: ReactNode }) {
       setSearch,
       resetSearch,
       effectiveCenter: search.center ?? DEFAULT_CENTER,
-      radiusMeters: radiusFromConstraint(search.constraintMode, search.constraintValue),
+      radiusMeters: radiusFromConstraint(
+        search.constraintMode,
+        search.constraintMode === 'radius' ? search.radiusKm : search.timeMinutes,
+      ),
     }),
     [search, setSearch, resetSearch],
   );

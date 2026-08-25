@@ -78,7 +78,7 @@ const elementById: Record<string, ReactNode> = {
   S52: <SearchEntryScreen />,
 
   S15: <IntakeScreen />,
-  S16: <FiltersScreen door="eat" />,
+  S16: <FiltersScreen />,
   S17: <ResultsScreen door="eat" />,
   S18: <ResultsScreen door="explore" />,
   S19: <PlaceDetailScreen />,

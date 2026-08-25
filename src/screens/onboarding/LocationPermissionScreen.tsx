@@ -1,9 +1,13 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { AppShell } from '../layout/AppShell';
 import { Button } from '../../components/core/Button';
 import { Icon } from '../../components/core/Icon';
-import { useSearch } from '../../lib/searchState';
+import { hasSearchOrigin, useSearch, type Door } from '../../lib/searchState';
+
+interface LocationNavState {
+  door?: Door;
+}
 
 // S8: denied is not an error. It routes into S9 and every downstream screen
 // stays fully functional with a typed area. Reason copy sits above the
@@ -12,11 +16,23 @@ export function LocationPermissionScreen() {
   const [denied, setDenied] = useState(false);
   const [asking, setAsking] = useState(false);
   const navigate = useNavigate();
-  const { setSearch } = useSearch();
+  const location = useLocation();
+  const { search, setSearch } = useSearch();
+  const door = (location.state as LocationNavState | null)?.door ?? search.door;
 
-  // A real permission prompt now, not a simulated one. Denial is still not an
-  // error: it routes to the typed-area screen, and every downstream screen
-  // works from a typed area exactly as it does from coordinates.
+  // If they already allowed location or picked an area this session, skip
+  // this screen — otherwise Allow → /app → Eat → here is an infinite loop.
+  useEffect(() => {
+    if (hasSearchOrigin(search)) {
+      navigate('/intake', { replace: true });
+    }
+  }, [search, navigate]);
+
+  const goToIntake = (patch: Parameters<typeof setSearch>[0]) => {
+    setSearch({ door, ...patch });
+    navigate('/intake');
+  };
+
   const requestLocation = () => {
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
       setDenied(true);
@@ -26,11 +42,10 @@ export function LocationPermissionScreen() {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         setAsking(false);
-        setSearch({
+        goToIntake({
           center: { lat: pos.coords.latitude, lng: pos.coords.longitude },
           centerSource: 'geolocation',
         });
-        navigate('/app');
       },
       () => {
         setAsking(false);
@@ -76,7 +91,7 @@ export function LocationPermissionScreen() {
           <Button onClick={requestLocation} disabled={asking}>
             {asking ? 'Asking…' : 'Allow location'}
           </Button>
-          <Button variant="secondary" onClick={() => navigate('/area')}>
+          <Button variant="secondary" onClick={() => navigate('/area', { state: { door } })}>
             Type my area instead
           </Button>
         </div>

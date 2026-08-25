@@ -15,7 +15,7 @@ export interface MapMarker {
   position: LatLng;
   title: string;
   /** Ranked picks get the numbered teal pin; unranked get a quiet dot. */
-  rank?: 1 | 2 | 3;
+  rank?: 1 | 2 | 3 | 4 | 5;
   onClick?: () => void;
 }
 
@@ -28,6 +28,8 @@ export interface GoogleMapViewProps {
   height?: number | string;
   /** Shown instead of the map when there is nothing to plot. */
   emptyLabel?: string;
+  /** Fired when the user clicks the map (not a marker). */
+  onMapClick?: () => void;
 }
 
 const FALLBACK_CENTER: LatLng = { lat: 17.385, lng: 78.4867 };
@@ -48,11 +50,14 @@ export function GoogleMapView({
   polyline,
   height = 320,
   emptyLabel,
+  onMapClick,
 }: GoogleMapViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
   const markerObjectsRef = useRef<google.maps.Marker[]>([]);
   const polylineRef = useRef<google.maps.Polyline | null>(null);
+  const onMapClickRef = useRef(onMapClick);
+  onMapClickRef.current = onMapClick;
   const [loadError, setLoadError] = useState<Error | null>(null);
   const [ready, setReady] = useState(false);
 
@@ -98,6 +103,16 @@ export function GoogleMapView({
     if (!ready || !mapRef.current) return;
     mapRef.current.setCenter(resolvedCenter);
   }, [ready, resolvedCenter.lat, resolvedCenter.lng]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!ready || !mapRef.current || !window.google?.maps) return;
+    const listener = mapRef.current.addListener('click', () => {
+      onMapClickRef.current?.();
+    });
+    return () => {
+      listener.remove();
+    };
+  }, [ready]);
 
   // Markers are fully rebuilt on change: the sets here are small (a handful
   // of picks), and diffing them would be more code than it saves.

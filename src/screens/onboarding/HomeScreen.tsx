@@ -3,19 +3,20 @@ import { AppShell } from '../layout/AppShell';
 import { Card } from '../../components/core/Card';
 import { Icon } from '../../components/core/Icon';
 import { usePersona } from '../../dev/PersonaContext';
+import { hasSearchOrigin, useSearch, type Door } from '../../lib/searchState';
 
 // S7: two doors, CSS grid with a 280px minimum so desktop side-by-side and
 // mobile stack are the same markup — real divergence starts at S17.
 // Personalized state (User only): recent searches + last-used filter set.
 const DOORS = [
   {
-    value: 'eat',
+    value: 'eat' as const,
     label: 'Eat',
     body: 'Breakfast, biryani, cafes — three picks in two minutes.',
     icon: 'utensils',
   },
   {
-    value: 'explore',
+    value: 'explore' as const,
     label: 'Explore',
     body: 'Lakes, history, nightlife — where to go today.',
     icon: 'map',
@@ -25,7 +26,18 @@ const DOORS = [
 export function HomeScreen() {
   const navigate = useNavigate();
   const { persona } = usePersona();
+  const { search, setSearch } = useSearch();
   const personalized = persona === 'user' || persona === 'owner';
+
+  const openDoor = (door: Door) => {
+    // Clear the other door's vibe so Eat chips don't bias an Explore search.
+    setSearch({ door, vibe: null });
+    if (hasSearchOrigin(search)) {
+      navigate('/intake');
+      return;
+    }
+    navigate('/location-permission', { state: { door } });
+  };
 
   return (
     <AppShell title="Madli">
@@ -69,7 +81,7 @@ export function HomeScreen() {
             <Card
               key={door.value}
               interactive
-              onClick={() => navigate('/location-permission', { state: { door: door.value } })}
+              onClick={() => openDoor(door.value)}
               style={{
                 display: 'flex',
                 flexDirection: 'column',

@@ -13,6 +13,13 @@
  * render, so screens can show a real empty state instead of a blank page:
  * a missing key is a setup problem, a load failure is a network/blocked-API
  * problem, and the two read differently to whoever has to fix them.
+ *
+ * Ready means `google.maps.importLibrary` is a function — not merely that a
+ * `<script>` tag fired `onload`. The classic `loading=async` URL resolves
+ * `google.maps` before `importLibrary` exists; calling it then throws
+ * "importLibrary is not a function" and discovery falls back to the
+ * catalogue even though the key is valid. The dynamic bootstrap below is
+ * Google's documented loader for that API.
  */
 
 export class MissingMapsKeyError extends Error {
@@ -59,16 +66,89 @@ export function hasMapsApiKey(): boolean {
 }
 
 /** Libraries this app uses. Requested up front so no screen triggers a second load. */
-const LIBRARIES = ['places', 'marker', 'routes', 'geometry'] as const;
+const LIBRARIES = ['maps', 'places', 'marker', 'routes', 'geometry'] as const;
+
+type MapsNs = {
+  importLibrary: (library: string, ...args: unknown[]) => Promise<unknown>;
+  __ib__?: () => void;
+};
+
+type GoogleHost = { maps?: MapsNs };
+
+function googleHost(): GoogleHost {
+  const w = window as unknown as { google: GoogleHost };
+  w.google = w.google ?? {};
+  return w.google;
+}
 
 let loadPromise: Promise<typeof google.maps> | null = null;
+
+function mapsReady(maps: MapsNs | undefined): maps is MapsNs {
+  return typeof maps?.importLibrary === 'function';
+}
+
+async function preloadLibraries(maps: MapsNs): Promise<typeof google.maps> {
+  await Promise.all(LIBRARIES.map((lib) => maps.importLibrary(lib)));
+  return maps as unknown as typeof google.maps;
+}
+
+/**
+ * Google's dynamic importLibrary bootstrap.
+ *
+ * Installs a stub `importLibrary` that injects the API script, then hands
+ * off to the real implementation once the callback fires. Callers must not
+ * treat `window.google.maps` as ready until `importLibrary` is a function.
+ */
+function bootstrapImportLibrary(key: string): Promise<MapsNs> {
+  const host = googleHost();
+  const maps: MapsNs = host.maps ?? ({} as MapsNs);
+  host.maps = maps;
+
+  if (typeof maps.importLibrary === 'function') return Promise.resolve(maps);
+
+  let scriptPromise: Promise<void> | null = null;
+
+  const loadScript = (): Promise<void> => {
+    if (scriptPromise) return scriptPromise;
+    scriptPromise = new Promise<void>((resolve, reject) => {
+      const script = document.createElement('script');
+      const params = new URLSearchParams({ key, v: 'weekly', callback: 'google.maps.__ib__' });
+      maps.__ib__ = () => resolve();
+      script.src = `https://maps.googleapis.com/maps/api/js?${params.toString()}`;
+      script.async = true;
+      script.onerror = (e) => {
+        scriptPromise = null;
+        reject(new MapsLoadError(e));
+      };
+      document.head.appendChild(script);
+    });
+    return scriptPromise;
+  };
+
+  const stub: MapsNs['importLibrary'] = (name: string) =>
+    loadScript().then(() => {
+      const loaded = googleHost().maps;
+      if (!loaded || typeof loaded.importLibrary !== 'function' || loaded.importLibrary === stub) {
+        throw new MapsLoadError('script loaded without importLibrary');
+      }
+      return loaded.importLibrary(name);
+    });
+  maps.importLibrary = stub;
+
+  return loadScript().then(() => {
+    const loaded = googleHost().maps;
+    if (!loaded || typeof loaded.importLibrary !== 'function' || loaded.importLibrary === stub) {
+      throw new MapsLoadError('script loaded without importLibrary');
+    }
+    return loaded;
+  });
+}
 
 /**
  * Loads Maps JavaScript exactly once per page, whoever asks first.
  *
- * Concurrent callers share one promise and one `<script>` tag: several
- * screens mount maps at the same time, and a second injection is both a
- * double bill and a console warning from Google.
+ * Concurrent callers share one promise. Ready is defined as
+ * `typeof google.maps.importLibrary === 'function'`.
  */
 export function loadGoogleMaps(): Promise<typeof google.maps> {
   if (loadPromise) return loadPromise;
@@ -76,38 +156,23 @@ export function loadGoogleMaps(): Promise<typeof google.maps> {
   const key = getMapsApiKey();
   if (!key) return Promise.reject(new MissingMapsKeyError());
 
-  loadPromise = new Promise<typeof google.maps>((resolve, reject) => {
+  loadPromise = (async () => {
     if (typeof window === 'undefined' || typeof document === 'undefined') {
-      reject(new MapsLoadError('no DOM'));
-      return;
-    }
-    if (window.google?.maps) {
-      resolve(window.google.maps);
-      return;
+      throw new MapsLoadError('no DOM');
     }
 
-    const script = document.createElement('script');
-    const params = new URLSearchParams({
-      key,
-      v: 'weekly',
-      libraries: LIBRARIES.join(','),
-      loading: 'async',
-    });
-    script.src = `https://maps.googleapis.com/maps/api/js?${params.toString()}`;
-    script.async = true;
-    script.onload = () => {
-      if (window.google?.maps) resolve(window.google.maps);
-      else reject(new MapsLoadError('script loaded without google.maps'));
-    };
-    script.onerror = (e) => {
-      // Let a later attempt retry rather than caching the failure forever —
-      // the usual cause is a transient network problem or a referrer
-      // restriction the developer is in the middle of fixing.
+    try {
+      const existing = window.google?.maps as MapsNs | undefined;
+      if (mapsReady(existing)) return preloadLibraries(existing);
+      const maps = await bootstrapImportLibrary(key);
+      return preloadLibraries(maps);
+    } catch (err) {
       loadPromise = null;
-      reject(new MapsLoadError(e));
-    };
-    document.head.appendChild(script);
-  });
+      throw err instanceof MapsLoadError || err instanceof MissingMapsKeyError
+        ? err
+        : new MapsLoadError(err);
+    }
+  })();
 
   return loadPromise;
 }

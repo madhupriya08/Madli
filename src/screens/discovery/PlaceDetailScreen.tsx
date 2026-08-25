@@ -1,32 +1,79 @@
+import { useEffect, useState, type ReactNode } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { AppShell } from '../layout/AppShell';
 import { PhotoFrame } from '../../components/core/PhotoFrame';
+import { RankBadge } from '../../components/trust/RankBadge';
 import { RankGap } from '../../components/trust/RankGap';
 import { SampleSize } from '../../components/trust/SampleSize';
 import { ReasonNote } from '../../components/trust/ReasonNote';
 import { Badge } from '../../components/core/Badge';
 import { Button } from '../../components/core/Button';
-import { IconButton } from '../../components/core/IconButton';
 import { EmptyState } from '../../components/feedback/EmptyState';
+import { PickSkeleton } from '../../components/feedback/Skeleton';
 import { usePersona } from '../../dev/PersonaContext';
 import { places } from '../../fixtures/places';
 import { categoryName } from '../../fixtures/categories';
 import { placePhotoUrl } from '../../lib/placePhoto';
 import { GoogleMapView } from '../../components/map/GoogleMapView';
+import { fetchPlaceDetails, type GooglePlaceDetails } from '../../lib/placesSearch';
+import { pickReason } from '../../data/hybridPicks';
+import { useSearch } from '../../lib/searchState';
+import { fetchRoute } from '../../lib/routes';
 import {
-  useAddBookmark,
-  useBookmarks,
-  useRemoveBookmark,
-  useBusinessClaims,
-  useOwnsVerifiedClaim,
-} from '../../data/hooks';
+  isGooglePlaceSaved,
+  removeSavedGooglePlace,
+  saveGooglePlace,
+} from '../../lib/savedGooglePlaces';
+import { useAddBookmark, useBookmarks, useRemoveBookmark } from '../../data/hooks';
 
-// S19: five role states on one screen. Shared link unlocks everything — no
-// cap, no lock — because shared links must open fully with no account and
-// never expire. "Is this your business" only renders when unclaimed; on a
-// claimed listing the Owner sees an edit affordance in the same slot. Real
-// divergence: desktop is two columns with gallery/map on the left; mobile
-// stacks with a swipe strip.
+function sectionCard(children: ReactNode) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 14,
+        padding: 'var(--space-5)',
+        border: '1px solid var(--border-hairline)',
+        borderRadius: 'var(--radius-lg)',
+        background: 'var(--white)',
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function eyebrow(label: string) {
+  return (
+    <div
+      style={{
+        font: 'var(--type-eyebrow)',
+        textTransform: 'uppercase',
+        letterSpacing: 'var(--tracking-eyebrow)',
+        color: 'var(--text-muted)',
+      }}
+    >
+      {label}
+    </div>
+  );
+}
+
+function practicalRow(label: string, value: string | undefined | null) {
+  if (!value) return null;
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <span style={{ font: 'var(--type-evidence)', color: 'var(--evidence-text)' }}>{label}</span>
+      <span style={{ font: 'var(--type-label)', color: 'var(--text-heading)' }}>{value}</span>
+    </div>
+  );
+}
+
+/**
+ * S19 place detail — layout follows the design handoff prototype.
+ * No Menu / Website / Claim. Directions opens Google Maps directly.
+ */
 export function PlaceDetailScreen() {
   const { slug } = useParams<{ slug: string }>();
   const [searchParams] = useSearchParams();
@@ -36,20 +83,56 @@ export function PlaceDetailScreen() {
   const { data: bookmarks = [] } = useBookmarks(userId);
   const addBookmark = useAddBookmark(userId);
   const removeBookmark = useRemoveBookmark(userId);
+  const [, setSaveTick] = useState(0);
+  const { search, effectiveCenter } = useSearch();
 
   const decodedSlug = slug ? decodeURIComponent(slug) : undefined;
   const place = places.find((p) => p.slug === decodedSlug);
-  // Real per-place check against the signed-in user's own claims (real
-  // owns_verified_claim() RPC) — replaces Phase 2's fixture simplification
-  // ("the Owner persona owns whichever place has a verified claim"), so this
-  // is correct for any real Owner account, not just the one fixture that
-  // happened to match. Verified live end-to-end (submit → admin calls →
-  // admin approves → this check flips true for that user) in
-  // PHASE_3_COMPLETION_REPORT.md §4.
-  const { data: ownsThisClaim = false } = useOwnsVerifiedClaim(place?.id);
-  const { data: existingClaims = [] } = useBusinessClaims({ placeId: place?.id });
+  const googleQuery = useQuery({
+    queryKey: ['googlePlace', decodedSlug],
+    queryFn: () => fetchPlaceDetails(decodedSlug!),
+    enabled: Boolean(decodedSlug) && !place,
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+  const googlePlace = googleQuery.data;
 
-  if (!place) {
+  const dest =
+    place?.lat != null && place.lng != null
+      ? { lat: place.lat, lng: place.lng }
+      : googlePlace?.location;
+  const [driveLine, setDriveLine] = useState<string | null>(place?.drive ?? null);
+
+  useEffect(() => {
+    if (!dest) return;
+    if (place?.drive) {
+      setDriveLine(place.drive);
+      return;
+    }
+    let cancelled = false;
+    fetchRoute(effectiveCenter, dest)
+      .then((r) => {
+        if (!cancelled) setDriveLine(`${r.durationText} · ${r.distanceText}`);
+      })
+      .catch(() => {
+        if (!cancelled) setDriveLine(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [dest?.lat, dest?.lng, place?.drive, effectiveCenter.lat, effectiveCenter.lng]);
+
+  if (!place && googleQuery.isLoading) {
+    return (
+      <AppShell title="" onBack={() => navigate(-1)}>
+        <div style={{ padding: 'var(--space-6) var(--gutter)' }}>
+          <PickSkeleton />
+        </div>
+      </AppShell>
+    );
+  }
+
+  if (!place && !googlePlace) {
     return (
       <AppShell title="Not found" onBack={() => navigate(-1)}>
         <EmptyState
@@ -61,166 +144,632 @@ export function PlaceDetailScreen() {
     );
   }
 
-  const alreadyVerifiedByAnyone = existingClaims.some((c) => c.status === 'verified');
-  const isOwnerOfThis = persona !== 'guest' && ownsThisClaim;
-  const guestLocked = persona === 'guest' && !isSharedLink;
-  const isBookmarked = bookmarks.some((b) => b.placeId === place.id);
-
-  const media = (
-    <PhotoFrame
-      src={placePhotoUrl(place.slug, 1000, 750)}
-      alt={place.name}
-      label={place.name}
-      ratio={breakpoint === 'desktop' ? '4 / 3' : '16 / 10'}
-    >
-      <div style={{ position: 'absolute', top: 12, left: 12 }}>
-        {place.gem ? <Badge tone="onImage">Local gem</Badge> : null}
-      </div>
-    </PhotoFrame>
-  );
-
-  // Only when the place actually has coordinates — a map centred on a
-  // fallback would imply a location Madli does not have.
-  const miniMap =
-    place.lat != null && place.lng != null ? (
-      <GoogleMapView
-        height={200}
-        center={{ lat: place.lat, lng: place.lng }}
-        zoom={15}
-        markers={[
-          {
-            id: place.id,
-            position: { lat: place.lat, lng: place.lng },
-            title: place.name,
-            rank: 1,
-          },
-        ]}
+  if (place) {
+    return (
+      <CatalogueDetail
+        place={place}
+        breakpoint={breakpoint}
+        persona={persona}
+        isSharedLink={isSharedLink}
+        driveLine={driveLine ?? place.drive}
+        isBookmarked={bookmarks.some((b) => b.placeId === place.id)}
+        onToggleBookmark={() =>
+          bookmarks.some((b) => b.placeId === place.id)
+            ? removeBookmark.mutate(place.id)
+            : addBookmark.mutate(place.id)
+        }
+        onBack={() => navigate(-1)}
+        onShare={() =>
+          navigate('/share', {
+            state: {
+              name: place.name,
+              path: `/places/${encodeURIComponent(place.slug)}?shared=1`,
+              photoUrl: placePhotoUrl(place.slug, 200, 200),
+            },
+          })
+        }
+        onBridge={() => navigate(`/places/${encodeURIComponent(place.slug)}/bridge`)}
+        onBeenHere={() => navigate('/log-visit', { state: { placeId: place.id } })}
       />
-    ) : null;
-
-  const content = (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-      <div>
-        <h1 style={{ font: 'var(--type-h2)' }}>{place.name}</h1>
-        <p style={{ font: 'var(--type-body-sm)', color: 'var(--text-muted)' }}>
-          {categoryName(place.categoryId)} · {place.neighborhood} · {place.priceLevel}
-        </p>
-      </div>
-
-      {isSharedLink ? (
-        <Badge tone="teal">Shared link — no account needed, never expires</Badge>
-      ) : null}
-
-      <ReasonNote
-        tone={place.gem ? 'gem' : 'plain'}
-        label={place.gem ? 'Why this is a gem' : 'Why this one'}
-      >
-        {place.reason}
-      </ReasonNote>
-
-      <RankGap tone={place.gapTone ?? 'clear'} points={place.gapPoints ?? undefined} />
-      <SampleSize locals={place.locals} visitors={place.visitors} />
-
-      {guestLocked ? (
-        <div
-          style={{
-            padding: 'var(--space-4)',
-            background: 'var(--surface-sunken)',
-            borderRadius: 'var(--radius-md)',
-          }}
-        >
-          <p style={{ font: 'var(--type-body-sm)', marginBottom: 'var(--space-3)' }}>
-            Sign up to see what to order and save this place.
-          </p>
-          <Button onClick={() => navigate('/signup')}>Sign up</Button>
-        </div>
-      ) : (
-        <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
-          <Button variant="secondary" onClick={() => navigate(`/places/${slug}/bridge`)}>
-            Pair with an Explore pick
-          </Button>
-          <Button variant="secondary" onClick={() => navigate(`/places/${slug}/map`)}>
-            Directions
-          </Button>
-          <IconButton
-            icon="share-2"
-            label="Share"
-            onClick={() => navigate('/share')}
-            variant="outline"
-          />
-          {persona === 'user' ? (
-            <IconButton
-              icon="bookmark"
-              label={isBookmarked ? 'Remove bookmark' : 'Save this place'}
-              variant={isBookmarked ? 'solid' : 'outline'}
-              onClick={() =>
-                isBookmarked ? removeBookmark.mutate(place.id) : addBookmark.mutate(place.id)
-              }
-            />
-          ) : null}
-        </div>
-      )}
-
-      <div
-        style={{
-          font: 'var(--type-body-sm)',
-          color: 'var(--text-body)',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 4,
-        }}
-      >
-        <span>{place.address}</span>
-        <span>{place.phone}</span>
-        <span>{place.hours}</span>
-      </div>
-
-      {!alreadyVerifiedByAnyone && persona !== 'guest' && !isOwnerOfThis ? (
-        <button
-          onClick={() => navigate(`/claim/${slug}`)}
-          style={{
-            background: 'none',
-            border: 'none',
-            color: 'var(--text-link)',
-            cursor: 'pointer',
-            textAlign: 'left',
-          }}
-        >
-          Is this your business?
-        </button>
-      ) : null}
-      {isOwnerOfThis ? (
-        <Button variant="secondary" onClick={() => navigate(`/owner/${slug}/edit`)}>
-          Edit your listing
-        </Button>
-      ) : null}
-      {persona === 'admin' ? (
-        <Button variant="secondary" onClick={() => navigate('/admin/catalogue')}>
-          Edit in catalogue (admin)
-        </Button>
-      ) : null}
-      <p style={{ font: 'var(--type-caption)', color: 'var(--text-faint)' }}>
-        Signed in as {userId || 'guest'}
-      </p>
-    </div>
-  );
+    );
+  }
 
   return (
-    <AppShell title="" onBack={() => navigate(-1)}>
+    <GoogleDetail
+      place={googlePlace!}
+      vibe={search.vibe}
+      breakpoint={breakpoint}
+      persona={persona}
+      isSharedLink={isSharedLink}
+      driveLine={driveLine}
+      isBookmarked={isGooglePlaceSaved(googlePlace!.placeId)}
+      onToggleBookmark={() => {
+        const g = googlePlace!;
+        if (isGooglePlaceSaved(g.placeId)) removeSavedGooglePlace(g.placeId);
+        else
+          saveGooglePlace({
+            placeId: g.placeId,
+            name: g.name,
+            address: g.address,
+            photoUrl: g.photoUrl,
+            types: g.types,
+          });
+        setSaveTick((n) => n + 1);
+      }}
+      onBack={() => navigate(-1)}
+      onShare={() =>
+        navigate('/share', {
+          state: {
+            name: googlePlace!.name,
+            path: `/places/${encodeURIComponent(googlePlace!.placeId)}?shared=1`,
+            photoUrl: googlePlace!.photoUrl,
+          },
+        })
+      }
+      onBridge={() =>
+        navigate(`/places/${encodeURIComponent(googlePlace!.placeId)}/bridge`)
+      }
+      onSignup={() => navigate('/signup')}
+    />
+  );
+}
+
+function CatalogueDetail({
+  place,
+  breakpoint,
+  persona,
+  isSharedLink,
+  driveLine,
+  isBookmarked,
+  onToggleBookmark,
+  onBack,
+  onShare,
+  onBridge,
+  onBeenHere,
+}: {
+  place: (typeof places)[number];
+  breakpoint: string;
+  persona: string;
+  isSharedLink: boolean;
+  driveLine: string | null | undefined;
+  isBookmarked: boolean;
+  onToggleBookmark: () => void;
+  onBack: () => void;
+  onShare: () => void;
+  onBridge: () => void;
+  onBeenHere: () => void;
+}) {
+  const cat = categoryName(place.categoryId);
+  const rankLabel = `#2 in ${place.neighborhood} — ${cat}`;
+  const openDirections = () => {
+    if (place.lat != null && place.lng != null) {
+      window.open(
+        `https://www.google.com/maps/dir/?api=1&destination=${place.lat},${place.lng}`,
+        '_blank',
+        'noopener',
+      );
+      return;
+    }
+    window.open(
+      `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.address || place.name)}`,
+      '_blank',
+      'noopener',
+    );
+  };
+
+  const photos = [0, 1, 2, 3].map((i) => ({
+    src: placePhotoUrl(`${place.slug}-${i}`, 600, 400),
+    label: place.name,
+  }));
+
+  return (
+    <AppShell title="" onBack={onBack}>
+      <div style={{ position: 'relative' }}>
+        <PhotoFrame
+          src={placePhotoUrl(place.slug, 1400, 700)}
+          alt={place.name}
+          label={place.name}
+          ratio={breakpoint === 'desktop' ? '21 / 9' : '16 / 10'}
+          radius="0"
+          overlay
+        >
+          <div
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              bottom: 0,
+              padding: 'var(--space-6) var(--gutter)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 10,
+            }}
+          >
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <Badge tone="onImage">{rankLabel}</Badge>
+              {isSharedLink ? <Badge tone="onImage">Opened from a shared link</Badge> : null}
+              {place.gem ? <Badge tone="onImage">Local gem</Badge> : null}
+            </div>
+            <h1
+              style={{
+                margin: 0,
+                font: 'var(--type-h2)',
+                color: '#fff',
+                letterSpacing: 'var(--tracking-display)',
+              }}
+            >
+              {place.name}
+            </h1>
+            <div style={{ font: 'var(--type-body)', color: 'rgba(255,255,255,0.86)' }}>
+              {[place.neighborhood, place.priceLevel, driveLine].filter(Boolean).join(' · ')}
+            </div>
+          </div>
+        </PhotoFrame>
+      </div>
+
       <div
         style={{
-          display: breakpoint === 'desktop' ? 'grid' : 'flex',
-          flexDirection: breakpoint === 'desktop' ? undefined : 'column',
-          gridTemplateColumns: breakpoint === 'desktop' ? '1fr 1fr' : undefined,
+          padding: 'var(--space-6) var(--gutter) var(--space-9)',
+          display: 'grid',
+          gridTemplateColumns: breakpoint === 'desktop' ? '1fr 1fr' : '1fr',
           gap: 'var(--space-7)',
-          padding: 'var(--space-6) var(--gutter)',
+          alignItems: 'start',
+          maxWidth: 'var(--content-max)',
+          margin: '0 auto',
+          width: '100%',
         }}
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
-          {media}
-          {miniMap}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)', minWidth: 0 }}>
+          <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 4 }}>
+            {photos.map((ph, i) => (
+              <div key={i} style={{ width: 150, flex: 'none' }}>
+                <PhotoFrame
+                  src={ph.src}
+                  alt={ph.label}
+                  label={ph.label}
+                  ratio="16 / 10"
+                  radius="var(--radius-md)"
+                />
+              </div>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            onClick={openDirections}
+            style={{
+              cursor: 'pointer',
+              border: '1px solid var(--border-hairline)',
+              borderRadius: 'var(--radius-lg)',
+              padding: 0,
+              background: 'transparent',
+              overflow: 'hidden',
+            }}
+          >
+            {place.lat != null && place.lng != null ? (
+              <GoogleMapView
+                height={190}
+                center={{ lat: place.lat, lng: place.lng }}
+                zoom={15}
+                markers={[
+                  {
+                    id: place.id,
+                    position: { lat: place.lat, lng: place.lng },
+                    title: place.name,
+                    rank: 1,
+                  },
+                ]}
+              />
+            ) : (
+              <div
+                style={{
+                  height: 190,
+                  background: 'var(--teal-50)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  font: 'var(--type-label)',
+                  color: 'var(--teal-600)',
+                }}
+              >
+                Map — open directions
+              </div>
+            )}
+          </button>
+
+          {sectionCard(
+            <>
+              {eyebrow('The practical bit')}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+                  gap: 14,
+                }}
+              >
+                {practicalRow('Per head', place.priceLevel)}
+                {practicalRow('Getting there', driveLine)}
+                {practicalRow('Open', place.hours || place.servingHours)}
+                {practicalRow('Phone', place.phone)}
+                {practicalRow('Usual wait', place.waitTime)}
+              </div>
+              {place.address ? (
+                <div style={{ font: 'var(--type-body-sm)', color: 'var(--text-body)' }}>
+                  {place.address}
+                </div>
+              ) : null}
+              <span style={{ font: 'var(--type-label)', color: 'var(--text-link)', cursor: 'pointer' }}>
+                Report wrong information
+              </span>
+            </>,
+          )}
+
+          {place.history
+            ? sectionCard(
+                <>
+                  {eyebrow('History & context')}
+                  <p style={{ margin: 0, font: 'var(--type-body)', color: 'var(--text-body)' }}>
+                    {place.history}
+                  </p>
+                </>,
+              )
+            : null}
         </div>
-        {content}
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)', minWidth: 0 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {eyebrow(place.gem ? 'Why this is a gem' : 'Why this one')}
+            <ReasonNote tone={place.gem ? 'gem' : 'plain'}>{place.reason}</ReasonNote>
+          </div>
+
+          {place.tags.length > 0 ? (
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {place.tags.map((t) => (
+                <Badge key={t} tone="neutral">
+                  {t}
+                </Badge>
+              ))}
+            </div>
+          ) : null}
+
+          {sectionCard(
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <RankBadge rank={2} />
+                <span style={{ font: 'var(--type-label)', color: 'var(--text-heading)' }}>
+                  {rankLabel}
+                </span>
+              </div>
+              <RankGap
+                tone={place.gapTone ?? 'clear'}
+                points={place.gapPoints ?? undefined}
+                comparedTo="#1"
+              />
+              <SampleSize locals={place.locals} visitors={place.visitors} window="last 90 days" />
+            </>,
+          )}
+
+          <button
+            type="button"
+            onClick={onBridge}
+            style={{
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 14,
+              padding: 'var(--space-5)',
+              borderRadius: 'var(--radius-lg)',
+              background: 'var(--surface-inverse)',
+              color: '#fff',
+              border: 'none',
+              textAlign: 'left',
+              font: 'inherit',
+            }}
+          >
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <span style={{ font: 'var(--type-label)', color: '#fff' }}>
+                {place.type === 'explore'
+                  ? 'The three closest places to eat afterwards'
+                  : 'The three closest places worth stopping at afterwards'}
+              </span>
+              <span style={{ font: 'var(--type-evidence)', color: 'var(--text-on-dark-muted)' }}>
+                Three more picks, every stop on one map
+              </span>
+            </div>
+            <span aria-hidden style={{ fontSize: 22, lineHeight: 1 }}>
+              ›
+            </span>
+          </button>
+
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <Button variant="primary" onClick={openDirections}>
+              Directions
+            </Button>
+            <Button variant="secondary" onClick={onShare}>
+              Share
+            </Button>
+            {persona !== 'guest' ? (
+              <Button variant="secondary" onClick={onToggleBookmark}>
+                {isBookmarked ? 'Saved' : 'Save'}
+              </Button>
+            ) : null}
+            {persona !== 'guest' ? (
+              <Button variant="quiet" onClick={onBeenHere}>
+                I have been here
+              </Button>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    </AppShell>
+  );
+}
+
+function GoogleDetail({
+  place,
+  vibe,
+  breakpoint,
+  persona,
+  isSharedLink,
+  driveLine,
+  isBookmarked,
+  onToggleBookmark,
+  onBack,
+  onShare,
+  onBridge,
+  onSignup,
+}: {
+  place: GooglePlaceDetails;
+  vibe: string | null;
+  breakpoint: string;
+  persona: string;
+  isSharedLink: boolean;
+  driveLine: string | null;
+  isBookmarked: boolean;
+  onToggleBookmark: () => void;
+  onBack: () => void;
+  onShare: () => void;
+  onBridge: () => void;
+  onSignup: () => void;
+}) {
+  const type = place.types.find((x) => x !== 'point_of_interest' && x !== 'establishment');
+  const typeLabel = type ? type.replace(/_/g, ' ') : undefined;
+  const isEatPlace = place.types.some((t) =>
+    ['restaurant', 'cafe', 'bakery', 'meal_takeaway', 'bar', 'meal_delivery', 'food'].includes(t),
+  );
+  const photos =
+    place.photoUrls && place.photoUrls.length > 0
+      ? place.photoUrls
+      : place.photoUrl
+        ? [place.photoUrl]
+        : [];
+  const openHours =
+    place.hours
+      ?.split(' · ')
+      .find((h) => /monday|today/i.test(h))
+      ?.replace(/^[^:]+:\s*/, '') ?? place.hours?.split(' · ')[0];
+  const ratingLine =
+    place.googleRating != null
+      ? `${place.googleRating.toFixed(1)} on Google${
+          place.reviewCount ? ` · ${place.reviewCount.toLocaleString()} reviews` : ''
+        }`
+      : null;
+
+  const openDirections = () => {
+    const { lat, lng } = place.location;
+    window.open(
+      `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&destination_place_id=${encodeURIComponent(place.placeId)}`,
+      '_blank',
+      'noopener',
+    );
+  };
+
+  return (
+    <AppShell title="" onBack={onBack}>
+      <div style={{ position: 'relative' }}>
+        <PhotoFrame
+          src={photos[0]}
+          alt={place.name}
+          label={place.name}
+          ratio={breakpoint === 'desktop' ? '21 / 9' : '16 / 10'}
+          radius="0"
+          overlay
+        >
+          <div
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              bottom: 0,
+              padding: 'var(--space-6) var(--gutter)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 10,
+            }}
+          >
+            {isSharedLink ? <Badge tone="onImage">Opened from a shared link</Badge> : null}
+            <h1
+              style={{
+                margin: 0,
+                font: 'var(--type-h2)',
+                color: '#fff',
+                letterSpacing: 'var(--tracking-display)',
+              }}
+            >
+              {place.name}
+            </h1>
+            <div style={{ font: 'var(--type-body)', color: 'rgba(255,255,255,0.86)' }}>
+              {[typeLabel, driveLine, ratingLine].filter(Boolean).join(' · ')}
+            </div>
+          </div>
+        </PhotoFrame>
+      </div>
+
+      <div
+        style={{
+          padding: 'var(--space-6) var(--gutter) var(--space-9)',
+          display: 'grid',
+          gridTemplateColumns: breakpoint === 'desktop' ? '1fr 1fr' : '1fr',
+          gap: 'var(--space-7)',
+          alignItems: 'start',
+          maxWidth: 'var(--content-max)',
+          margin: '0 auto',
+          width: '100%',
+        }}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)', minWidth: 0 }}>
+          {photos.length > 1 ? (
+            <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 4 }}>
+              {photos.slice(1).map((src, i) => (
+                <div key={`${src}-${i}`} style={{ width: 150, flex: 'none' }}>
+                  <PhotoFrame
+                    src={src}
+                    alt={`${place.name} photo ${i + 2}`}
+                    label={place.name}
+                    ratio="16 / 10"
+                    radius="var(--radius-md)"
+                  />
+                </div>
+              ))}
+            </div>
+          ) : null}
+          {place.photoAttributions?.length ? (
+            <p style={{ font: 'var(--type-caption)', color: 'var(--text-faint)' }}>
+              Photos: {Array.from(new Set(place.photoAttributions)).join(', ')}
+            </p>
+          ) : null}
+
+          <button
+            type="button"
+            onClick={openDirections}
+            style={{
+              cursor: 'pointer',
+              border: '1px solid var(--border-hairline)',
+              borderRadius: 'var(--radius-lg)',
+              padding: 0,
+              background: 'transparent',
+              overflow: 'hidden',
+            }}
+          >
+            <GoogleMapView
+              height={190}
+              center={place.location}
+              zoom={15}
+              markers={[
+                {
+                  id: place.placeId,
+                  position: place.location,
+                  title: place.name,
+                  rank: 1,
+                },
+              ]}
+            />
+          </button>
+
+          {sectionCard(
+            <>
+              {eyebrow('The practical bit')}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+                  gap: 14,
+                }}
+              >
+                {practicalRow('Getting there', driveLine)}
+                {practicalRow('Open', openHours || place.hours)}
+                {practicalRow('Phone', place.phone)}
+                {practicalRow('On Google', ratingLine)}
+              </div>
+              {place.address ? (
+                <div style={{ font: 'var(--type-body-sm)', color: 'var(--text-body)' }}>
+                  {place.address}
+                </div>
+              ) : null}
+              <span style={{ font: 'var(--type-label)', color: 'var(--text-link)', cursor: 'pointer' }}>
+                Report wrong information
+              </span>
+            </>,
+          )}
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)', minWidth: 0 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {eyebrow('Why this one')}
+            <ReasonNote>{pickReason(place, vibe)}</ReasonNote>
+          </div>
+
+          {vibe || typeLabel ? (
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {vibe ? <Badge tone="neutral">{vibe}</Badge> : null}
+              {typeLabel ? <Badge tone="neutral">{typeLabel}</Badge> : null}
+            </div>
+          ) : null}
+
+          {sectionCard(
+            <>
+              {eyebrow('Google reviews')}
+              <p style={{ margin: 0, font: 'var(--type-label)', color: 'var(--text-heading)' }}>
+                {ratingLine ?? 'No Google rating yet'}
+              </p>
+              {place.editorialSummary ? (
+                <p style={{ margin: 0, font: 'var(--type-body-sm)', color: 'var(--text-body)' }}>
+                  {place.editorialSummary}
+                </p>
+              ) : null}
+            </>,
+          )}
+
+          <button
+            type="button"
+            onClick={onBridge}
+            style={{
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 14,
+              padding: 'var(--space-5)',
+              borderRadius: 'var(--radius-lg)',
+              background: 'var(--surface-inverse)',
+              color: '#fff',
+              border: 'none',
+              textAlign: 'left',
+              font: 'inherit',
+            }}
+          >
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <span style={{ font: 'var(--type-label)', color: '#fff' }}>
+                {isEatPlace
+                  ? 'The three closest places worth stopping at afterwards'
+                  : 'The three closest places to eat afterwards'}
+              </span>
+              <span style={{ font: 'var(--type-evidence)', color: 'var(--text-on-dark-muted)' }}>
+                Three more picks, every stop on one map
+              </span>
+            </div>
+            <span aria-hidden style={{ fontSize: 22, lineHeight: 1 }}>
+              ›
+            </span>
+          </button>
+
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <Button variant="primary" onClick={openDirections}>
+              Directions
+            </Button>
+            <Button variant="secondary" onClick={onShare}>
+              Share
+            </Button>
+            {persona !== 'guest' ? (
+              <Button variant="secondary" onClick={onToggleBookmark}>
+                {isBookmarked ? 'Saved' : 'Save'}
+              </Button>
+            ) : (
+              <Button variant="quiet" onClick={onSignup}>
+                Sign up to save
+              </Button>
+            )}
+          </div>
+        </div>
       </div>
     </AppShell>
   );

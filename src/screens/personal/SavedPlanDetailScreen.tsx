@@ -3,6 +3,7 @@ import { AppShell } from '../layout/AppShell';
 import { PickCard } from '../../components/trust/PickCard';
 import { Badge } from '../../components/core/Badge';
 import { Button } from '../../components/core/Button';
+import { Card } from '../../components/core/Card';
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { useToast } from '../../components/feedback/ToastProvider';
 import { usePersona } from '../../dev/PersonaContext';
@@ -11,6 +12,140 @@ import { placeById } from '../../fixtures/places';
 import { categoryName } from '../../fixtures/categories';
 import { placePhotoUrl } from '../../lib/placePhoto';
 import { GoogleMapView, type MapMarker } from '../../components/map/GoogleMapView';
+import { getOuting, removeOutingPlan, type OutingPlan } from '../../lib/outingPlans';
+
+function openOutingInGoogleMaps(plan: OutingPlan) {
+  const withCoords = plan.stops.filter(
+    (s): s is typeof s & { lat: number; lng: number } => s.lat != null && s.lng != null,
+  );
+  if (withCoords.length === 0) {
+    window.open(
+      `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(plan.anchorName)}`,
+      '_blank',
+      'noopener',
+    );
+    return;
+  }
+
+  const hasAnchor = plan.anchorLat != null && plan.anchorLng != null;
+  const origin = hasAnchor
+    ? `${plan.anchorLat},${plan.anchorLng}`
+    : `${withCoords[0].lat},${withCoords[0].lng}`;
+  const routeStops = hasAnchor ? withCoords : withCoords.slice(1);
+
+  if (routeStops.length === 0) {
+    window.open(
+      `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(`${withCoords[0].lat},${withCoords[0].lng}`)}&travelmode=driving`,
+      '_blank',
+      'noopener',
+    );
+    return;
+  }
+
+  const destination = `${routeStops[routeStops.length - 1].lat},${routeStops[routeStops.length - 1].lng}`;
+  const middle = routeStops.slice(0, -1);
+  const waypoints = middle.map((s) => `${s.lat},${s.lng}`).join('|');
+  let url = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&travelmode=driving`;
+  if (waypoints) url += `&waypoints=${encodeURIComponent(waypoints)}`;
+  window.open(url, '_blank', 'noopener');
+}
+
+function OutingPlanDetail({
+  plan,
+  onBack,
+  onRemoved,
+}: {
+  plan: OutingPlan;
+  onBack: () => void;
+  onRemoved: () => void;
+}) {
+  const navigate = useNavigate();
+  const { show } = useToast();
+
+  const markers: MapMarker[] = plan.stops
+    .filter((s): s is typeof s & { lat: number; lng: number } => s.lat != null && s.lng != null)
+    .map((s, i) => ({
+      id: s.placeId,
+      position: { lat: s.lat, lng: s.lng },
+      title: s.name,
+      rank: (Math.min(i + 1, 5) as 1 | 2 | 3 | 4 | 5),
+      onClick: () => navigate(`/places/${encodeURIComponent(s.placeId)}`),
+    }));
+
+  return (
+    <AppShell title={plan.anchorName} onBack={onBack}>
+      <div
+        style={{
+          padding: 'var(--space-6) var(--gutter)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 'var(--space-5)',
+          maxWidth: 'var(--content-max)',
+          margin: '0 auto',
+          width: '100%',
+        }}
+      >
+        <p style={{ margin: 0, font: 'var(--type-body)', color: 'var(--text-body)' }}>
+          Outing from {plan.anchorName} · {plan.stops.length} stop
+          {plan.stops.length === 1 ? '' : 's'}
+        </p>
+
+        <GoogleMapView
+          height={220}
+          markers={markers}
+          onMapClick={() => openOutingInGoogleMaps(plan)}
+          emptyLabel="Stops need coordinates before we can map the route."
+        />
+
+        <Button variant="primary" onClick={() => openOutingInGoogleMaps(plan)}>
+          Open route in Google Maps
+        </Button>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+          {plan.stops.map((stop, i) => (
+            <Card
+              key={stop.placeId}
+              interactive
+              onClick={() => navigate(`/places/${encodeURIComponent(stop.placeId)}`)}
+              style={{ display: 'flex', flexDirection: 'column', gap: 4 }}
+            >
+              <div style={{ font: 'var(--type-label)', color: 'var(--text-muted)' }}>
+                Stop {i + 1}
+              </div>
+              <div style={{ font: 'var(--type-body)' }}>{stop.name}</div>
+              {stop.address ? (
+                <div style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>
+                  {stop.address}
+                </div>
+              ) : null}
+            </Card>
+          ))}
+        </div>
+
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <Button
+            variant="secondary"
+            onClick={() =>
+              navigate(`/places/${encodeURIComponent(plan.anchorPlaceId)}/bridge`)
+            }
+          >
+            Edit nearby picks
+          </Button>
+          <Button
+            variant="quiet"
+            onClick={() => {
+              removeOutingPlan(plan.anchorPlaceId);
+              show('Plan removed.');
+              onRemoved();
+            }}
+          >
+            Remove plan
+          </Button>
+        </div>
+      </div>
+    </AppShell>
+  );
+}
 
 // S24: map plus both stops, reflowed. Shared-link state shows the same
 // content to an anonymous visitor via the plan's share token — for real: the
@@ -30,11 +165,26 @@ export function SavedPlanDetailScreen() {
   const { show } = useToast();
   const createShareToken = useCreatePlanShareToken();
 
+  const decodedId = id ? decodeURIComponent(id) : undefined;
+  const outing = !isSharedLink && decodedId ? getOuting(decodedId) : undefined;
+
   const { data: sharedPlan, isLoading: sharedLoading } = useSharedPlan(
     isSharedLink ? id : undefined,
   );
-  const { data: ownPlans = [], isLoading: ownLoading } = usePlans(isSharedLink ? '' : userId);
+  const { data: ownPlans = [], isLoading: ownLoading } = usePlans(
+    isSharedLink || outing ? '' : userId,
+  );
   const plan = isSharedLink ? sharedPlan : ownPlans.find((p) => p.id === id);
+
+  if (outing) {
+    return (
+      <OutingPlanDetail
+        plan={outing}
+        onBack={() => navigate(-1)}
+        onRemoved={() => navigate('/bookmarks', { replace: true })}
+      />
+    );
+  }
 
   if (sharedLoading || ownLoading) return null;
 

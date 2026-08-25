@@ -10,12 +10,11 @@ import { Dialog } from '../../components/feedback/Dialog';
 import { usePersona } from '../../dev/PersonaContext';
 import { useGuestSession } from '../../lib/guestSession';
 import { useDiscovery } from '../../data/useDiscovery';
+import { INITIAL_VISIBLE_PICKS, MAX_VISIBLE_PICKS, pickReason } from '../../data/hybridPicks';
 import { useSearch } from '../../lib/searchState';
 import { GoogleMapView, type MapMarker } from '../../components/map/GoogleMapView';
 import { track } from '../../lib/analytics';
-import { categoryName } from '../../fixtures/categories';
-import { places as catalogue } from '../../fixtures/places';
-import { placePhotoUrl } from '../../lib/placePhoto';
+import type { Rank } from '../../components/trust/RankBadge';
 
 /**
  * S17 (Eat) and S18 (Explore) share this exact implementation by design — the
@@ -31,65 +30,50 @@ export function ResultsScreen({ door }: { door: 'eat' | 'explore' }) {
   const [showLoading, setShowLoading] = useState(true);
   const [mapView, setMapView] = useState(false);
   const [showGate, setShowGate] = useState<'none' | 'paywall' | 'reject-intercept'>('none');
-  const [round, setRound] = useState(0);
-  // Google candidates the person has cycled past — kept separately from the
-  // Madli place rejections in guestSession, because an unranked Google result
-  // has no Madli place id to reject by.
   const [rejectedGoogleIds, setRejectedGoogleIds] = useState<Set<string>>(new Set());
+  const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_PICKS);
 
-  // Keep the door the person is actually looking at in the shared state, so
-  // the map and any later filter edit act on this door, not the last one.
   useEffect(() => {
     if (search.door !== door) setSearch({ door });
   }, [door, search.door, setSearch]);
-
-  const rejectedPlaceIds = useMemo(
-    () => new Set(catalogue.filter((p) => guestSession.isRejected(p.id)).map((p) => p.id)),
-    // `round` is the signal that the rejection set changed — guestSession is
-    // a stable object, so it cannot be the dependency here.
-    [guestSession, round], // eslint-disable-line react-hooks/exhaustive-deps
-  );
 
   const {
     data: discovery,
     isLoading,
     googleError,
-    usedFallback,
-  } = useDiscovery(door, rejectedPlaceIds, rejectedGoogleIds);
+  } = useDiscovery(door, rejectedGoogleIds);
 
   useEffect(() => {
     if (persona === 'guest') {
-      // recordSearch() is a real external-system side effect (increments the
-      // shared guest session counter) whose outcome can only be known after
-      // it runs — the resulting gate state isn't derivable during render, so
-      // setting it here (rather than suppressing the effect entirely) is
-      // intentional, not an "effect that should just be state" case.
       const { paywalled } = guestSession.recordSearch();
       // eslint-disable-next-line react-hooks/set-state-in-effect
       if (paywalled) setShowGate('paywall');
     }
-    // README: results resolve in ~900ms behind three PickSkeletons, no loading copy.
     const t = setTimeout(() => setShowLoading(false), 900);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // "Three, never more" is enforced in buildDiscovery, next to the sort, so
-  // no screen can quietly widen it.
-  const ranked = discovery?.ranked ?? [];
-  const unranked = discovery?.unranked ?? [];
-  const threshold = discovery?.threshold ?? 0;
+  const pool = discovery?.ranked ?? [];
+  const ranked = pool.slice(0, Math.min(visibleCount, MAX_VISIBLE_PICKS));
+  const canShowTwoMore = ranked.length < MAX_VISIBLE_PICKS && pool.length > ranked.length;
 
-  // One event per resolved result set. Counts and filters only — no place
-  // names, no coordinates, nothing that identifies where a person is.
+  const openPlace = (placeId: string, rank: number) => {
+    track('pick_opened', { door, rank, from: 'results_list' });
+    navigate(`/places/${encodeURIComponent(placeId)}`);
+  };
+
+  const typeLabel = (types: string[]) => {
+    const t = types.find((x) => x !== 'point_of_interest' && x !== 'establishment');
+    return t ? t.replace(/_/g, ' ') : undefined;
+  };
+
   useEffect(() => {
     if (isLoading || !discovery) return;
     track('results_shown', {
       door,
-      ranked_count: discovery.ranked.length,
-      unranked_count: discovery.unranked.length,
-      threshold: discovery.threshold,
-      used_catalogue_fallback: usedFallback,
+      ranked_count: ranked.length,
+      google_error: googleError != null,
       has_vibe: search.vibe !== null,
       has_area: search.areaText.trim() !== '',
       constraint_mode: search.constraintMode,
@@ -97,41 +81,21 @@ export function ResultsScreen({ door }: { door: 'eat' | 'explore' }) {
       allows_pets: search.allowsPets,
       serves_pet_food: search.servesPetFood,
     });
-    // discovery is the signal; the search fields are read at fire time.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [discovery, isLoading, door, usedFallback]);
+  }, [discovery, isLoading, door, googleError]);
 
-  const markers: MapMarker[] = useMemo(() => {
-    const out: MapMarker[] = [];
-    ranked.forEach((r, i) => {
-      if (!r.location) return;
-      out.push({
-        id: r.place.id,
+  const markers: MapMarker[] = useMemo(
+    () =>
+      ranked.map((r, i) => ({
+        id: r.candidate.placeId,
         position: r.location,
-        title: r.place.name,
-        rank: (i + 1) as 1 | 2 | 3,
-        onClick: () => navigate(`/places/${encodeURIComponent(r.place.slug)}`),
-      });
-    });
-    for (const u of unranked) {
-      out.push({ id: u.candidate.placeId, position: u.location, title: u.candidate.name });
-    }
-    return out;
-  }, [ranked, unranked, navigate]);
-
-  // Cycling rejects the ranked Madli places first (they are what the person
-  // is actually being shown); the Google-only candidates behind them are
-  // dismissed by place id so they do not come back either.
-  const cycle = (keepFirst: boolean) => {
-    const dropped = keepFirst ? ranked.slice(1) : ranked;
-    guestSession.rejectPlaces(dropped.map((r) => r.place.id));
-    if (dropped.length === 0 && unranked.length > 0) {
-      const next = new Set(rejectedGoogleIds);
-      for (const u of unranked.slice(0, 3)) next.add(u.candidate.placeId);
-      setRejectedGoogleIds(next);
-    }
-    setRound((r) => r + 1);
-  };
+        title: r.candidate.name,
+        rank: (i + 1) as Rank,
+        onClick: () => openPlace(r.candidate.placeId, i + 1),
+      })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [ranked],
+  );
 
   const handleNoneOfThese = () => {
     if (persona === 'guest') {
@@ -141,26 +105,29 @@ export function ResultsScreen({ door }: { door: 'eat' | 'explore' }) {
         return;
       }
     }
-    cycle(false);
+    const next = new Set(rejectedGoogleIds);
+    for (const r of ranked) next.add(r.candidate.placeId);
+    setRejectedGoogleIds(next);
+    setVisibleCount(INITIAL_VISIBLE_PICKS);
   };
 
-  const handleShowTwoMore = () => cycle(true);
+  const handleShowTwoMore = () => {
+    setVisibleCount((n) => Math.min(MAX_VISIBLE_PICKS, n + 2));
+  };
 
   return (
     <AppShell title={door === 'eat' ? 'Eat' : 'Explore'} onBack={() => navigate(-1)}>
       <div style={{ padding: 'var(--space-5) var(--gutter)' }}>
-        {door === 'explore' ? (
-          <div style={{ marginBottom: 'var(--space-5)' }}>
-            <Tabs
-              items={[
-                { value: 'list', label: 'List' },
-                { value: 'map', label: 'Map' },
-              ]}
-              value={mapView ? 'map' : 'list'}
-              onChange={(v) => setMapView(v === 'map')}
-            />
-          </div>
-        ) : null}
+        <div style={{ marginBottom: 'var(--space-5)' }}>
+          <Tabs
+            items={[
+              { value: 'list', label: 'List' },
+              { value: 'map', label: 'Map' },
+            ]}
+            value={mapView ? 'map' : 'list'}
+            onChange={(v) => setMapView(v === 'map')}
+          />
+        </div>
 
         <p
           style={{
@@ -169,11 +136,11 @@ export function ResultsScreen({ door }: { door: 'eat' | 'explore' }) {
             marginBottom: 'var(--space-4)',
           }}
         >
-          {ranked.length} ranked {ranked.length === 1 ? 'pick' : 'picks'}
-          {unranked.length > 0 ? ` · ${unranked.length} more nearby, not ranked yet` : ''}
+          {ranked.length} {ranked.length === 1 ? 'pick' : 'picks'}
+          {search.areaText.trim() ? ` near ${search.areaText.trim()}` : ' nearby'}
         </p>
 
-        {usedFallback && googleError ? (
+        {googleError ? (
           <p
             style={{
               font: 'var(--type-caption)',
@@ -181,8 +148,7 @@ export function ResultsScreen({ door }: { door: 'eat' | 'explore' }) {
               marginBottom: 'var(--space-4)',
             }}
           >
-            Showing Madli&apos;s own ranked catalogue — live search is unavailable.{' '}
-            {googleError.message}
+            Live search is unavailable. {googleError.message}
           </p>
         ) : null}
 
@@ -205,98 +171,48 @@ export function ResultsScreen({ door }: { door: 'eat' | 'explore' }) {
             height={breakpoint === 'desktop' ? 520 : 380}
             emptyLabel="Nothing to plot for this search yet"
           />
-        ) : ranked.length === 0 && unranked.length === 0 ? (
+        ) : ranked.length === 0 ? (
           <EmptyState
             icon="map-pin-off"
             title="Nothing here yet"
-            body={`We need about ${threshold} local ratings before we will call anything a pick, and this search turned up nothing nearby. Try a wider distance or a different area.`}
+            body="Nothing nearby matched those filters. Try a wider distance or a different area."
           />
         ) : (
           <>
-            {ranked.length > 0 ? (
-              <div
-                style={{
-                  display: 'grid',
-                  gap: 'var(--space-5)',
-                  gridTemplateColumns: breakpoint === 'desktop' ? 'repeat(3, 1fr)' : '1fr',
-                  marginBottom: 'var(--space-6)',
-                }}
-              >
-                {ranked.map((r, i) => (
-                  <PickCard
-                    key={r.place.id}
-                    rank={(i + 1) as 1 | 2 | 3}
-                    name={r.place.name}
-                    category={categoryName(r.place.categoryId)}
-                    neighborhood={r.place.neighborhood}
-                    priceLevel={r.place.priceLevel}
-                    reason={r.place.reason}
-                    gem={r.place.gem}
-                    gapTone={r.place.gapTone ?? 'clear'}
-                    gapPoints={r.place.gapPoints ?? undefined}
-                    locals={r.place.locals}
-                    visitors={r.place.visitors}
-                    photoSrc={placePhotoUrl(r.place.slug)}
-                    photoLabel={r.place.name}
-                    onClick={() => {
-                      track('pick_opened', { door, rank: i + 1, from: 'results_list' });
-                      navigate(`/places/${encodeURIComponent(r.place.slug)}`);
-                    }}
-                  />
-                ))}
-              </div>
-            ) : (
-              <EmptyState
-                icon="map-pin-off"
-                title="Nothing ranked here yet"
-                body={`Madli ranks a place once it has about ${threshold} local ratings. These are nearby, but none has enough local data yet — so none of them gets a rank or a reason.`}
-              />
-            )}
+            <div
+              style={{
+                display: 'grid',
+                gap: 'var(--space-5)',
+                gridTemplateColumns: breakpoint === 'desktop' ? 'repeat(3, 1fr)' : '1fr',
+                marginBottom: 'var(--space-6)',
+              }}
+            >
+              {ranked.map((r, i) => (
+                <PickCard
+                  key={r.candidate.placeId}
+                  rank={(i + 1) as Rank}
+                  name={r.candidate.name}
+                  category={typeLabel(r.candidate.types)}
+                  neighborhood={r.candidate.address}
+                  photoSrc={r.candidate.photoUrl}
+                  photoLabel={r.candidate.name}
+                  reason={pickReason(r.candidate, search.vibe)}
+                  showStats={false}
+                  onClick={() => openPlace(r.candidate.placeId, i + 1)}
+                />
+              ))}
+            </div>
 
             <div style={{ display: 'flex', gap: 'var(--space-3)', marginBottom: 'var(--space-7)' }}>
               <Button variant="secondary" onClick={handleNoneOfThese}>
                 None of these
               </Button>
-              <Button variant="secondary" onClick={handleShowTwoMore}>
-                Show me two more
-              </Button>
+              {canShowTwoMore ? (
+                <Button variant="secondary" onClick={handleShowTwoMore}>
+                  Show me two more
+                </Button>
+              ) : null}
             </div>
-
-            {unranked.length > 0 ? (
-              <div>
-                <h4
-                  style={{
-                    font: 'var(--type-eyebrow)',
-                    color: 'var(--text-muted)',
-                    marginBottom: 'var(--space-3)',
-                  }}
-                >
-                  Nearby, not ranked yet
-                </h4>
-                <ul
-                  style={{
-                    listStyle: 'none',
-                    padding: 0,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 'var(--space-2)',
-                  }}
-                >
-                  {unranked.slice(0, 8).map((u) => (
-                    <li
-                      key={u.candidate.placeId}
-                      style={{ font: 'var(--type-body-sm)', color: 'var(--text-muted)' }}
-                    >
-                      {u.candidate.name}
-                      {' — '}
-                      {u.reason === 'below_threshold' && u.place
-                        ? `${u.place.locals.toLocaleString()} locals, under the ${threshold} we rank at`
-                        : 'not in Madli yet'}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
           </>
         )}
       </div>
