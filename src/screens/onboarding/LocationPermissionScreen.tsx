@@ -3,13 +3,42 @@ import { useNavigate } from 'react-router-dom';
 import { AppShell } from '../layout/AppShell';
 import { Button } from '../../components/core/Button';
 import { Icon } from '../../components/core/Icon';
+import { useSearch } from '../../lib/searchState';
 
 // S8: denied is not an error. It routes into S9 and every downstream screen
 // stays fully functional with a typed area. Reason copy sits above the
 // buttons, not in a tooltip.
 export function LocationPermissionScreen() {
   const [denied, setDenied] = useState(false);
+  const [asking, setAsking] = useState(false);
   const navigate = useNavigate();
+  const { setSearch } = useSearch();
+
+  // A real permission prompt now, not a simulated one. Denial is still not an
+  // error: it routes to the typed-area screen, and every downstream screen
+  // works from a typed area exactly as it does from coordinates.
+  const requestLocation = () => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      setDenied(true);
+      return;
+    }
+    setAsking(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setAsking(false);
+        setSearch({
+          center: { lat: pos.coords.latitude, lng: pos.coords.longitude },
+          centerSource: 'geolocation',
+        });
+        navigate('/app');
+      },
+      () => {
+        setAsking(false);
+        setDenied(true);
+      },
+      { enableHighAccuracy: false, timeout: 10_000, maximumAge: 5 * 60 * 1000 },
+    );
+  };
 
   return (
     <AppShell title="Find places near you" onBack={() => navigate(-1)} showTabBar={false}>
@@ -44,13 +73,8 @@ export function LocationPermissionScreen() {
             maxWidth: 320,
           }}
         >
-          <Button
-            onClick={() => {
-              // Simulate a browser permission prompt outcome.
-              setDenied(true);
-            }}
-          >
-            Allow location
+          <Button onClick={requestLocation} disabled={asking}>
+            {asking ? 'Asking…' : 'Allow location'}
           </Button>
           <Button variant="secondary" onClick={() => navigate('/area')}>
             Type my area instead

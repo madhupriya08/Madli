@@ -6,6 +6,7 @@ import { Tabs } from '../../components/navigation/Tabs';
 import { Input } from '../../components/forms/Input';
 import { Button } from '../../components/core/Button';
 import { usePersona } from '../../dev/PersonaContext';
+import { useSearch, type ConstraintMode } from '../../lib/searchState';
 
 const VIBES = ['Quick bite', 'Date night', 'Family', 'Solo', 'Celebration', 'Late night'];
 
@@ -17,10 +18,16 @@ export function IntakeScreen() {
   const { breakpoint } = usePersona();
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
-  const [vibe, setVibe] = useState<string | null>(null);
-  const [constraintMode, setConstraintMode] = useState<'time' | 'radius'>('time');
-  const [constraintValue, setConstraintValue] = useState('');
-  const [area, setArea] = useState('');
+  // Intake used to collect all of this into local state and then navigate
+  // away, dropping every answer — results queried on `type` alone. It now
+  // writes into the shared search state that results and the map read.
+  const { search, setSearch } = useSearch();
+  const { vibe, constraintMode, constraintValue, areaText: area } = search;
+  const setVibe = (v: string | null) => setSearch({ vibe: v });
+  const setConstraintMode = (m: ConstraintMode) => setSearch({ constraintMode: m });
+  const setConstraintValue = (v: string) => setSearch({ constraintValue: v });
+  // Typing a new area invalidates the coordinates resolved for the old one.
+  const setArea = (v: string) => setSearch({ areaText: v, areaPlaceId: null });
 
   const steps = [
     {
@@ -69,7 +76,10 @@ export function IntakeScreen() {
     },
   ];
 
-  const skipAndBrowse = () => navigate('/results/eat');
+  const skipAndBrowse = () => {
+    setSearch({ door: 'eat' });
+    navigate('/results/eat');
+  };
   const finish = () => navigate('/filters');
 
   if (breakpoint === 'desktop') {

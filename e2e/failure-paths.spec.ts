@@ -15,7 +15,9 @@ test.describe('Failure paths', () => {
     await page.goto('/');
     await expect(page.getByText("Madli couldn't load")).toBeVisible({ timeout: 10_000 });
     await expect(
-      page.getByText('Failed to reach Supabase for reference data (places, categories, areas, config).'),
+      page.getByText(
+        'Failed to reach Supabase for reference data (places, categories, areas, config).',
+      ),
     ).toBeVisible();
   });
 
@@ -54,7 +56,9 @@ test.describe('Failure paths', () => {
     await page.getByLabel('Contact phone number').fill('9876500000');
     await page.getByRole('button', { name: 'Submit claim' }).click();
 
-    await expect(page.getByText(/already|duplicate|unique|exists/i)).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(/already|duplicate|unique|exists/i)).toBeVisible({
+      timeout: 10_000,
+    });
     // Rejected, so it must not have navigated on to the status screen.
     await expect(page).not.toHaveURL(/\/status$/);
   });
@@ -124,10 +128,9 @@ test.describe('Failure paths', () => {
   test('edge function error — share-preview rejects invalid input and an unknown plan token, for real, over HTTP', async ({
     request,
   }) => {
-    const missingSlug = await request.get(
-      `${SUPABASE_URL}/functions/v1/share-preview?type=place`,
-      { headers: { apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}` } },
-    );
+    const missingSlug = await request.get(`${SUPABASE_URL}/functions/v1/share-preview?type=place`, {
+      headers: { apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}` },
+    });
     expect(missingSlug.status()).toBe(400);
     const missingSlugBody = await missingSlug.json();
     expect(JSON.stringify(missingSlugBody)).toMatch(/type=place requires slug/);

@@ -63,8 +63,7 @@ test.describe('Keyboard-only pass', () => {
         const el = document.activeElement as HTMLElement | null;
         if (!el || el === document.body) return null;
         const style = getComputedStyle(el);
-        const hasVisibleFocusRing =
-          style.outlineStyle !== 'none' || style.boxShadow !== 'none';
+        const hasVisibleFocusRing = style.outlineStyle !== 'none' || style.boxShadow !== 'none';
         return { tag: el.tagName, text: el.textContent?.slice(0, 30), hasVisibleFocusRing };
       });
       if (!info) continue;

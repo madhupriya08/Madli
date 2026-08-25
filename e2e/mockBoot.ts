@@ -45,6 +45,9 @@ function placeToRow(p: Place) {
     drive: p.drive,
     outside_fame_rank: p.outsideFameRank,
     is_active: p.isActive,
+    lat: p.lat,
+    lng: p.lng,
+    google_place_id: p.googlePlaceId,
     address: p.address,
     phone: p.phone,
     hours: p.hours,
@@ -58,9 +61,7 @@ function placeToRow(p: Place) {
           }
         : null,
     place_explore_details:
-      p.type === 'explore'
-        ? { crowd_level: p.crowdLevel ?? null, best: p.best ?? null }
-        : null,
+      p.type === 'explore' ? { crowd_level: p.crowdLevel ?? null, best: p.best ?? null } : null,
   };
 }
 

@@ -5,6 +5,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { App } from './App';
 import { PersonaProvider } from './dev/PersonaContext';
 import { GuestSessionProvider } from './lib/guestSession';
+import { SearchProvider } from './lib/searchState';
 import { ToastProvider } from './components/feedback/ToastProvider';
 import { loadLiveConfig } from './lib/liveConfig';
 
@@ -23,11 +24,13 @@ function renderApp() {
       <QueryClientProvider client={queryClient}>
         <PersonaProvider>
           <GuestSessionProvider>
-            <ToastProvider>
-              <BrowserRouter>
-                <App />
-              </BrowserRouter>
-            </ToastProvider>
+            <SearchProvider>
+              <ToastProvider>
+                <BrowserRouter>
+                  <App />
+                </BrowserRouter>
+              </ToastProvider>
+            </SearchProvider>
           </GuestSessionProvider>
         </PersonaProvider>
       </QueryClientProvider>

@@ -10,6 +10,7 @@ import { usePlans, useSharedPlan, useCreatePlanShareToken } from '../../data/hoo
 import { placeById } from '../../fixtures/places';
 import { categoryName } from '../../fixtures/categories';
 import { placePhotoUrl } from '../../lib/placePhoto';
+import { GoogleMapView, type MapMarker } from '../../components/map/GoogleMapView';
 
 // S24: map plus both stops, reflowed. Shared-link state shows the same
 // content to an anonymous visitor via the plan's share token — for real: the
@@ -48,6 +49,26 @@ export function SavedPlanDetailScreen() {
     );
   }
 
+  // Both stops when both have coordinates, one when only one does — a plan
+  // is still worth mapping half-known.
+  const planMarkers: MapMarker[] = [];
+  if (eat.lat != null && eat.lng != null) {
+    planMarkers.push({
+      id: eat.id,
+      position: { lat: eat.lat, lng: eat.lng },
+      title: eat.name,
+      rank: 1,
+    });
+  }
+  if (explore.lat != null && explore.lng != null) {
+    planMarkers.push({
+      id: explore.id,
+      position: { lat: explore.lat, lng: explore.lng },
+      title: explore.name,
+      rank: 2,
+    });
+  }
+
   return (
     <AppShell title={plan.name ?? 'Saved plan'} onBack={() => navigate(-1)}>
       <div
@@ -61,20 +82,11 @@ export function SavedPlanDetailScreen() {
         {isSharedLink ? (
           <Badge tone="teal">Shared link — no account needed, never expires</Badge>
         ) : null}
-        <div
-          style={{
-            height: 200,
-            borderRadius: 'var(--radius-lg)',
-            background: 'var(--surface-sunken)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <span style={{ font: 'var(--type-body-sm)', color: 'var(--text-muted)' }}>
-            Map placeholder — both stops
-          </span>
-        </div>
+        <GoogleMapView
+          height={220}
+          markers={planMarkers}
+          emptyLabel="Neither stop has coordinates yet — nothing to map."
+        />
         <PickCard
           rank={1}
           name={eat.name}

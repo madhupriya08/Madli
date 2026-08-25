@@ -7,7 +7,10 @@ test.describe('Admin — ranking override and audit log', () => {
     await page.goto('/admin/ranking');
 
     const reason = `E2E override check ${Date.now()}`;
-    const row = page.getByRole('row').filter({ hasText: /Subhan Bakery|Hotel Shadab|Cafe Bahar/ }).first();
+    const row = page
+      .getByRole('row')
+      .filter({ hasText: /Subhan Bakery|Hotel Shadab|Cafe Bahar/ })
+      .first();
     await row.getByRole('button', { name: /Override/i }).click();
     await page.getByLabel(/Reason/i).fill(reason);
     await page.getByRole('button', { name: 'Confirm override' }).click();
@@ -17,7 +20,9 @@ test.describe('Admin — ranking override and audit log', () => {
     await expect(page.getByText(reason, { exact: false })).toBeVisible({ timeout: 10_000 });
   });
 
-  test('a partial-grant admin cannot override a ranking, even by direct action', async ({ page }) => {
+  test('a partial-grant admin cannot override a ranking, even by direct action', async ({
+    page,
+  }) => {
     await loginAsAdmin(page, TEST_ACCOUNTS.adminPartialGrant);
     await page.goto('/admin/ranking');
 
@@ -54,9 +59,12 @@ test.describe('Admin — location history access gate', () => {
     const accessToken = authEntry ? JSON.parse(authEntry.value).access_token : undefined;
     const supabaseUrl = process.env.VITE_SUPABASE_URL!;
     const anonKey = process.env.VITE_SUPABASE_ANON_KEY!;
-    const directRes = await request.get(`${supabaseUrl}/rest/v1/location_history?select=*&limit=5`, {
-      headers: { apikey: anonKey, Authorization: `Bearer ${accessToken}` },
-    });
+    const directRes = await request.get(
+      `${supabaseUrl}/rest/v1/location_history?select=*&limit=5`,
+      {
+        headers: { apikey: anonKey, Authorization: `Bearer ${accessToken}` },
+      },
+    );
     expect(directRes.status()).toBe(200);
     expect(await directRes.json()).toEqual([]);
   });

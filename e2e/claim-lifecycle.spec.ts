@@ -16,7 +16,9 @@ import { loginAsConsumer, loginAsAdmin, TEST_ACCOUNTS } from './helpers';
 // regardless of whether the test passed or failed partway through.
 const PLACE_SLUG = 'restaurants/simply-south';
 
-function extractAccessToken(storageState: Awaited<ReturnType<import('@playwright/test').BrowserContext['storageState']>>) {
+function extractAccessToken(
+  storageState: Awaited<ReturnType<import('@playwright/test').BrowserContext['storageState']>>,
+) {
   const authEntry = storageState.origins
     .flatMap((o) => o.localStorage)
     .find((item) => item.name.includes('-auth-token'));

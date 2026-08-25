@@ -42,6 +42,9 @@ interface PlaceRow {
   drive: string | null;
   outside_fame_rank: number | null;
   is_active: boolean;
+  lat: number | null;
+  lng: number | null;
+  google_place_id: string | null;
   address: string | null;
   phone: string | null;
   hours: string | null;
@@ -75,6 +78,9 @@ function toPlace(row: PlaceRow): Place {
     drive: row.drive,
     outsideFameRank: row.outside_fame_rank,
     isActive: row.is_active,
+    lat: row.lat,
+    lng: row.lng,
+    googlePlaceId: row.google_place_id,
     address: row.address ?? '',
     phone: row.phone ?? '',
     hours: row.hours ?? '',

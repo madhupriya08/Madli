@@ -12,6 +12,7 @@ import { usePersona } from '../../dev/PersonaContext';
 import { places } from '../../fixtures/places';
 import { categoryName } from '../../fixtures/categories';
 import { placePhotoUrl } from '../../lib/placePhoto';
+import { GoogleMapView } from '../../components/map/GoogleMapView';
 import {
   useAddBookmark,
   useBookmarks,
@@ -77,6 +78,25 @@ export function PlaceDetailScreen() {
       </div>
     </PhotoFrame>
   );
+
+  // Only when the place actually has coordinates — a map centred on a
+  // fallback would imply a location Madli does not have.
+  const miniMap =
+    place.lat != null && place.lng != null ? (
+      <GoogleMapView
+        height={200}
+        center={{ lat: place.lat, lng: place.lng }}
+        zoom={15}
+        markers={[
+          {
+            id: place.id,
+            position: { lat: place.lat, lng: place.lng },
+            title: place.name,
+            rank: 1,
+          },
+        ]}
+      />
+    ) : null;
 
   const content = (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
@@ -196,7 +216,10 @@ export function PlaceDetailScreen() {
           padding: 'var(--space-6) var(--gutter)',
         }}
       >
-        {media}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
+          {media}
+          {miniMap}
+        </div>
         {content}
       </div>
     </AppShell>

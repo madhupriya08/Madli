@@ -43,7 +43,10 @@ test.describe('Accessibility — automated axe-core scan across the screen catal
       const persona = personaFor(screen.roles);
       if (persona !== 'guest') {
         await page
-          .getByRole('button', { name: persona.charAt(0).toUpperCase() + persona.slice(1), exact: true })
+          .getByRole('button', {
+            name: persona.charAt(0).toUpperCase() + persona.slice(1),
+            exact: true,
+          })
           .click();
       }
 
