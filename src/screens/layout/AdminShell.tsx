@@ -80,8 +80,10 @@ export function AdminShell({ title, children }: { title: string; children: React
         ))}
         <button
           onClick={() => {
+            // Admins land on the marketing page like everyone else, not
+            // back on the admin login form.
             void signOut();
-            navigate('/admin/login');
+            navigate('/');
           }}
           style={{
             marginTop: 'auto',

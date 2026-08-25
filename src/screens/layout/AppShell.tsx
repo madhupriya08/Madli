@@ -12,7 +12,7 @@ import { usePersona } from '../../dev/PersonaContext';
  * the confirmed Lucide icon list (map-pin, search, bookmark, user).
  */
 const TABS = [
-  { value: 'home', label: 'Home', icon: 'map-pin', path: '/' },
+  { value: 'home', label: 'Home', icon: 'map-pin', path: '/app' },
   { value: 'search', label: 'Search', icon: 'search', path: '/search' },
   { value: 'bookmarks', label: 'Saved', icon: 'bookmark', path: '/bookmarks' },
   { value: 'profile', label: 'Profile', icon: 'user', path: '/profile' },

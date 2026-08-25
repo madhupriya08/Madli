@@ -16,17 +16,17 @@ export function PostVisitNudgeScreen() {
     <Dialog
       open
       title={`Did you make it to ${place.name}?`}
-      onClose={() => navigate('/')}
+      onClose={() => navigate('/app')}
       variant={breakpoint === 'desktop' ? 'modal' : 'sheet'}
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
         <Button onClick={() => navigate('/log-visit', { state: { placeId: place.id } })}>
           Yes, log it
         </Button>
-        <Button variant="secondary" onClick={() => navigate('/')}>
+        <Button variant="secondary" onClick={() => navigate('/app')}>
           Not yet
         </Button>
-        <Button variant="ghost" onClick={() => navigate('/')}>
+        <Button variant="ghost" onClick={() => navigate('/app')}>
           Didn&apos;t go
         </Button>
       </div>

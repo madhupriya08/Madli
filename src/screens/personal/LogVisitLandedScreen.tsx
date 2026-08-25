@@ -22,7 +22,7 @@ export function LogVisitLandedScreen() {
   // Phase 4 §9: navigate() moved into an effect, not called during render —
   // see ClaimStatusScreen for why (PHASE_4_QA_REPORT.md §9).
   useEffect(() => {
-    if (!state) navigate('/');
+    if (!state) navigate('/app');
   }, [state, navigate]);
 
   if (!state) return null;

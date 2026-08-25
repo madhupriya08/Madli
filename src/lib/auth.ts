@@ -5,49 +5,54 @@
 // PHASE_3_COMPLETION_REPORT.md §4/§6: real sign-in for all test accounts,
 // a real 400 invalid_credentials for a wrong password).
 //
-// Phone OTP and Google OAuth are wired to the real supabase.auth methods
-// below (code-complete) but genuinely non-functional: no SMS provider or
-// Google OAuth client is configured on this Supabase project (open since
-// Phase 1, §8). Calling them returns the project's real "provider not
-// enabled" error — they are not silently faked as working.
+// There is no second factor. Signup and login both complete in one step
+// with email and password — no OTP, no SMS code, no emailed confirmation
+// code standing between someone and the app. The phone/SMS signup path and
+// its verifyOtp() step were removed outright rather than hidden, along with
+// the SMS-provider configuration that existed only to serve them.
+//
+// (Password reset still sends an email — that is a recovery flow the person
+// asks for by name, not a verification step on the way in, and it stays.)
+//
+// Google OAuth is wired to the real supabase.auth method below
+// (code-complete) but genuinely non-functional until an OAuth client is
+// configured on this Supabase project (open since Phase 1, §8). Calling it
+// returns the project's real "provider not enabled" error — it is not
+// silently faked as working.
 import { supabase } from './supabaseClient';
 
 export interface SignupInput {
-  method: 'email' | 'phone';
-  identifier: string;
+  email: string;
   password: string;
 }
 
 export function validateSignup(input: SignupInput): string | null {
-  if (input.method === 'email') {
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.identifier)) return 'Enter a valid email address.';
-  } else {
-    if (!/^\+?[0-9]{10,13}$/.test(input.identifier.replace(/\s/g, '')))
-      return 'Enter a valid phone number.';
-  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email)) return 'Enter a valid email address.';
   if (input.password.length < 8) return 'Password must be at least 8 characters.';
   return null;
 }
 
+/**
+ * Creates the account and leaves the caller signed in — there is no
+ * verification step in between. Supabase returns a session directly here as
+ * long as the project does not require email confirmation; if that setting
+ * is ever turned on, this returns without a session and the person would be
+ * stuck, so it is asserted rather than assumed.
+ */
 export async function signUp(input: SignupInput): Promise<void> {
   const error = validateSignup(input);
   if (error) throw new Error(error);
 
-  const { error: authError } =
-    input.method === 'email'
-      ? await supabase.auth.signUp({ email: input.identifier, password: input.password })
-      : await supabase.auth.signUp({ phone: input.identifier, password: input.password });
+  const { data, error: authError } = await supabase.auth.signUp({
+    email: input.email,
+    password: input.password,
+  });
   if (authError) throw authError;
-}
-
-export type OtpOutcome = 'correct' | 'wrong' | 'expired';
-
-/** Phone OTP path — non-functional until an SMS provider is configured (see module comment). */
-export async function verifyOtp(phone: string, code: string): Promise<OtpOutcome> {
-  const { error } = await supabase.auth.verifyOtp({ phone, token: code, type: 'sms' });
-  if (!error) return 'correct';
-  if (error.message.toLowerCase().includes('expired')) return 'expired';
-  return 'wrong';
+  if (!data.session) {
+    throw new Error(
+      'Account created, but this project requires email confirmation. Turn that off in Supabase Auth settings so signup completes in one step.',
+    );
+  }
 }
 
 export interface LoginResult {

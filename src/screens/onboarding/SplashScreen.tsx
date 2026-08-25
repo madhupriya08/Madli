@@ -37,7 +37,7 @@ export function SplashScreen() {
         <Button size="lg" block variant="secondary" onClick={() => navigate('/signup')}>
           Get started
         </Button>
-        <Button size="lg" block variant="secondary" onClick={() => navigate('/')}>
+        <Button size="lg" block variant="secondary" onClick={() => navigate('/app')}>
           Continue as guest
         </Button>
       </div>

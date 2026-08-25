@@ -27,7 +27,10 @@ export function LoginScreen() {
       // S41 is a separate surface. Owner is derived from a verified claim,
       // not the profiles.role column.
       setPersona(result.hasVerifiedClaim ? 'owner' : 'user');
-      navigate(result.hasVerifiedClaim ? '/owner/profile' : '/');
+      // '/app' rather than '/': the gate at '/' reads hasSession, and
+      // routing straight to the app home avoids depending on whether
+      // onAuthStateChange has propagated by the time this line runs.
+      navigate(result.hasVerifiedClaim ? '/owner/profile' : '/app');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Invalid email or password.');
     } finally {

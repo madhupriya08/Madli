@@ -31,7 +31,7 @@ export function RankingOnboardingScreen() {
           </Button>
         ) : null}
         <button
-          onClick={() => navigate('/')}
+          onClick={() => navigate('/app')}
           style={{
             background: 'none',
             border: 'none',

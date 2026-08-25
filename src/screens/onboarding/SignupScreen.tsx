@@ -1,19 +1,18 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppShell } from '../layout/AppShell';
-import { Tabs } from '../../components/navigation/Tabs';
 import { Input } from '../../components/forms/Input';
 import { Button } from '../../components/core/Button';
-import { signUp, validateSignup, type SignupInput } from '../../lib/auth';
+import { signUp, validateSignup } from '../../lib/auth';
 import { useToast } from '../../components/feedback/ToastProvider';
 
-// S11: phone and email are a segmented toggle, not two forms; Google sits
-// below both as a third path. The carry-over line names the place a guest
-// logged if they arrive mid-log (not modeled here — no guest mid-log state
-// is threaded through routing in this mock).
+// S11. Email and password, one step: creating the account signs you in and
+// drops you straight into ranking onboarding. There is no OTP screen, no SMS
+// code, and no phone tab — the whole second-factor surface was removed from
+// the product rather than hidden, so nothing here routes to /verify-otp.
+// Google sits below as a second path (still awaiting an OAuth client).
 export function SignupScreen() {
-  const [method, setMethod] = useState<SignupInput['method']>('email');
-  const [identifier, setIdentifier] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -22,7 +21,7 @@ export function SignupScreen() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const validation = validateSignup({ method, identifier, password });
+    const validation = validateSignup({ email, password });
     if (validation) {
       setError(validation);
       return;
@@ -30,8 +29,9 @@ export function SignupScreen() {
     setSubmitting(true);
     setError(null);
     try {
-      await signUp({ method, identifier, password });
-      navigate('/verify-otp', { state: { method, identifier } });
+      await signUp({ email, password });
+      // Straight into the app: signUp leaves a real session behind it.
+      navigate('/ranking-onboarding');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong.');
     } finally {
@@ -52,26 +52,14 @@ export function SignupScreen() {
           maxWidth: 420,
         }}
       >
-        <Tabs
-          items={[
-            { value: 'email', label: 'Email' },
-            { value: 'phone', label: 'Phone' },
-          ]}
-          value={method}
-          onChange={(v) => setMethod(v as SignupInput['method'])}
-        />
         <Input
-          label={method === 'email' ? 'Email' : 'Phone number'}
-          type={method === 'email' ? 'email' : 'tel'}
-          value={identifier}
-          onChange={(e) => setIdentifier(e.target.value)}
-          placeholder={method === 'email' ? 'you@example.com' : '+91 98765 43210'}
-          error={
-            error && error.toLowerCase().includes(method === 'email' ? 'email' : 'phone')
-              ? error
-              : undefined
-          }
-          autoComplete={method === 'email' ? 'email' : 'tel'}
+          label="Email"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="you@example.com"
+          error={error && error.toLowerCase().includes('email') ? error : undefined}
+          autoComplete="email"
         />
         <Input
           label="Password"

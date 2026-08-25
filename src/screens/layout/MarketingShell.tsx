@@ -27,7 +27,7 @@ export function MarketingShell({ children }: { children: ReactNode }) {
           >
             How it works
           </Link>
-          <Link to="/" style={{ borderBottom: 'none' }}>
+          <Link to="/app" style={{ borderBottom: 'none' }}>
             <Button size="sm">Open the app</Button>
           </Link>
         </nav>

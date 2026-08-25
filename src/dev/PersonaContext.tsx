@@ -39,6 +39,20 @@ export interface PersonaState {
   breakpoint: Breakpoint;
   /** The real signed-in user's id when a session exists; a fixed mock id under a dev-harness override; '' for guest. */
   userId: string;
+  /**
+   * Whether a real `supabase.auth` session exists — the routing source of
+   * truth for logged-in vs logged-out.
+   *
+   * Deliberately NOT derived from `persona`: the dev harness can set persona
+   * to User/Owner/Admin without any login at all, and `/` must not hand the
+   * app to someone who never authenticated just because a dev tool says so.
+   * Also independent of the `profiles` fetch below — a session is a session
+   * even if that row read fails, so a network blip degrades a signed-in
+   * person's role, never their sign-in.
+   */
+  hasSession: boolean;
+  /** True until the first `getSession()` settles. Routing must wait rather than guess. */
+  sessionLoading: boolean;
 }
 
 interface PersonaContextValue extends PersonaState {
@@ -73,6 +87,8 @@ export function PersonaProvider({ children }: { children: ReactNode }) {
   const [canOverrideRanking, setCanOverrideRanking] = useState(true);
   const [canAccessLocationHistory, setCanAccessLocationHistory] = useState(true);
   const [sessionUserId, setSessionUserId] = useState<string | null>(null);
+  const [hasSession, setHasSession] = useState(false);
+  const [sessionLoading, setSessionLoading] = useState(true);
 
   // `breakpoint` follows the real viewport. Until now it was a plain
   // useState('mobile') that only the dev harness could ever change, so a
@@ -112,12 +128,30 @@ export function PersonaProvider({ children }: { children: ReactNode }) {
       }
     }
 
+    // `hasSession` is settled from the auth call itself, before and
+    // independently of the `profiles` read inside applySession — routing must
+    // not depend on whether that row happens to load.
+    function settle(session: { user: { id: string } } | null | undefined) {
+      if (cancelled) return;
+      setHasSession(Boolean(session));
+      setSessionLoading(false);
+      void applySession(session?.user.id);
+    }
+
     supabase.auth
       .getSession()
-      .then(({ data }) => applySession(data.session?.user.id))
-      .catch(() => {});
+      .then(({ data }) => settle(data.session))
+      .catch(() => {
+        // No session could be established (offline, bad key, project down).
+        // Treat that as logged out and stop blocking the router, rather than
+        // leaving `/` stuck on its loading branch forever.
+        if (!cancelled) {
+          setHasSession(false);
+          setSessionLoading(false);
+        }
+      });
     const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
-      void applySession(session?.user.id);
+      settle(session);
     });
 
     return () => {
@@ -133,9 +167,18 @@ export function PersonaProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    // Local state is cleared *before* the network call, not after. Two
+    // reasons: callers navigate to '/' immediately (some without awaiting),
+    // and '/' reads hasSession to decide between the marketing page and the
+    // app — clearing afterwards would let the redirect see a stale `true`
+    // and bounce a just-logged-out person straight back into the app. It
+    // also means a failed or hanging signOut request still logs you out
+    // locally rather than trapping you in a session you asked to end.
+    setHasSession(false);
+    setSessionLoading(false);
     setSessionUserId(null);
     setPersonaState('guest');
+    await supabase.auth.signOut();
   };
 
   const value = useMemo<PersonaContextValue>(
@@ -146,6 +189,8 @@ export function PersonaProvider({ children }: { children: ReactNode }) {
       canAccessLocationHistory,
       breakpoint,
       userId: sessionUserId ?? userIdForPersona(persona),
+      hasSession,
+      sessionLoading,
       setPersona,
       setAdminTier,
       setCanOverrideRanking,
@@ -153,7 +198,16 @@ export function PersonaProvider({ children }: { children: ReactNode }) {
       setBreakpoint: setBreakpointOverride,
       signOut,
     }),
-    [persona, adminTier, canOverrideRanking, canAccessLocationHistory, breakpoint, sessionUserId],
+    [
+      persona,
+      adminTier,
+      canOverrideRanking,
+      canAccessLocationHistory,
+      breakpoint,
+      sessionUserId,
+      hasSession,
+      sessionLoading,
+    ],
   );
 
   return <PersonaContext.Provider value={value}>{children}</PersonaContext.Provider>;

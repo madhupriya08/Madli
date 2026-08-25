@@ -44,7 +44,7 @@ export function SettingsScreen() {
         <button
           onClick={() => {
             void signOut();
-            navigate('/landing');
+            navigate('/');
           }}
           style={{
             background: 'none',

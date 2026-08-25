@@ -13,7 +13,7 @@ export function SaveYourListGateScreen() {
     <Dialog
       open
       title="Save your list?"
-      onClose={() => navigate('/')}
+      onClose={() => navigate('/app')}
       variant={breakpoint === 'desktop' ? 'modal' : 'sheet'}
     >
       <p style={{ font: 'var(--type-body)', marginBottom: 'var(--space-5)' }}>
@@ -22,7 +22,7 @@ export function SaveYourListGateScreen() {
       </p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
         <Button onClick={() => navigate('/signup')}>Sign up to keep it</Button>
-        <Button variant="ghost" onClick={() => navigate('/')}>
+        <Button variant="ghost" onClick={() => navigate('/app')}>
           No thanks, I understand it&apos;ll be lost
         </Button>
       </div>

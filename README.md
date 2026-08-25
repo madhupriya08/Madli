@@ -65,7 +65,7 @@ what each is for. In short:
   (a Postgres-level privilege), not this key. It must never appear in `src/`.
 - `TEST_ADMIN_EMAIL` / `TEST_USER_EMAIL` / `TEST_OWNER_EMAIL` / `TEST_ADMIN2_EMAIL` /
   `TEST_ACCOUNT_PASSWORD` — dev-only fixture accounts (see "Test accounts" below).
-- SMS provider and Google OAuth client credentials are commented out — neither is configured (see
+- Google OAuth client credentials are commented out — not configured (see
   "Auth provider status").
 
 ## Commands
@@ -121,11 +121,14 @@ Full detail lives in `supabase/README.md` and the migration files themselves
 
 - **Email/password**: fully functional — signup, login, logout, password reset, all real
   `supabase.auth` calls against the live project.
-- **Phone OTP**: code-complete (`src/lib/auth.ts`'s `signUp`/`verifyOtp` call the real
-  `supabase.auth` phone methods) but **not functional** — no SMS provider is configured on this
-  Supabase project. Calling it returns the project's real "provider not enabled" error; it is not
-  faked as working. This is a pending product/infra decision (choose and configure a provider in
-  Supabase Auth settings), not a code gap.
+- **No second factor, by design**: signup and login both complete in one step. There is no OTP
+  screen, no SMS code and no emailed confirmation code between someone and the app — creating an
+  account signs you in and lands you in ranking onboarding. The phone/SMS signup path, `verifyOtp`,
+  the S12 OTP screen and the SMS-provider configuration were removed outright rather than left
+  disabled. (Password reset still sends an email; that is a recovery flow you ask for by name, not
+  a verification step on the way in.) Signup relies on Supabase's "Confirm email" setting being
+  **off** for this project — `signUp()` raises a clear error rather than stranding anyone if it is
+  ever turned on.
 - **Google OAuth**: same status — `signInWithGoogle()` is wired to the real
   `supabase.auth.signInWithOAuth` call but no OAuth client is configured yet.
 

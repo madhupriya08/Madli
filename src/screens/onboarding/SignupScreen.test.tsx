@@ -8,9 +8,11 @@ import * as authModule from '../../lib/auth';
 // The success-path test below mocks the real supabase.auth.signUp call (the
 // same way any component test mocks an external service) so it can assert
 // the submit actually completed, not just that no error was showing before
-// the async call resolved. Real signUp behavior (and its real "provider not
-// enabled" case for phone) was verified separately — see
-// PHASE_3_COMPLETION_REPORT.md §6.
+// the async call resolved. Real signUp behavior was verified separately —
+// see PHASE_3_COMPLETION_REPORT.md §6.
+//
+// There is no phone-mode test any more, and no OTP step to assert: signup is
+// email and password in one step.
 vi.mock('../../lib/auth', async () => {
   const actual = await vi.importActual<typeof authModule>('../../lib/auth');
   return { ...actual, signUp: vi.fn().mockResolvedValue(undefined) };
@@ -42,7 +44,7 @@ describe('SignupScreen — S11 validation', () => {
     );
   });
 
-  it('submits and moves on to OTP verification once both fields are valid', async () => {
+  it('submits once both fields are valid, with no verification step in between', async () => {
     const user = userEvent.setup();
     renderWithProviders(<SignupScreen />, { path: '/signup', route: '/signup' });
 
@@ -52,17 +54,5 @@ describe('SignupScreen — S11 validation', () => {
 
     await waitFor(() => expect(authModule.signUp).toHaveBeenCalledTimes(1));
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-  });
-
-  it('switches the field label and validation to phone mode', async () => {
-    const user = userEvent.setup();
-    renderWithProviders(<SignupScreen />, { path: '/signup', route: '/signup' });
-
-    await user.click(screen.getByRole('tab', { name: 'Phone' }));
-    await user.type(screen.getByLabelText('Phone number'), '12345');
-    await user.type(screen.getByLabelText('Password'), 'longenough');
-    await user.click(screen.getByRole('button', { name: 'Create account' }));
-
-    expect(await screen.findByRole('alert')).toHaveTextContent('Enter a valid phone number.');
   });
 });

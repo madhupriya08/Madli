@@ -13,7 +13,6 @@ import { LocationPermissionScreen } from './onboarding/LocationPermissionScreen'
 import { ManualAreaScreen } from './onboarding/ManualAreaScreen';
 import { OutOfCoverageScreen } from './onboarding/OutOfCoverageScreen';
 import { SignupScreen } from './onboarding/SignupScreen';
-import { OtpVerificationScreen } from './onboarding/OtpVerificationScreen';
 import { LoginScreen } from './onboarding/LoginScreen';
 import { ForgotPasswordScreen } from './onboarding/ForgotPasswordScreen';
 import { SearchEntryScreen } from './onboarding/SearchEntryScreen';
@@ -59,6 +58,7 @@ import { RolesAccountsAuditScreen } from './admin/RolesAccountsAuditScreen';
 import { LocationHistoryAccessScreen } from './admin/LocationHistoryAccessScreen';
 
 import { PlaceholderScreen } from './PlaceholderScreen';
+import { RootRoute } from './RootRoute';
 
 const elementById: Record<string, ReactNode> = {
   S1: <LandingPage />,
@@ -73,7 +73,6 @@ const elementById: Record<string, ReactNode> = {
   S9: <ManualAreaScreen />,
   S10: <OutOfCoverageScreen />,
   S11: <SignupScreen />,
-  S12: <OtpVerificationScreen />,
   S13: <LoginScreen />,
   S14: <ForgotPasswordScreen />,
   S52: <SearchEntryScreen />,
@@ -120,7 +119,13 @@ const elementById: Record<string, ReactNode> = {
   S51: <LocationHistoryAccessScreen />,
 };
 
-export const screenRoutes = screenRegistry.map((meta) => ({
-  path: meta.path,
-  element: elementById[meta.id] ?? <PlaceholderScreen meta={meta} />,
-}));
+export const screenRoutes = [
+  // '/' is not one of the 52 screens — it decides which of two of them an
+  // arriving visitor gets (see RootRoute), so it is declared here rather than
+  // in the registry, which the dev harness renders as a screen list.
+  { path: '/', element: <RootRoute /> },
+  ...screenRegistry.map((meta) => ({
+    path: meta.path,
+    element: elementById[meta.id] ?? <PlaceholderScreen meta={meta} />,
+  })),
+];

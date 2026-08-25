@@ -1,4 +1,7 @@
-// The 52-screen catalogue, per design_handoff_madli/README.md. Drives the dev
+// The screen catalogue, per design_handoff_madli/README.md. S12 (OTP
+// verification) is deliberately absent: Madli has no second factor, so the
+// screen and its route were removed rather than left reachable-but-unused.
+// The handoff's own numbering is kept for every other screen. Drives the dev
 // harness's persona/state switcher and "All screens" tray (§7 of the Phase 2
 // prompt) and the router in routes.tsx. `states` lists the variants that
 // screen's own README table specifies — the dev harness uses this to offer a
@@ -76,7 +79,11 @@ export const screenRegistry: ScreenMeta[] = [
   {
     id: 'S7',
     name: 'Home — two doors',
-    path: '/',
+    // Not '/': that is now a session gate (src/screens/RootRoute.tsx) which
+    // serves the marketing landing page to logged-out visitors. The app home
+    // needs a path of its own so guests — who have no session by definition —
+    // can still be sent here.
+    path: '/app',
     group: 'App shell & onboarding',
     states: ['default', 'personalized'],
     roles: 'Guest, User',
@@ -111,14 +118,6 @@ export const screenRegistry: ScreenMeta[] = [
     path: '/signup',
     group: 'App shell & onboarding',
     states: ['default', 'validation error'],
-    roles: 'Guest → User',
-  },
-  {
-    id: 'S12',
-    name: 'OTP verification',
-    path: '/verify-otp',
-    group: 'App shell & onboarding',
-    states: ['default', 'wrong code', 'expired'],
     roles: 'Guest → User',
   },
   {

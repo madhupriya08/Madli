@@ -93,7 +93,7 @@ export function PrivacySettingsScreen() {
             onClick={async () => {
               await deleteAccount.mutateAsync();
               await signOut();
-              navigate('/landing');
+              navigate('/');
             }}
           >
             Delete permanently

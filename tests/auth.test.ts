@@ -57,8 +57,10 @@ describe('§14 Auth: consumer email/password', () => {
   });
 });
 
-describe('§14 Auth: phone OTP / Google OAuth — not configured in this environment', () => {
-  it.skip('phone OTP signup (correct/wrong/expired code) — no SMS provider is configured for this Supabase project (§8 open question #6); nothing to exercise yet', () => {});
+// Phone OTP has no placeholder here any more: SMS auth was removed from the
+// product, not left unconfigured. Signup and login are email + password in
+// one step, covered by the specs above.
+describe('§14 Auth: Google OAuth — not configured in this environment', () => {
   it.skip('Google OAuth sign-in — no OAuth client credentials exist for this project yet; nothing to exercise yet', () => {});
 });
 

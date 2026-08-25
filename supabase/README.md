@@ -36,7 +36,7 @@ the full list and what each variable is for. Key points:
   privilege, independent of Supabase's API-level service-role key), not
   through this key. It's documented for completeness/Phase 2+ needs (e.g. an
   admin backoffice script), not because Phase 1 uses it.
-- SMS provider (phone OTP) and Google OAuth client credentials are **not
+- Google OAuth client credentials are **not
   configured** for this project — see "Auth" below and the completion report's
   open items.
 
@@ -106,12 +106,11 @@ credentials — rotate/delete before anything production-adjacent):
   not a design gap. Any environment with normal network access should be able
   to run `tests/auth.test.ts` against this project directly and get a real
   HTTP-level result.
-- **Phone OTP**: **not configured**. No SMS provider is set up for this
-  Supabase project (Twilio, MessageBird, Vonage, etc.) — this was an open
-  question (§8 #6) in the backend prompt and remains open. The schema and
-  Supabase Auth's phone flow are otherwise ready; enabling it is a Dashboard
-  configuration step (Authentication → Providers → Phone) plus real SMS
-  provider credentials, not a schema change.
+- **Phone OTP / SMS auth**: **removed from the product**, not merely
+  unconfigured. Madli signs people in with email and password in one step, so
+  the phone signup path, the OTP verification step and the `[auth.sms]` /
+  `[auth.sms.twilio]` / `[auth.mfa.phone]` sections of `config.toml` were all
+  deleted. Nothing is waiting on an SMS provider decision any more.
 - **Google OAuth**: **not configured**. No OAuth client exists for this
   project yet. Same story — Dashboard configuration + real Google Cloud
   credentials, not a schema change.
@@ -229,4 +228,5 @@ resolved (several were, using real evidence from the prototype file), is in
    the exact tier→dangerous-capability default mapping is **open**.
 5. Report taxonomy — resolved using the prototype's own mock report queue
    (5 concrete types); not independently cross-checked against README's S49 prose.
-6. SMS provider — **open**: none configured.
+6. SMS provider — **closed**: SMS/phone auth was removed from the product;
+   signup and login are email + password in one step.
