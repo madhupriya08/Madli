@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AppShell } from '../layout/AppShell';
 import { Button } from '../../components/core/Button';
 import { Icon } from '../../components/core/Icon';
-import { hasSearchOrigin, useSearch, type Door } from '../../lib/searchState';
+import { useSearch, type Door } from '../../lib/searchState';
 
 interface LocationNavState {
   door?: Door;
@@ -20,13 +20,13 @@ export function LocationPermissionScreen() {
   const { search, setSearch } = useSearch();
   const door = (location.state as LocationNavState | null)?.door ?? search.door;
 
-  // If they already allowed location or picked an area this session, skip
-  // this screen — otherwise Allow → /app → Eat → here is an infinite loop.
-  useEffect(() => {
-    if (hasSearchOrigin(search)) {
-      navigate('/intake', { replace: true });
-    }
-  }, [search, navigate]);
+  // No auto-skip here. HomeScreen is the only screen that routes to this one,
+  // and it already checks hasSearchOrigin() before doing so — that is what
+  // breaks the Allow → /app → Eat → here loop. Redirecting again from inside
+  // this screen made it permanently unreachable once an origin was stored:
+  // the origin lives in sessionStorage, so a grant from an earlier visit in
+  // the same tab meant the prompt could never be shown again, which reads as
+  // "location is never asked". Landing here deliberately now re-asks.
 
   const goToIntake = (patch: Parameters<typeof setSearch>[0]) => {
     setSearch({ door, ...patch });

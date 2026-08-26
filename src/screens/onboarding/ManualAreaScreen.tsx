@@ -61,7 +61,15 @@ export function ManualAreaScreen() {
   }, [trimmed]);
 
   const chooseSeededArea = (name: string) => {
-    setSearch({ areaText: name, areaPlaceId: null, centerSource: 'area' });
+    // areaText only — no centerSource. The seeded neighbourhoods carry no
+    // coordinates, and claiming centerSource:'area' without a center left the
+    // state half-set: hasSearchOrigin() stayed false (it needs both), while
+    // useDiscovery still turned on clipToRadius, so results were clipped to a
+    // radius around DEFAULT_CENTER — Hyderabad city centre — instead of the
+    // neighbourhood the person picked. The name still reaches Google as
+    // "… in Banjara Hills" via the text query, which is what actually
+    // narrows the search here.
+    setSearch({ areaText: name, areaPlaceId: null });
     navigate(name === 'Alwal' ? '/neighbourhoods/Alwal' : resultsPath);
   };
 
