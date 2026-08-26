@@ -263,8 +263,20 @@ $$;
 
 comment on function public.fn_google_place_ranking_counts(text[]) is 'Aggregate local/visitor ranking counts for a set of Google Place IDs. Definer-rights so counts are public while individual rows stay private.';
 
+-- The revoke is not optional and an absent grant is not enough: Supabase's
+-- schema-level default privileges grant EXECUTE on every new public-schema
+-- function to anon and authenticated automatically, which silently overrides
+-- a plain `revoke all ... from public`. Same trap
+-- 20260820101100_security_hardening.sql documents for the admin-gated
+-- functions — verified live here, where anon held EXECUTE on this until the
+-- explicit per-role revoke below.
+--
+-- fn_rank_google_place already raises 42501 when auth.uid() is null, so this
+-- is defense in depth, not the sole control.
+revoke execute on function public.fn_rank_google_place(text, text, text, text, double precision, double precision, text) from public, anon;
 grant execute on function public.fn_rank_google_place(text, text, text, text, double precision, double precision, text) to authenticated;
 
--- Counts are shown on results, which guests reach — anon needs them too. It
--- returns only aggregates over an explicit id list, never a row or a user id.
+-- Counts are shown on results, which guests reach — anon keeps EXECUTE here
+-- deliberately. It returns only aggregates over an explicit id list, never a
+-- row and never a user id.
 grant execute on function public.fn_google_place_ranking_counts(text[]) to anon, authenticated;

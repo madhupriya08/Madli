@@ -159,7 +159,18 @@ export async function rankGooglePlace(input: RankGooglePlaceInput): Promise<Rank
     p_lng: input.location?.lng ?? null,
     p_area_text: input.areaText ?? null,
   });
-  if (error) throw error;
+  if (error) {
+    // fn_rank_google_place raises 23514 when the profile has no
+    // resident_status. That is reachable from the UI — the residency write can
+    // fail after the chip already looks chosen — and its message is written
+    // for whoever is reading the function, not for whoever is standing in a
+    // restaurant. Verified live: the raw text is
+    // "set profiles.resident_status before ranking (local or visitor)".
+    if (error.code === '23514' && error.message.includes('resident_status')) {
+      throw new Error('Tell us whether you live here or are visiting first — then this will save.');
+    }
+    throw error;
+  }
   const row = data?.[0];
   return {
     landedPosition: row?.landed_position ?? 1,

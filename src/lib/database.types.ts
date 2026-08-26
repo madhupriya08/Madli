@@ -1,13 +1,22 @@
 // Generated from the live Supabase project (wybpprdunzrzyzsbiarv) via
-// `mcp__Supabase__generate_typescript_types`, Phase 3. Regenerate whenever
-// the schema changes.
+// `mcp__Supabase__generate_typescript_types`, then curated. Not a verbatim
+// generator dump, and it has not been one for a while: `published_picks.Row`
+// is aliased to the places Row, no-arg functions use
+// `Args: Record<string, never>` rather than the generator's `Args: never`, and
+// `fn_admin_attach_google_place` (added 20260825120000) is absent. Replacing
+// this wholesale is worth doing, but it is a real change — a verbatim dump
+// drops lat/lng/google_place_id from `published_picks`, which the view really
+// does lack — so it deserves its own commit and its own typecheck.
 //
-// One hand-added block: `google_place_rankings`, `fn_rank_google_place`,
-// `fn_google_place_ranking_counts` and the two new `profiles` columns, from
-// supabase/migrations/20260826120000_google_place_rankings.sql. That migration
-// has NOT been applied to the live project yet, so the generator cannot see
-// it. Regenerating this file before applying the migration will drop these —
-// apply the migration first, then regenerate and this note can go.
+// The `google_place_rankings` table, `fn_rank_google_place`,
+// `fn_google_place_ranking_counts` and the two new `profiles` columns below
+// were checked field-for-field against a real generation taken after
+// 20260826120000_google_place_rankings.sql was applied. They match, with one
+// deliberate difference: the generator types optional function args as
+// `p_lat?: number`, and these allow `| null` too, because passing an explicit
+// SQL NULL is meaningful here — a ranked place may genuinely have no
+// coordinates.
+
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
 export type Database = {

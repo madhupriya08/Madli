@@ -64,24 +64,34 @@ that sandbox — see the completion report's "Environment constraints" section.
 The migration files here are the source of truth and are what `db push` would
 apply.)
 
-### Not yet applied
+### 20260826120000_google_place_rankings
 
-**`20260826120000_google_place_rankings.sql` has NOT been applied to the live
-project.** Every other migration in this directory has. It was written in a
-session whose Supabase connector could only reach an unrelated project, so
-applying it would have written Madli's schema into somebody else's database.
-Apply it with `supabase db push` (or the MCP tool, from a session pointed at
-`wybpprdunzrzyzsbiarv`) before the local/visitor ranking feature will do
-anything.
+Applied and verified live. Adds `google_place_rankings` (keyed on
+`google_place_id`, since discovery is Google-only and those places have no
+catalogue row), the two `profiles` residency columns, `fn_rank_google_place`,
+and `fn_google_place_ranking_counts`.
 
-Until it is applied, the app degrades rather than breaks: `src/data/googleRankings.ts`
-treats Postgres `42P01`/`42883` (missing table, missing function) as "no
-rankings yet", so the results screen simply shows no local/visitor line and
-the onboarding ranking step reports that it could not save. Nothing throws.
+Verified against the live project, each in a transaction that rolled back:
 
-After applying it, regenerate `src/lib/database.types.ts` — the new table and
-its two functions are currently hand-added there, and the header comment says
-so.
+- tier ordering — inserting fine, then disliked, then loved lands them
+  loved(1)/fine(2)/disliked(3), so order comes from what the person said, not
+  from what they happened to tap first;
+- re-ranking — moving a place from disliked to loved leaves positions
+  contiguous with no gap (this is why the function deletes-and-reinserts
+  instead of using `ON CONFLICT`; an upsert shifts positions and then never
+  fills the hole);
+- RLS — a second user sees only their own row, zero rows leaked, while
+  `fn_google_place_ranking_counts` still aggregates across both;
+- the residency guard — ranking without `resident_status` raises `23514`
+  rather than storing a row with a guessed `rater_type`;
+- grants — `anon` can execute the counts function (guests reach results) but
+  **not** `fn_rank_google_place`. That revoke is load-bearing: Supabase's
+  schema-level default privileges had already granted `anon` EXECUTE on it,
+  the same trap `20260820101100_security_hardening.sql` documents.
+
+`src/data/googleRankings.ts` still treats Postgres `42P01`/`42883` as "no
+rankings yet" rather than throwing, so an environment where this migration has
+not been applied degrades instead of breaking.
 
 ## Seed data
 

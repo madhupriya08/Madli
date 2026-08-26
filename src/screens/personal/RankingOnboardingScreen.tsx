@@ -77,14 +77,19 @@ export function RankingOnboardingScreen() {
   });
 
   const chooseResidency = async (status: ResidentStatus) => {
-    setResidency(status);
     try {
       await setResidentStatus(status, search.areaText.trim() || null);
+      // Only reflect the choice once it is actually stored. Setting it first
+      // and swallowing the failure left the chip looking chosen while the
+      // profile column stayed null, and every rating after that came back
+      // with fn_rank_google_place's 23514 — which reads, verbatim, "set
+      // profiles.resident_status before ranking". Confusing on its own, and
+      // impossible to act on when the UI insists you already answered.
+      setResidency(status);
       track('residency_declared', { status });
-    } catch {
-      // Not fatal here — the ranking call below reports the real reason if
-      // this is what is actually blocking, and there is nothing the person
-      // can do about a network failure at this moment.
+    } catch (err) {
+      setResidency(null);
+      show(err instanceof Error ? err.message : 'Could not save that. Try again in a moment.');
     }
   };
 
