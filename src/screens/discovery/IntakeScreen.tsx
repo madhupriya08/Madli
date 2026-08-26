@@ -5,16 +5,27 @@ import { Tag } from '../../components/core/Tag';
 import { Input } from '../../components/forms/Input';
 import { Button } from '../../components/core/Button';
 import { usePersona } from '../../dev/PersonaContext';
-import { useSearch } from '../../lib/searchState';
-
-const EAT_VIBES = ['Quick bite', 'Date night', 'Family', 'Solo', 'Celebration', 'Late night'];
-const EXPLORE_VIBES = ['Sightseeing', 'Historical', 'Outdoors', 'Nightlife', 'Family day', 'Quiet'];
+import {
+  useSearch,
+  WHO_OPTIONS,
+  OCCASION_OPTIONS,
+  BUDGET_CAP_OPTIONS,
+} from '../../lib/searchState';
 
 // S15: real divergence, not a reflow. Desktop holds all steps in one panel
 // because a 1280 canvas can show the whole ask at once; mobile walks one step
-// at a time with a progress bar. "Skip and browse" is always visible. The
-// constraint step is two fields — minutes and kilometres — not one input
-    // whose label flips. The last field edited is the one that drives radius.
+// at a time with a progress bar. "Skip and browse" is always visible.
+//
+// Four groups, matching the design's own intake summary — "Who is it for",
+// "The occasion", "Hard constraint", "Area". The first two used to be one
+// merged "what are you after?" vibe list, which collapsed two different
+// questions (who you are with vs. what the outing is) into one answer and
+// left the design's vibe chips with nowhere to live. Those now sit in S16
+// where the design puts them.
+//
+// The hard constraint keeps minutes and kilometres as two separate fields —
+// the last one edited drives the radius — and adds the budget cap the design
+// offers as its third option.
 export function IntakeScreen() {
   const { breakpoint } = usePersona();
   const navigate = useNavigate();
@@ -23,48 +34,61 @@ export function IntakeScreen() {
   // away, dropping every answer — results queried on `type` alone. It now
   // writes into the shared search state that results and the map read.
   const { search, setSearch } = useSearch();
-  const { vibe, timeMinutes, radiusKm, areaText: area, door } = search;
-  const vibes = door === 'explore' ? EXPLORE_VIBES : EAT_VIBES;
-  const setVibe = (v: string | null) => setSearch({ vibe: v });
-  const setTimeMinutes = (v: string) => setSearch({ timeMinutes: v, constraintMode: 'time' });
-  const setRadiusKm = (v: string) => setSearch({ radiusKm: v, constraintMode: 'radius' });
-  // Typing a new area invalidates the coordinates resolved for the old one.
-  const setArea = (v: string) => setSearch({ areaText: v, areaPlaceId: null });
+  const { who, occasion, budgetCap, timeMinutes, radiusKm, areaText: area, door } = search;
+
+  const toggle = <T extends string>(current: T | null, value: T) =>
+    current === value ? null : value;
+
+  const chipRow = (
+    options: readonly string[],
+    selected: string | null,
+    onPick: (v: string | null) => void,
+  ) => (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
+      {options.map((o) => (
+        <Tag key={o} selected={selected === o} onClick={() => onPick(toggle(selected, o))}>
+          {o}
+        </Tag>
+      ))}
+    </div>
+  );
 
   const steps = [
     {
-      title: 'What are you after?',
-      body: (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
-          {vibes.map((v) => (
-            <Tag key={v} selected={vibe === v} onClick={() => setVibe(vibe === v ? null : v)}>
-              {v}
-            </Tag>
-          ))}
-        </div>
-      ),
+      title: 'Who is it for?',
+      body: chipRow(WHO_OPTIONS, who, (v) => setSearch({ who: v })),
     },
     {
-      title: 'Time or distance?',
+      title: "What's the occasion?",
+      body: chipRow(OCCASION_OPTIONS, occasion, (v) => setSearch({ occasion: v })),
+    },
+    {
+      title: "What's the hard limit?",
       body: (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
           <Input
             label="Minutes you have"
             value={timeMinutes}
-            onChange={(e) => setTimeMinutes(e.target.value)}
+            onChange={(e) => setSearch({ timeMinutes: e.target.value, constraintMode: 'time' })}
             type="number"
             placeholder="e.g. 20"
           />
           <Input
             label="Distance (km)"
             value={radiusKm}
-            onChange={(e) => setRadiusKm(e.target.value)}
+            onChange={(e) => setSearch({ radiusKm: e.target.value, constraintMode: 'radius' })}
             type="number"
             placeholder="e.g. 5"
           />
           <p style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>
             Fill one. The last field you edit is what we search with.
           </p>
+          <div>
+            <h4 style={{ font: 'var(--type-label)', marginBottom: 'var(--space-2)' }}>
+              Budget cap
+            </h4>
+            {chipRow(BUDGET_CAP_OPTIONS, budgetCap, (v) => setSearch({ budgetCap: v }))}
+          </div>
         </div>
       ),
     },
@@ -74,7 +98,8 @@ export function IntakeScreen() {
         <Input
           label="Neighbourhood"
           value={area}
-          onChange={(e) => setArea(e.target.value)}
+          // Typing a new area invalidates the coordinates resolved for the old one.
+          onChange={(e) => setSearch({ areaText: e.target.value, areaPlaceId: null })}
           placeholder="e.g. Jubilee Hills"
         />
       ),
@@ -87,15 +112,16 @@ export function IntakeScreen() {
   const finish = () => navigate('/filters');
 
   if (breakpoint === 'desktop') {
-    // Real divergence: all three steps visible in one panel.
+    // Real divergence: every step visible in one panel.
     return (
       <AppShell title="Tell us what you're after" onBack={() => navigate(-1)} showTabBar={false}>
         <div
           style={{
             padding: 'var(--space-7) var(--gutter-desktop)',
             display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
             gap: 'var(--space-7)',
+            alignItems: 'start',
           }}
         >
           {steps.map((s) => (

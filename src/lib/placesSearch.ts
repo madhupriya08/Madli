@@ -76,11 +76,28 @@ export interface SearchCandidatesInput {
   door: Door;
   center: LatLng;
   radiusMeters: number;
-  vibe?: string | null;
+  /** S16 vibe chips, multi-select. */
+  vibes?: string[];
+  /** S15 — who the outing is for. */
+  who?: string | null;
+  /** S15 — the occasion. */
+  occasion?: string | null;
+  /** S15 — per-head budget cap. Narrows Google's price levels. */
+  budgetCap?: string | null;
+  /** S16 — price band. Also narrows price levels. */
+  budget?: string | null;
+  /** S16 — Eat door only. */
+  kitchen?: string | null;
   areaText?: string;
   areaType?: AreaType | null;
   allowsPets?: boolean;
   servesPetFood?: boolean;
+  familyFriendly?: boolean;
+  coupleFriendly?: boolean;
+  openLate?: boolean;
+  waitCare?: boolean;
+  /** Real Places request field, not a query word. */
+  openNow?: boolean;
   maxResults?: number;
   /** When false, keep the named-area query as Google returned it. */
   clipToRadius?: boolean;
@@ -95,34 +112,153 @@ function includedTypesFor(input: SearchCandidatesInput): string[] {
   return intersection.length > 0 ? intersection : base;
 }
 
+/**
+ * Chip label → the words Google actually understands.
+ *
+ * Anything absent falls back to the label itself, so adding a chip to the UI
+ * never silently drops it from the query — it just searches for its own name.
+ */
 const VIBE_QUERY: Record<string, string> = {
-  'Quick bite': 'quick bite casual',
+  // S16 Eat vibes
+  Tiffin: 'tiffin south indian breakfast',
+  Diner: 'casual diner',
+  'Michelin-style': 'fine dining upscale',
+  'Food truck / stall': 'street food stall',
   'Date night': 'romantic date night',
+  'Calm and pleasant': 'quiet calm relaxed',
+  // S16 Explore vibes
+  Historical: 'historical landmarks heritage',
+  Devotional: 'temples churches mosques',
+  Sightseeing: 'sightseeing landmarks',
+  'Nightlife / clubs': 'nightlife clubs bars',
+  Concerts: 'live music concert venue',
+  Scenic: 'scenic viewpoints lakes',
+  // Retired single-vibe labels, still reachable from an older sessionStorage blob.
+  'Quick bite': 'quick bite casual',
   Family: 'family friendly',
   Solo: 'casual for one',
   Celebration: 'celebration',
   'Late night': 'late night',
-  Sightseeing: 'sightseeing landmarks',
-  Historical: 'historical landmarks',
   Outdoors: 'parks outdoors viewpoints',
   Nightlife: 'nightlife',
   'Family day': 'family friendly attractions',
   Quiet: 'quiet peaceful places',
 };
 
+const WHO_QUERY: Record<string, string> = {
+  Solo: 'good for one',
+  Couple: 'good for couples',
+  Family: 'family friendly',
+  Friends: 'good for groups',
+  Parents: 'comfortable seating quiet',
+};
+
+const OCCASION_QUERY: Record<string, string> = {
+  Casual: 'casual',
+  Date: 'romantic date',
+  Celebration: 'celebration party',
+  'Work lunch': 'business lunch',
+  'Late-night': 'open late night',
+};
+
+const KITCHEN_QUERY: Record<string, string> = {
+  'Veg-only kitchen': 'pure vegetarian',
+  'Veg available': 'vegetarian options',
+  'Non-veg': 'non vegetarian',
+};
+
 /**
- * Free-text query that carries vibe, pets, and area — Google has no structured
- * field for those, so they are folded into words rather than dropped.
+ * Free-text query that carries who, occasion, vibe, kitchen, pets and area.
+ *
+ * Google has no structured field for any of these, so they are folded into
+ * words rather than dropped. Budget is the exception — it maps to a real
+ * request parameter below.
  */
 function textQueryFor(input: SearchCandidatesInput): string {
   const parts: string[] = [];
-  if (input.vibe) parts.push(VIBE_QUERY[input.vibe] ?? input.vibe);
+  for (const vibe of input.vibes ?? []) parts.push(VIBE_QUERY[vibe] ?? vibe);
+  if (input.who) parts.push(WHO_QUERY[input.who] ?? input.who);
+  if (input.occasion) parts.push(OCCASION_QUERY[input.occasion] ?? input.occasion);
+  if (input.kitchen) parts.push(KITCHEN_QUERY[input.kitchen] ?? input.kitchen);
   if (input.allowsPets) parts.push('pet friendly');
   if (input.servesPetFood) parts.push('serves pet food');
+  if (input.familyFriendly) parts.push('family friendly');
+  if (input.coupleFriendly) parts.push('good for couples');
+  if (input.openLate) parts.push('open late');
+  if (input.waitCare) parts.push(input.door === 'eat' ? 'no wait' : 'not crowded');
+
+  // De-duplicated: "Family" as the who-chip and "family friendly" as a switch
+  // are the same words, and repeating them skews the text match.
+  const seen = new Set<string>();
+  const words = parts.filter((p) => {
+    if (seen.has(p)) return false;
+    seen.add(p);
+    return true;
+  });
 
   const subject = input.door === 'eat' ? 'restaurants' : 'places to visit';
   const where = input.areaText?.trim() ? ` in ${input.areaText.trim()}` : '';
-  return `${parts.join(' ')} ${subject}${where}`.trim();
+  return `${words.join(' ')} ${subject}${where}`.trim();
+}
+
+/**
+ * Budget chips → Google price levels.
+ *
+ * Both the S15 per-head cap and the S16 band land on the same axis, so the
+ * narrower of the two wins rather than one silently overwriting the other.
+ * Returns null when neither is set, or when the person said price is not the
+ * issue — an empty `priceLevels` array would filter everything out.
+ */
+const PRICE_TIERS: Record<string, number[]> = {
+  // S15 caps
+  'Under ₹150 a head': [1],
+  'Under ₹400 a head': [1, 2],
+  'Under ₹800 a head': [1, 2, 3],
+  'Price is not the issue': [],
+  // S16 bands
+  'Under ₹150': [1],
+  '₹150–300': [1, 2],
+  '₹300–600': [2, 3],
+  '₹600+': [3, 4],
+};
+
+function priceTiersFor(input: SearchCandidatesInput): number[] | null {
+  const sets = [input.budgetCap, input.budget]
+    .map((label) => (label ? PRICE_TIERS[label] : undefined))
+    .filter((tiers): tiers is number[] => Array.isArray(tiers) && tiers.length > 0);
+  if (sets.length === 0) return null;
+  // Intersect, so two answers narrow rather than fight. If they contradict
+  // each other outright, fall back to the first — an empty set would return
+  // nothing at all, which reads as "there is nowhere to eat here".
+  const intersection = sets.reduce((acc, tiers) => acc.filter((t) => tiers.includes(t)));
+  return intersection.length > 0 ? intersection : sets[0];
+}
+
+/**
+ * Numeric tiers → the `PriceLevel` enum members the Places library expects.
+ *
+ * Resolved from the library object rather than hardcoded, and skipped
+ * entirely if the enum is missing: sending an unrecognised value would fail
+ * the whole search, and losing the budget filter is a far smaller cost than
+ * losing the results.
+ */
+function priceLevelsFor(
+  places: google.maps.PlacesLibrary,
+  tiers: number[] | null,
+): google.maps.places.PriceLevel[] | undefined {
+  if (!tiers || tiers.length === 0) return undefined;
+  const e = (places as unknown as { PriceLevel?: Record<string, string> }).PriceLevel;
+  if (!e) return undefined;
+  const byTier: Record<number, string | undefined> = {
+    1: e.INEXPENSIVE,
+    2: e.MODERATE,
+    3: e.EXPENSIVE,
+    4: e.VERY_EXPENSIVE,
+  };
+  const levels = tiers
+    .map((t) => byTier[t])
+    .filter((v): v is string => typeof v === 'string') as google.maps.places.PriceLevel[];
+  return levels.length > 0 ? levels : undefined;
 }
 
 type PlacePhotoLike = {
@@ -240,7 +376,9 @@ export async function searchCandidates(input: SearchCandidatesInput): Promise<Go
   const maxResults = input.maxResults ?? 20;
 
   try {
-    const { Place } = (await maps.importLibrary('places')) as google.maps.PlacesLibrary;
+    const placesLib = (await maps.importLibrary('places')) as google.maps.PlacesLibrary;
+    const { Place } = placesLib;
+    const priceLevels = priceLevelsFor(placesLib, priceTiersFor(input));
 
     const { places } = await Place.searchByText({
       textQuery: textQueryFor(input),
@@ -251,6 +389,10 @@ export async function searchCandidates(input: SearchCandidatesInput): Promise<Go
       },
       includedType: input.door === 'eat' ? 'restaurant' : includedTypesFor(input)[0],
       maxResultCount: maxResults,
+      // Both omitted unless asked for: `isOpenNow: false` is a request to see
+      // only closed places, not an absence of preference.
+      ...(input.openNow ? { isOpenNow: true } : {}),
+      ...(priceLevels ? { priceLevels } : {}),
     });
 
     const candidates = (places ?? [])

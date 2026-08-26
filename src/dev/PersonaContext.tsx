@@ -41,6 +41,13 @@ export interface PersonaState {
   /** The real signed-in user's id when a session exists; a fixed mock id under a dev-harness override; '' for guest. */
   userId: string;
   /**
+   * What to call this person, from profiles.display_name — the name they gave
+   * at signup. Null for guests, and for accounts created before signup asked
+   * for one. Screens must handle null rather than printing "Welcome back,
+   * null" or inventing a placeholder.
+   */
+  displayName: string | null;
+  /**
    * Whether a real `supabase.auth` session exists — the routing source of
    * truth for logged-in vs logged-out.
    *
@@ -88,6 +95,7 @@ export function PersonaProvider({ children }: { children: ReactNode }) {
   const [canOverrideRanking, setCanOverrideRanking] = useState(true);
   const [canAccessLocationHistory, setCanAccessLocationHistory] = useState(true);
   const [sessionUserId, setSessionUserId] = useState<string | null>(null);
+  const [displayName, setDisplayName] = useState<string | null>(null);
   const [hasSession, setHasSession] = useState(false);
   const [sessionLoading, setSessionLoading] = useState(true);
 
@@ -107,18 +115,24 @@ export function PersonaProvider({ children }: { children: ReactNode }) {
 
     async function applySession(userId: string | undefined) {
       if (!userId) {
-        if (!cancelled) setSessionUserId(null);
+        if (!cancelled) {
+          setSessionUserId(null);
+          setDisplayName(null);
+        }
         return;
       }
       try {
         const { data: profile, error } = await supabase
           .from('profiles')
-          .select('role, admin_tier, can_override_ranking, can_access_location_history')
+          .select(
+            'role, admin_tier, can_override_ranking, can_access_location_history, display_name',
+          )
           .eq('id', userId)
           .single();
         if (cancelled || error || !profile) return;
 
         setSessionUserId(userId);
+        setDisplayName(profile.display_name?.trim() || null);
         setPersonaState(profile.role === 'admin' ? 'admin' : 'user');
         if (profile.admin_tier) setAdminTier(profile.admin_tier as AdminTier);
         setCanOverrideRanking(profile.can_override_ranking);
@@ -166,6 +180,7 @@ export function PersonaProvider({ children }: { children: ReactNode }) {
   const setPersona = (p: Persona) => {
     // A dev-harness override always wins over a stale real session id.
     setSessionUserId(null);
+    setDisplayName(null);
     setPersonaState(p);
   };
 
@@ -180,6 +195,7 @@ export function PersonaProvider({ children }: { children: ReactNode }) {
     setHasSession(false);
     setSessionLoading(false);
     setSessionUserId(null);
+    setDisplayName(null);
     setPersonaState('guest');
     // Unlink this browser from the person who just left, so the next
     // session's events are not attributed to them.
@@ -195,6 +211,7 @@ export function PersonaProvider({ children }: { children: ReactNode }) {
       canAccessLocationHistory,
       breakpoint,
       userId: sessionUserId ?? userIdForPersona(persona),
+      displayName,
       hasSession,
       sessionLoading,
       setPersona,
@@ -211,6 +228,7 @@ export function PersonaProvider({ children }: { children: ReactNode }) {
       canAccessLocationHistory,
       breakpoint,
       sessionUserId,
+      displayName,
       hasSession,
       sessionLoading,
     ],

@@ -13,6 +13,8 @@ import { useDiscovery } from '../../data/useDiscovery';
 import { INITIAL_VISIBLE_PICKS, MAX_VISIBLE_PICKS, pickReason } from '../../data/hybridPicks';
 import { useSearch } from '../../lib/searchState';
 import { GoogleMapView, type MapMarker } from '../../components/map/GoogleMapView';
+import { AppliedFilterChips } from './AppliedFilterChips';
+import { useRankingCounts } from '../../data/googleRankings';
 import { track } from '../../lib/analytics';
 import type { Rank } from '../../components/trust/RankBadge';
 
@@ -37,11 +39,7 @@ export function ResultsScreen({ door }: { door: 'eat' | 'explore' }) {
     if (search.door !== door) setSearch({ door });
   }, [door, search.door, setSearch]);
 
-  const {
-    data: discovery,
-    isLoading,
-    googleError,
-  } = useDiscovery(door, rejectedGoogleIds);
+  const { data: discovery, isLoading, googleError } = useDiscovery(door, rejectedGoogleIds);
 
   useEffect(() => {
     if (persona === 'guest') {
@@ -57,6 +55,10 @@ export function ResultsScreen({ door }: { door: 'eat' | 'explore' }) {
   const pool = discovery?.ranked ?? [];
   const ranked = pool.slice(0, Math.min(visibleCount, MAX_VISIBLE_PICKS));
   const canShowTwoMore = ranked.length < MAX_VISIBLE_PICKS && pool.length > ranked.length;
+
+  // Madli's own local/visitor counts for whatever is on screen. Google supplies
+  // the candidates; this is the only number here that came from Madli users.
+  const { data: rankingCounts } = useRankingCounts(ranked.map((r) => r.candidate.placeId));
 
   const openPlace = (placeId: string, rank: number) => {
     track('pick_opened', { door, rank, from: 'results_list' });
@@ -74,12 +76,17 @@ export function ResultsScreen({ door }: { door: 'eat' | 'explore' }) {
       door,
       ranked_count: ranked.length,
       google_error: googleError != null,
-      has_vibe: search.vibe !== null,
+      vibe_count: search.vibes.length,
+      has_who: search.who !== null,
+      has_occasion: search.occasion !== null,
       has_area: search.areaText.trim() !== '',
       constraint_mode: search.constraintMode,
+      has_budget: search.budget !== null || search.budgetCap !== null,
+      kitchen: search.kitchen,
       area_type: search.areaType,
       allows_pets: search.allowsPets,
       serves_pet_food: search.servesPetFood,
+      open_now: search.openNow,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [discovery, isLoading, door, googleError]);
@@ -128,6 +135,8 @@ export function ResultsScreen({ door }: { door: 'eat' | 'explore' }) {
             onChange={(v) => setMapView(v === 'map')}
           />
         </div>
+
+        <AppliedFilterChips />
 
         <p
           style={{
@@ -187,20 +196,32 @@ export function ResultsScreen({ door }: { door: 'eat' | 'explore' }) {
                 marginBottom: 'var(--space-6)',
               }}
             >
-              {ranked.map((r, i) => (
-                <PickCard
-                  key={r.candidate.placeId}
-                  rank={(i + 1) as Rank}
-                  name={r.candidate.name}
-                  category={typeLabel(r.candidate.types)}
-                  neighborhood={r.candidate.address}
-                  photoSrc={r.candidate.photoUrl}
-                  photoLabel={r.candidate.name}
-                  reason={pickReason(r.candidate, search.vibe)}
-                  showStats={false}
-                  onClick={() => openPlace(r.candidate.placeId, i + 1)}
-                />
-              ))}
+              {ranked.map((r, i) => {
+                const counts = rankingCounts?.[r.candidate.placeId];
+                // Only shown once at least one person has actually ranked it.
+                // "0 locals · 0 visitors" on every card of a new app is not
+                // evidence, it is an apology.
+                const hasCounts = (counts?.locals ?? 0) + (counts?.visitors ?? 0) > 0;
+                return (
+                  <PickCard
+                    key={r.candidate.placeId}
+                    rank={(i + 1) as Rank}
+                    name={r.candidate.name}
+                    category={typeLabel(r.candidate.types)}
+                    neighborhood={r.candidate.address}
+                    photoSrc={r.candidate.photoUrl}
+                    photoLabel={r.candidate.name}
+                    reason={pickReason(r.candidate, search.vibe)}
+                    showStats={false}
+                    locals={hasCounts ? counts?.locals : undefined}
+                    visitors={hasCounts ? counts?.visitors : undefined}
+                    // These counts are all-time, not a rolling window — saying
+                    // "last 90 days" over an all-time total would be a lie.
+                    dataWindow={hasCounts ? 'ranked on Madli' : ''}
+                    onClick={() => openPlace(r.candidate.placeId, i + 1)}
+                  />
+                );
+              })}
             </div>
 
             <div style={{ display: 'flex', gap: 'var(--space-3)', marginBottom: 'var(--space-7)' }}>

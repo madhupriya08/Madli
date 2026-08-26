@@ -68,7 +68,11 @@ export type AnalyticsEvent =
   | 'directions_opened'
   | 'visit_logged'
   | 'bookmark_added'
-  | 'plan_shared';
+  | 'plan_shared'
+  /** Someone said whether they live in their area or are visiting it. */
+  | 'residency_declared'
+  /** A Google place was ranked (S29 onboarding, or a place page later). */
+  | 'google_place_ranked';
 
 export function track(event: AnalyticsEvent, properties?: Record<string, unknown>): void {
   if (!analyticsEnabled()) return;

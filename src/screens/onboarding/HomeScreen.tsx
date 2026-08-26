@@ -3,7 +3,7 @@ import { AppShell } from '../layout/AppShell';
 import { Card } from '../../components/core/Card';
 import { Icon } from '../../components/core/Icon';
 import { usePersona } from '../../dev/PersonaContext';
-import { hasSearchOrigin, useSearch, type Door } from '../../lib/searchState';
+import { useSearch, type Door } from '../../lib/searchState';
 
 // S7: two doors, CSS grid with a 280px minimum so desktop side-by-side and
 // mobile stack are the same markup — real divergence starts at S17.
@@ -25,25 +25,35 @@ const DOORS = [
 
 export function HomeScreen() {
   const navigate = useNavigate();
-  const { persona } = usePersona();
-  const { search, setSearch } = useSearch();
+  const { persona, displayName } = usePersona();
+  const { setSearch } = useSearch();
   const personalized = persona === 'user' || persona === 'owner';
+  // First name only: "Welcome back, Madhu" is a greeting, "Welcome back,
+  // Madhu Priya Reddy" is a form letter.
+  const firstName = displayName?.trim().split(/\s+/)[0];
 
   const openDoor = (door: Door) => {
-    // Clear the other door's vibe so Eat chips don't bias an Explore search.
-    setSearch({ door, vibe: null });
-    if (hasSearchOrigin(search)) {
-      navigate('/intake');
-      return;
-    }
-    navigate('/location-permission', { state: { door } });
+    // Clear the other door's vibes so Eat chips don't bias an Explore search.
+    setSearch({ door, vibes: [] });
+    // Straight to intake. This used to divert anyone without a stored origin
+    // to /location-permission, which meant the permission prompt reappeared
+    // on essentially every door click — including for guests who have no
+    // account to attach a location to. The ask now happens once, right after
+    // signup. Anyone who skipped it still gets a working search: intake asks
+    // for an area, and without one the search falls back to the city centre,
+    // labelled as a fallback rather than passed off as their location.
+    navigate('/intake');
   };
 
   return (
     <AppShell title="Madli">
       <div style={{ padding: 'var(--space-6) var(--gutter)' }}>
         <h1 style={{ font: 'var(--type-h2)', marginBottom: 'var(--space-2)' }}>
-          {personalized ? 'Welcome back' : 'Where to start?'}
+          {personalized
+            ? firstName
+              ? `Welcome back, ${firstName}`
+              : 'Welcome back'
+            : 'Where to start?'}
         </h1>
         <p
           style={{

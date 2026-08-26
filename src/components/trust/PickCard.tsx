@@ -27,7 +27,12 @@ export interface PickCardProps {
   layout?: 'vertical' | 'horizontal';
   onClick?: () => void;
   style?: CSSProperties;
-  /** When false, skip gap/sample-size (Google-only picks have no Madli stats). */
+  /**
+   * When false, skip the rank-gap line (Google-only picks have no Madli gap).
+   * The sample-size line is independent: it renders whenever real
+   * locals/visitors counts are passed, because a Google pick can still carry
+   * Madli rankings even though it carries no gap.
+   */
   showStats?: boolean;
 }
 
@@ -135,7 +140,7 @@ export function PickCard({
             {reason}
           </ReasonNote>
         ) : null}
-        {showStats ? (
+        {showStats || locals != null || visitors != null ? (
           <div
             style={{
               display: 'flex',
@@ -144,7 +149,7 @@ export function PickCard({
               marginTop: 'auto',
             }}
           >
-            <RankGap tone={gapTone} points={gapPoints} note={gapNote} />
+            {showStats ? <RankGap tone={gapTone} points={gapPoints} note={gapNote} /> : null}
             <SampleSize locals={locals} visitors={visitors} window={dataWindow} />
           </div>
         ) : null}

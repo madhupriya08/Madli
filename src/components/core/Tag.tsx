@@ -7,11 +7,21 @@ export interface TagProps {
   selected?: boolean;
   onClick?: () => void;
   onRemove?: () => void;
+  /** Screen-reader label for the remove control. Defaults to "Remove". */
+  removeLabel?: string;
   style?: CSSProperties;
 }
 
 /** Filter chip. Selectable, optionally removable. 6px radius — never reads as a badge. */
-export function Tag({ children, icon, selected = false, onClick, onRemove, style }: TagProps) {
+export function Tag({
+  children,
+  icon,
+  selected = false,
+  onClick,
+  onRemove,
+  removeLabel = 'Remove',
+  style,
+}: TagProps) {
   const [hover, setHover] = useState(false);
   const interactive = !!onClick;
   return (
@@ -52,7 +62,7 @@ export function Tag({ children, icon, selected = false, onClick, onRemove, style
       {onRemove ? (
         <span
           role="button"
-          aria-label="Remove"
+          aria-label={removeLabel}
           tabIndex={0}
           onClick={(e) => {
             e.stopPropagation();

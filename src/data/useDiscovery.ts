@@ -15,7 +15,10 @@ export interface DiscoveryQueryResult {
  * Google finds places for the current door + filters. Nothing is read from
  * the Madli catalogue for this list.
  */
-export function useDiscovery(door: Door, rejectedGooglePlaceIds: Set<string>): DiscoveryQueryResult {
+export function useDiscovery(
+  door: Door,
+  rejectedGooglePlaceIds: Set<string>,
+): DiscoveryQueryResult {
   const { search, effectiveCenter, radiusMeters } = useSearch();
 
   const query = useQuery({
@@ -25,11 +28,21 @@ export function useDiscovery(door: Door, rejectedGooglePlaceIds: Set<string>): D
       effectiveCenter.lat,
       effectiveCenter.lng,
       radiusMeters,
-      search.vibe,
+      search.vibes.join('|'),
+      search.who,
+      search.occasion,
+      search.budgetCap,
+      search.budget,
+      search.kitchen,
       search.areaText,
       search.areaType,
       search.allowsPets,
       search.servesPetFood,
+      search.familyFriendly,
+      search.coupleFriendly,
+      search.openLate,
+      search.waitCare,
+      search.openNow,
       search.centerSource,
       [...rejectedGooglePlaceIds].join(','),
     ],
@@ -46,13 +59,23 @@ export function useDiscovery(door: Door, rejectedGooglePlaceIds: Set<string>): D
           door,
           center: effectiveCenter,
           radiusMeters,
-          vibe: search.vibe,
+          vibes: search.vibes,
+          who: search.who,
+          occasion: search.occasion,
+          budgetCap: search.budgetCap,
+          budget: search.budget,
+          // Explore has no kitchen to describe, so it never reaches the query.
+          kitchen: door === 'eat' ? search.kitchen : null,
           areaText: search.areaText,
           areaType: search.areaType,
           allowsPets: search.allowsPets,
           servesPetFood: search.servesPetFood,
-          clipToRadius:
-            search.centerSource === 'geolocation' || search.centerSource === 'area',
+          familyFriendly: search.familyFriendly,
+          coupleFriendly: search.coupleFriendly,
+          openLate: search.openLate,
+          waitCare: search.waitCare,
+          openNow: search.openNow,
+          clipToRadius: search.centerSource === 'geolocation' || search.centerSource === 'area',
         });
 
         return {

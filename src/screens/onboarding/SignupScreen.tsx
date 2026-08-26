@@ -6,12 +6,22 @@ import { Button } from '../../components/core/Button';
 import { signUp, validateSignup } from '../../lib/auth';
 import { useToast } from '../../components/feedback/ToastProvider';
 
-// S11. Email and password, one step: creating the account signs you in and
-// drops you straight into ranking onboarding. There is no OTP screen, no SMS
-// code, and no phone tab — the whole second-factor surface was removed from
-// the product rather than hidden, so nothing here routes to /verify-otp.
-// Google sits below as a second path (still awaiting an OAuth client).
+// S11. Name, email and password, one step: creating the account signs you in
+// and hands off to the location ask. There is no OTP screen, no SMS code, and
+// no phone tab — the whole second-factor surface was removed from the product
+// rather than hidden, so nothing here routes to /verify-otp. Google sits below
+// as a second path (still awaiting an OAuth client).
+//
+// The name is collected here and nowhere else. The profiles table has always
+// had a display_name column and handle_new_user() has always read it out of
+// the signup metadata — this form simply never asked for it, so every account
+// was created nameless and the home screen had nothing to greet anyone with.
+//
+// Signup is also the only place the location prompt is reached from: it is
+// shown once, here, on the way in, rather than every time somebody opens a
+// door on the home screen.
 export function SignupScreen() {
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -21,7 +31,7 @@ export function SignupScreen() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const validation = validateSignup({ email, password });
+    const validation = validateSignup({ name, email, password });
     if (validation) {
       setError(validation);
       return;
@@ -29,9 +39,12 @@ export function SignupScreen() {
     setSubmitting(true);
     setError(null);
     try {
-      await signUp({ email, password });
-      // Straight into the app: signUp leaves a real session behind it.
-      navigate('/ranking-onboarding');
+      await signUp({ name, email, password });
+      // Straight into the app: signUp leaves a real session behind it. The
+      // location ask comes first and then hands off to the optional ranking
+      // step, so a brand-new account has both an origin and a chance to
+      // contribute before it ever sees the two doors.
+      navigate('/location-permission', { state: { next: '/ranking-onboarding' } });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong.');
     } finally {
@@ -52,6 +65,14 @@ export function SignupScreen() {
           maxWidth: 420,
         }}
       >
+        <Input
+          label="Your name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="What should we call you?"
+          error={error && error.toLowerCase().includes('name') ? error : undefined}
+          autoComplete="name"
+        />
         <Input
           label="Email"
           type="email"

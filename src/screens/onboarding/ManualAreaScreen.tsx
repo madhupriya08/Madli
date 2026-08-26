@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { AppShell } from '../layout/AppShell';
 import { SearchField } from '../../components/forms/SearchField';
 import { Switch } from '../../components/forms/Switch';
@@ -18,9 +18,15 @@ export function ManualAreaScreen() {
   const [query, setQuery] = useState('');
   const [homeArea, setHomeArea] = useState<string | null>(null);
   const navigate = useNavigate();
+  const routerLocation = useLocation();
   const { persona } = usePersona();
   const { search, setSearch } = useSearch();
+  // S8 forwards its own destination through when it sends someone here, so
+  // the post-signup chain (location → ranking → home) survives "type my area
+  // instead" rather than dumping a brand-new account onto results.
+  const next = (routerLocation.state as { next?: string } | null)?.next;
   const resultsPath = search.door === 'explore' ? '/results/explore' : '/results/eat';
+  const onwardPath = next ?? resultsPath;
   const filtered = areas.filter((a) => a.name.toLowerCase().includes(query.toLowerCase()));
 
   // Google autocomplete sits *alongside* the seeded neighbourhoods rather
@@ -70,7 +76,7 @@ export function ManualAreaScreen() {
     // "… in Banjara Hills" via the text query, which is what actually
     // narrows the search here.
     setSearch({ areaText: name, areaPlaceId: null });
-    navigate(name === 'Alwal' ? '/neighbourhoods/Alwal' : resultsPath);
+    navigate(name === 'Alwal' && !next ? '/neighbourhoods/Alwal' : onwardPath);
   };
 
   const chooseSuggestion = async (s: AreaSuggestion) => {
@@ -82,7 +88,7 @@ export function ManualAreaScreen() {
       // Keep the typed area even if coordinates could not be resolved — the
       // text still narrows the search, it just cannot centre the map.
     }
-    navigate(resultsPath);
+    navigate(onwardPath);
   };
 
   return (

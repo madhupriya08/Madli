@@ -62,7 +62,26 @@ supabase db push
 instead of the CLI, since that was the only reachable path to the database in
 that sandbox — see the completion report's "Environment constraints" section.
 The migration files here are the source of truth and are what `db push` would
-apply; the project's live schema already matches them.)
+apply.)
+
+### Not yet applied
+
+**`20260826120000_google_place_rankings.sql` has NOT been applied to the live
+project.** Every other migration in this directory has. It was written in a
+session whose Supabase connector could only reach an unrelated project, so
+applying it would have written Madli's schema into somebody else's database.
+Apply it with `supabase db push` (or the MCP tool, from a session pointed at
+`wybpprdunzrzyzsbiarv`) before the local/visitor ranking feature will do
+anything.
+
+Until it is applied, the app degrades rather than breaks: `src/data/googleRankings.ts`
+treats Postgres `42P01`/`42883` (missing table, missing function) as "no
+rankings yet", so the results screen simply shows no local/visitor line and
+the onboarding ranking step reports that it could not save. Nothing throws.
+
+After applying it, regenerate `src/lib/database.types.ts` — the new table and
+its two functions are currently hand-added there, and the header comment says
+so.
 
 ## Seed data
 

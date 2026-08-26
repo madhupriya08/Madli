@@ -7,6 +7,8 @@ import { useSearch, type Door } from '../../lib/searchState';
 
 interface LocationNavState {
   door?: Door;
+  /** Where to go once an origin is set (or the person declines). */
+  next?: string;
 }
 
 // S8: denied is not an error. It routes into S9 and every downstream screen
@@ -18,19 +20,23 @@ export function LocationPermissionScreen() {
   const navigate = useNavigate();
   const location = useLocation();
   const { search, setSearch } = useSearch();
-  const door = (location.state as LocationNavState | null)?.door ?? search.door;
+  const navState = location.state as LocationNavState | null;
+  const door = navState?.door ?? search.door;
+  // Signup sends people here with the ranking step queued behind it; anyone
+  // arriving without a destination in mind continues into intake.
+  const next = navState?.next ?? '/intake';
 
-  // No auto-skip here. HomeScreen is the only screen that routes to this one,
-  // and it already checks hasSearchOrigin() before doing so — that is what
-  // breaks the Allow → /app → Eat → here loop. Redirecting again from inside
-  // this screen made it permanently unreachable once an origin was stored:
-  // the origin lives in sessionStorage, so a grant from an earlier visit in
-  // the same tab meant the prompt could never be shown again, which reads as
-  // "location is never asked". Landing here deliberately now re-asks.
+  // No auto-skip here. This screen is now reached once, on the way out of
+  // signup, rather than on every door click — so there is no Allow → /app →
+  // Eat → here loop left to break. Redirecting from inside this screen also
+  // made it permanently unreachable once an origin was stored: the origin
+  // lives in sessionStorage, so a grant from an earlier visit in the same tab
+  // meant the prompt could never be shown again, which reads as "location is
+  // never asked". Landing here deliberately re-asks.
 
-  const goToIntake = (patch: Parameters<typeof setSearch>[0]) => {
+  const goToNext = (patch: Parameters<typeof setSearch>[0]) => {
     setSearch({ door, ...patch });
-    navigate('/intake');
+    navigate(next);
   };
 
   const requestLocation = () => {
@@ -42,7 +48,7 @@ export function LocationPermissionScreen() {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         setAsking(false);
-        goToIntake({
+        goToNext({
           center: { lat: pos.coords.latitude, lng: pos.coords.longitude },
           centerSource: 'geolocation',
         });
@@ -91,9 +97,21 @@ export function LocationPermissionScreen() {
           <Button onClick={requestLocation} disabled={asking}>
             {asking ? 'Asking…' : 'Allow location'}
           </Button>
-          <Button variant="secondary" onClick={() => navigate('/area', { state: { door } })}>
+          <Button variant="secondary" onClick={() => navigate('/area', { state: { door, next } })}>
             Type my area instead
           </Button>
+          <button
+            onClick={() => navigate(next)}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--text-link)',
+              cursor: 'pointer',
+              font: 'var(--type-body-sm)',
+            }}
+          >
+            Not now
+          </button>
         </div>
       </div>
     </AppShell>

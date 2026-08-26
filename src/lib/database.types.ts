@@ -1,6 +1,13 @@
 // Generated from the live Supabase project (wybpprdunzrzyzsbiarv) via
 // `mcp__Supabase__generate_typescript_types`, Phase 3. Regenerate whenever
-// the schema changes — do not hand-edit.
+// the schema changes.
+//
+// One hand-added block: `google_place_rankings`, `fn_rank_google_place`,
+// `fn_google_place_ranking_counts` and the two new `profiles` columns, from
+// supabase/migrations/20260826120000_google_place_rankings.sql. That migration
+// has NOT been applied to the live project yet, so the generator cannot see
+// it. Regenerating this file before applying the migration will drop these —
+// apply the migration first, then regenerate and this note can go.
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
 export type Database = {
@@ -305,6 +312,40 @@ export type Database = {
         Update: Partial<Database['public']['Tables']['plans']['Insert']>;
         Relationships: [];
       };
+      google_place_rankings: {
+        Row: {
+          area_text: string | null;
+          created_at: string;
+          door: string;
+          google_place_id: string;
+          id: string;
+          lat: number | null;
+          lng: number | null;
+          place_name: string;
+          position: number;
+          rater_type: string;
+          tier: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          area_text?: string | null;
+          created_at?: string;
+          door: string;
+          google_place_id: string;
+          id?: string;
+          lat?: number | null;
+          lng?: number | null;
+          place_name: string;
+          position: number;
+          rater_type: string;
+          tier: string;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: Partial<Database['public']['Tables']['google_place_rankings']['Insert']>;
+        Relationships: [];
+      };
       profiles: {
         Row: {
           admin_tier: string | null;
@@ -313,12 +354,14 @@ export type Database = {
           created_at: string;
           display_name: string | null;
           home_area_id: string | null;
+          home_area_text: string | null;
           id: string;
           is_suspended: boolean;
           notification_prefs: Json;
           phone: string | null;
           privacy_prefs: Json;
           ranking_weight: number;
+          resident_status: string | null;
           role: string;
           updated_at: string;
         };
@@ -329,12 +372,14 @@ export type Database = {
           created_at?: string;
           display_name?: string | null;
           home_area_id?: string | null;
+          home_area_text?: string | null;
           id: string;
           is_suspended?: boolean;
           notification_prefs?: Json;
           phone?: string | null;
           privacy_prefs?: Json;
           ranking_weight?: number;
+          resident_status?: string | null;
           role?: string;
           updated_at?: string;
         };
@@ -473,6 +518,28 @@ export type Database = {
           p_tier: string;
         };
         Returns: { entry_id: string; landed_position: number; total_in_category: number }[];
+      };
+      fn_google_place_ranking_counts: {
+        Args: { p_google_place_ids: string[] };
+        Returns: {
+          google_place_id: string;
+          locals: number;
+          locals_disliked: number;
+          visitors: number;
+          visitors_disliked: number;
+        }[];
+      };
+      fn_rank_google_place: {
+        Args: {
+          p_area_text?: string | null;
+          p_door: string;
+          p_google_place_id: string;
+          p_lat?: number | null;
+          p_lng?: number | null;
+          p_place_name: string;
+          p_tier: string;
+        };
+        Returns: { entry_id: string; landed_position: number; total_in_door: number }[];
       };
       is_admin: { Args: Record<string, never>; Returns: boolean };
       is_admin_tier: { Args: { p_tier: string }; Returns: boolean };

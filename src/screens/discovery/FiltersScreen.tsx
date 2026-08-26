@@ -4,24 +4,55 @@ import { Switch } from '../../components/forms/Switch';
 import { Tag } from '../../components/core/Tag';
 import { Button } from '../../components/core/Button';
 import { usePersona } from '../../dev/PersonaContext';
-import { useSearch, type AreaType } from '../../lib/searchState';
+import {
+  useSearch,
+  vibeOptionsFor,
+  BUDGET_OPTIONS,
+  KITCHEN_OPTIONS,
+  DISTANCE_PRESETS,
+  type AreaType,
+} from '../../lib/searchState';
 
 const AREA_TYPES: AreaType[] = ['Indoor', 'Outdoor', 'Mixed'];
 
 // S16: side drawer on desktop, full-screen sheet on mobile (approximated here
 // via Dialog's modal/sheet variants). Pets is deliberately two separate
 // switches — allows pets and serves pet food are different questions. Area
-// type only exists behind the Explore door; on Eat it's absent, not disabled.
-// "Save this set" is User only.
+// type and kitchen are each door-specific: absent behind the wrong door,
+// never present-but-disabled. "Save this set" is User only.
+//
+// The vibe chips, budget band, kitchen and distance presets are the design's
+// own filter groups. They were missing entirely — the panel held two pet
+// switches and an area type, so most of what someone told S15 and S16 never
+// reached the search.
 export function FiltersScreen() {
   const { breakpoint, persona } = usePersona();
   const navigate = useNavigate();
-  const { search, setSearch } = useSearch();
+  const { search, setSearch, resetFilters } = useSearch();
   const door = search.door;
-  const { allowsPets, servesPetFood, areaType } = search;
-  const setAllowsPets = (v: boolean) => setSearch({ allowsPets: v });
-  const setServesPetFood = (v: boolean) => setSearch({ servesPetFood: v });
-  const setAreaType = (v: AreaType | null) => setSearch({ areaType: v });
+  const { vibes, budget, kitchen, radiusKm, areaType } = search;
+  const vibeOptions = vibeOptionsFor(door);
+
+  const toggleVibe = (v: string) =>
+    setSearch({ vibes: vibes.includes(v) ? vibes.filter((x) => x !== v) : [...vibes, v] });
+
+  const group = (title: string, body: React.ReactNode) => (
+    <div>
+      <h4 style={{ font: 'var(--type-label)', marginBottom: 'var(--space-2)' }}>{title}</h4>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>{body}</div>
+    </div>
+  );
+
+  const oneOf = (
+    options: readonly string[],
+    selected: string | null,
+    onPick: (v: string | null) => void,
+  ) =>
+    options.map((o) => (
+      <Tag key={o} selected={selected === o} onClick={() => onPick(selected === o ? null : o)}>
+        {o}
+      </Tag>
+    ));
 
   return (
     <Dialog
@@ -32,8 +63,8 @@ export function FiltersScreen() {
       width={420}
       footer={
         <>
-          <Button variant="ghost" onClick={() => navigate(-1)}>
-            Cancel
+          <Button variant="ghost" onClick={resetFilters}>
+            Reset
           </Button>
           <Button
             onClick={() => {
@@ -47,25 +78,95 @@ export function FiltersScreen() {
       }
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
-        <Switch label="Allows pets" checked={allowsPets} onChange={setAllowsPets} />
-        <Switch label="Serves pet food" checked={servesPetFood} onChange={setServesPetFood} />
+        {group(
+          'Vibe',
+          vibeOptions.map((v) => (
+            <Tag key={v} selected={vibes.includes(v)} onClick={() => toggleVibe(v)}>
+              {v}
+            </Tag>
+          )),
+        )}
 
-        {door === 'explore' ? (
-          <div>
-            <h4 style={{ font: 'var(--type-label)', marginBottom: 'var(--space-2)' }}>Area type</h4>
-            <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-              {AREA_TYPES.map((t) => (
+        {group(
+          'Budget',
+          oneOf(BUDGET_OPTIONS, budget, (v) => setSearch({ budget: v })),
+        )}
+
+        {door === 'eat'
+          ? group(
+              'Kitchen',
+              oneOf(KITCHEN_OPTIONS, kitchen, (v) => setSearch({ kitchen: v })),
+            )
+          : null}
+
+        {group(
+          'Distance',
+          // These write radiusKm rather than a field of their own: the intake
+          // distance input is the same axis, and two sources of truth for one
+          // radius is how a search ends up ignoring what it was just told.
+          DISTANCE_PRESETS.map((p) => (
+            <Tag
+              key={p.label}
+              selected={p.km === null ? radiusKm === '' : radiusKm === p.km}
+              onClick={() => setSearch({ radiusKm: p.km ?? '', constraintMode: 'radius' })}
+            >
+              {p.label}
+            </Tag>
+          )),
+        )}
+
+        {door === 'explore'
+          ? group(
+              'Area type',
+              AREA_TYPES.map((t) => (
                 <Tag
                   key={t}
                   selected={areaType === t}
-                  onClick={() => setAreaType(areaType === t ? null : t)}
+                  onClick={() => setSearch({ areaType: areaType === t ? null : t })}
                 >
                   {t}
                 </Tag>
-              ))}
-            </div>
-          </div>
-        ) : null}
+              )),
+            )
+          : null}
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+          <Switch
+            label="Open now"
+            checked={search.openNow}
+            onChange={(v) => setSearch({ openNow: v })}
+          />
+          <Switch
+            label="Open late"
+            checked={search.openLate}
+            onChange={(v) => setSearch({ openLate: v })}
+          />
+          <Switch
+            label="Allows pets"
+            checked={search.allowsPets}
+            onChange={(v) => setSearch({ allowsPets: v })}
+          />
+          <Switch
+            label="Serves pet food"
+            checked={search.servesPetFood}
+            onChange={(v) => setSearch({ servesPetFood: v })}
+          />
+          <Switch
+            label="Family friendly"
+            checked={search.familyFriendly}
+            onChange={(v) => setSearch({ familyFriendly: v })}
+          />
+          <Switch
+            label="Couple friendly"
+            checked={search.coupleFriendly}
+            onChange={(v) => setSearch({ coupleFriendly: v })}
+          />
+          <Switch
+            label={door === 'eat' ? 'Skip long waits' : 'Avoid crowded times'}
+            checked={search.waitCare}
+            onChange={(v) => setSearch({ waitCare: v })}
+          />
+        </div>
 
         {persona !== 'guest' ? (
           <button

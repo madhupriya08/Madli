@@ -24,9 +24,12 @@ import { supabase } from './supabaseClient';
 export interface SignupInput {
   email: string;
   password: string;
+  /** Shown back to the person as "Welcome back, <name>". Required. */
+  name?: string;
 }
 
 export function validateSignup(input: SignupInput): string | null {
+  if (!input.name || input.name.trim().length < 1) return 'Enter your name.';
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email)) return 'Enter a valid email address.';
   if (input.password.length < 8) return 'Password must be at least 8 characters.';
   return null;
@@ -43,9 +46,15 @@ export async function signUp(input: SignupInput): Promise<void> {
   const error = validateSignup(input);
   if (error) throw new Error(error);
 
+  // display_name goes in as user metadata because that is where the existing
+  // handle_new_user() trigger reads it from — it inserts the profiles row
+  // with `new.raw_user_meta_data ->> 'display_name'`. Passing it here means
+  // the profile is named from the moment it exists, with no second write and
+  // no window where the app has a signed-in person it cannot greet.
   const { data, error: authError } = await supabase.auth.signUp({
     email: input.email,
     password: input.password,
+    options: { data: { display_name: input.name?.trim() } },
   });
   if (authError) throw authError;
   if (!data.session) {
