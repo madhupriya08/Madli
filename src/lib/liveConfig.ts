@@ -105,7 +105,7 @@ export function loadLiveConfig(): Promise<void> {
     const [placesRes, categoriesRes, areasRes, configRes] = await Promise.all([
       supabase.from('places').select('*, place_eat_details(*), place_explore_details(*)'),
       supabase.from('categories').select('id, name'),
-      supabase.from('areas').select('id, name, coverage_depth_label'),
+      supabase.from('areas').select('id, name, coverage_depth_label, lat, lng'),
       supabase.from('app_config').select('key, value'),
     ]);
 
@@ -126,6 +126,8 @@ export function loadLiveConfig(): Promise<void> {
         id: a.id,
         name: a.name,
         coverageDepthLabel: a.coverage_depth_label ?? '',
+        lat: a.lat,
+        lng: a.lng,
       })),
     );
 

@@ -9,8 +9,7 @@ import { LegalPage } from './marketing/LegalPage';
 
 import { SplashScreen } from './onboarding/SplashScreen';
 import { HomeScreen } from './onboarding/HomeScreen';
-import { LocationPermissionScreen } from './onboarding/LocationPermissionScreen';
-import { ManualAreaScreen } from './onboarding/ManualAreaScreen';
+import { PickAreaScreen } from './onboarding/PickAreaScreen';
 import { OutOfCoverageScreen } from './onboarding/OutOfCoverageScreen';
 import { SignupScreen } from './onboarding/SignupScreen';
 import { LoginScreen } from './onboarding/LoginScreen';
@@ -69,8 +68,7 @@ const elementById: Record<string, ReactNode> = {
 
   S6: <SplashScreen />,
   S7: <HomeScreen />,
-  S8: <LocationPermissionScreen />,
-  S9: <ManualAreaScreen />,
+  S8: <PickAreaScreen />,
   S10: <OutOfCoverageScreen />,
   S11: <SignupScreen />,
   S13: <LoginScreen />,

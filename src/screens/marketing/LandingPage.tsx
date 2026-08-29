@@ -103,7 +103,7 @@ export function LandingPage() {
           <Button variant="secondary" size="lg" onClick={() => navigate('/login')}>
             Log in
           </Button>
-          <Button variant="quiet" size="lg" onClick={() => navigate('/app')}>
+          <Button variant="quiet" size="lg" onClick={() => navigate('/area')}>
             Look around as a guest
           </Button>
         </div>

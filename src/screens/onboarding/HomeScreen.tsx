@@ -4,10 +4,10 @@ import { Card } from '../../components/core/Card';
 import { Icon } from '../../components/core/Icon';
 import { usePersona } from '../../dev/PersonaContext';
 import { useSearch, type Door } from '../../lib/searchState';
+import { areas } from '../../fixtures/areas';
 
 // S7: two doors, CSS grid with a 280px minimum so desktop side-by-side and
 // mobile stack are the same markup — real divergence starts at S17.
-// Personalized state (User only): recent searches + last-used filter set.
 const DOORS = [
   {
     value: 'eat' as const,
@@ -26,28 +26,56 @@ const DOORS = [
 export function HomeScreen() {
   const navigate = useNavigate();
   const { persona, displayName } = usePersona();
-  const { setSearch } = useSearch();
+  const { search, setSearch } = useSearch();
   const personalized = persona === 'user' || persona === 'owner';
   // First name only: "Welcome back, Madhu" is a greeting, "Welcome back,
   // Madhu Priya Reddy" is a form letter.
   const firstName = displayName?.trim().split(/\s+/)[0];
+  // S8 is now a required stop before Home ever renders, so there is always
+  // an area here — this looks it up only to print the real coverage-depth
+  // line below, never to decide whether to redirect anywhere.
+  const matchedArea = areas.find((a) => a.name === search.areaText);
 
   const openDoor = (door: Door) => {
     // Clear the other door's vibes so Eat chips don't bias an Explore search.
     setSearch({ door, vibes: [] });
-    // Straight to intake. This used to divert anyone without a stored origin
-    // to /location-permission, which meant the permission prompt reappeared
-    // on essentially every door click — including for guests who have no
-    // account to attach a location to. The ask now happens once, right after
-    // signup. Anyone who skipped it still gets a working search: intake asks
-    // for an area, and without one the search falls back to the city centre,
-    // labelled as a fallback rather than passed off as their location.
+    // Straight to intake. Home is always located — S8 (`/area`) runs once,
+    // required, between the auth choice and here — so there is no per-tap
+    // "was location asked?" check left to make.
     navigate('/intake');
   };
 
   return (
     <AppShell title="Madli">
       <div style={{ padding: 'var(--space-6) var(--gutter)' }}>
+        {search.areaText ? (
+          <button
+            onClick={() => navigate('/area', { state: { next: '/app' } })}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              marginBottom: 'var(--space-3)',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: 0,
+            }}
+          >
+            <Icon name="map-pin" size={14} color="var(--teal-600)" />
+            <span
+              style={{
+                font: 'var(--type-eyebrow)',
+                textTransform: 'uppercase',
+                letterSpacing: 'var(--tracking-eyebrow)',
+                color: 'var(--teal-600)',
+              }}
+            >
+              {search.areaText} · Change
+            </span>
+          </button>
+        ) : null}
+
         <h1 style={{ font: 'var(--type-h2)', marginBottom: 'var(--space-2)' }}>
           {personalized
             ? firstName
@@ -65,7 +93,7 @@ export function HomeScreen() {
           Two doors — pick the one you need right now.
         </p>
 
-        {personalized ? (
+        {personalized && matchedArea ? (
           <div
             style={{
               display: 'flex',
@@ -74,8 +102,13 @@ export function HomeScreen() {
               flexWrap: 'wrap',
             }}
           >
+            {/* Real, not invented: the actual coverage depth for the area
+                just chosen above, not a fabricated recent-search line —
+                there is no recent-searches store to draw from yet. The area
+                name itself already sits in the eyebrow, so this only adds
+                what that line doesn't: how deep the ranking actually goes. */}
             <span style={{ font: 'var(--type-caption)', color: 'var(--text-faint)' }}>
-              Recent: Jubilee Hills · Biryani
+              {matchedArea.coverageDepthLabel}
             </span>
           </div>
         ) : null}

@@ -78,6 +78,8 @@ export type Database = {
           coverage_depth_label: string | null;
           created_at: string;
           id: string;
+          lat: number;
+          lng: number;
           name: string;
           updated_at: string;
         };
@@ -85,6 +87,8 @@ export type Database = {
           coverage_depth_label?: string | null;
           created_at?: string;
           id?: string;
+          lat: number;
+          lng: number;
           name: string;
           updated_at?: string;
         };

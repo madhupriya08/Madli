@@ -93,6 +93,20 @@ Verified against the live project, each in a transaction that rolled back:
 rankings yet" rather than throwing, so an environment where this migration has
 not been applied degrades instead of breaking.
 
+### 20260827090000_areas_coordinates
+
+Applied and verified live. Adds `lat`/`lng` to `areas` — approximate
+neighbourhood centroids, not surveyed geocodes — backfills all eight seeded
+rows by name, then sets both columns `NOT NULL`.
+
+This exists for S8 ("Pick your area"), which resolves a GPS reading to the
+nearest seeded neighbourhood. `src/lib/liveConfig.ts` overwrites the client's
+in-memory `areas` array from this table on every boot, before the app
+renders, so the client-side fixture (`src/fixtures/areas.ts`, which carries
+the same coordinates for use before this migration is applied elsewhere)
+is not sufficient on its own — every environment needs the DB columns for the
+GPS path to do anything.
+
 ## Seed data
 
 `supabase/seed.sql` — lifted verbatim from `design_handoff_madli/prototype/Madli Prototype.dc.html`

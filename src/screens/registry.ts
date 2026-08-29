@@ -90,18 +90,13 @@ export const screenRegistry: ScreenMeta[] = [
   },
   {
     id: 'S8',
-    name: 'Location permission',
-    path: '/location-permission',
-    group: 'App shell & onboarding',
-    states: ['default', 'denied'],
-    roles: 'Guest, User',
-  },
-  {
-    id: 'S9',
-    name: 'Manual area entry',
+    // Merged with the old S9 manual-area screen: a single required step
+    // between the auth choice and Home, not a cold OS prompt with a typed
+    // fallback screen behind it. S9 no longer exists as its own screen.
+    name: 'Pick your area',
     path: '/area',
     group: 'App shell & onboarding',
-    states: ['default', 'no results'],
+    states: ['default'],
     roles: 'Guest, User',
   },
   {

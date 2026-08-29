@@ -7,8 +7,9 @@ import { login } from '../../lib/auth';
 import { usePersona } from '../../dev/PersonaContext';
 
 // S13: consumer login only — Admin never touches this screen (S41 is a
-// separate surface). An Owner logging in lands on their owner profile, not
-// the consumer home.
+// separate surface). Login also runs through S8 (`/area`) before landing —
+// sessionStorage is per-tab, so even a returning account may have no chosen
+// area yet this session, and a door tap on Home assumes one always exists.
 export function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -27,10 +28,12 @@ export function LoginScreen() {
       // S41 is a separate surface. Owner is derived from a verified claim,
       // not the profiles.role column.
       setPersona(result.hasVerifiedClaim ? 'owner' : 'user');
-      // '/app' rather than '/': the gate at '/' reads hasSession, and
-      // routing straight to the app home avoids depending on whether
-      // onAuthStateChange has propagated by the time this line runs.
-      navigate(result.hasVerifiedClaim ? '/owner/profile' : '/app');
+      // Through '/area' rather than straight to '/app' or '/owner/profile':
+      // routing there directly (instead of through '/', which reads
+      // hasSession) avoids depending on whether onAuthStateChange has
+      // propagated by the time this line runs — and '/area' is now the
+      // required stop before either destination anyway.
+      navigate('/area', { state: { next: result.hasVerifiedClaim ? '/owner/profile' : '/app' } });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Invalid email or password.');
     } finally {

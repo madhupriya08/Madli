@@ -17,9 +17,9 @@ import { useToast } from '../../components/feedback/ToastProvider';
 // the signup metadata — this form simply never asked for it, so every account
 // was created nameless and the home screen had nothing to greet anyone with.
 //
-// Signup is also the only place the location prompt is reached from: it is
-// shown once, here, on the way in, rather than every time somebody opens a
-// door on the home screen.
+// Every account created here continues through S8 (`/area`) before Home —
+// the same required stop every other auth path now runs through — with the
+// ranking-onboarding step queued up behind it.
 export function SignupScreen() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -41,10 +41,10 @@ export function SignupScreen() {
     try {
       await signUp({ name, email, password });
       // Straight into the app: signUp leaves a real session behind it. The
-      // location ask comes first and then hands off to the optional ranking
-      // step, so a brand-new account has both an origin and a chance to
-      // contribute before it ever sees the two doors.
-      navigate('/location-permission', { state: { next: '/ranking-onboarding' } });
+      // required area step comes first and then hands off to the optional
+      // ranking step, so a brand-new account has both a real origin and a
+      // chance to contribute before it ever sees the two doors.
+      navigate('/area', { state: { next: '/ranking-onboarding' } });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong.');
     } finally {

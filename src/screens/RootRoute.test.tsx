@@ -1,8 +1,10 @@
 // What '/' serves, driven by a real supabase.auth session rather than the
-// dev-harness persona. The three cases that matter are all here because
-// getting any of them wrong is user-visible: a logged-out visitor seeing the
-// app, a signed-in person bounced to marketing, or either one flashing the
-// wrong page while the session resolves.
+// dev-harness persona, and — since S8 (`/area`) became a required stop
+// between auth and Home — by whether this tab's session already has a real
+// search origin. sessionStorage is per-tab, so a signed-in visitor can reach
+// '/' with no origin at all (a fresh tab); getting that case wrong either
+// loops a located person back through S8 forever, or lets an unlocated one
+// straight into Home, the exact bug this whole flow exists to prevent.
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -10,6 +12,7 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { PersonaProvider, usePersona } from '../dev/PersonaContext';
 import { ToastProvider } from '../components/feedback/ToastProvider';
+import { SearchProvider } from '../lib/searchState';
 import { RootRoute } from './RootRoute';
 
 const AUTHED_SESSION = { user: { id: '10000000-0000-0000-0000-000000000002' } };
@@ -41,19 +44,30 @@ vi.mock('../lib/supabaseClient', () => ({
   },
 }));
 
+/** Seeds this tab's session with a real search origin, as S8 would leave it. */
+function seedSearchOrigin() {
+  sessionStorage.setItem(
+    'madli.search',
+    JSON.stringify({ center: { lat: 17.43, lng: 78.44 }, centerSource: 'area' }),
+  );
+}
+
 function renderRoot() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={queryClient}>
       <PersonaProvider>
-        <ToastProvider>
-          <MemoryRouter initialEntries={['/']}>
-            <Routes>
-              <Route path="/" element={<RootRoute />} />
-              <Route path="/app" element={<h1>Where to start?</h1>} />
-            </Routes>
-          </MemoryRouter>
-        </ToastProvider>
+        <SearchProvider>
+          <ToastProvider>
+            <MemoryRouter initialEntries={['/']}>
+              <Routes>
+                <Route path="/" element={<RootRoute />} />
+                <Route path="/app" element={<h1>Where to start?</h1>} />
+                <Route path="/area" element={<h1>Pick your area</h1>} />
+              </Routes>
+            </MemoryRouter>
+          </ToastProvider>
+        </SearchProvider>
       </PersonaProvider>
     </QueryClientProvider>,
   );
@@ -63,6 +77,7 @@ describe("RootRoute — what '/' serves", () => {
   beforeEach(() => {
     sessionRef.current = null;
     sessionRef.delayMs = 0;
+    sessionStorage.clear();
   });
 
   it('shows the marketing landing page when there is no session', async () => {
@@ -73,15 +88,26 @@ describe("RootRoute — what '/' serves", () => {
     expect(screen.queryByRole('heading', { name: /Where to start\?/i })).not.toBeInTheDocument();
   });
 
-  it('sends a signed-in visitor into the app home', async () => {
+  it('sends a signed-in visitor with a real origin already set into the app home', async () => {
     sessionRef.current = AUTHED_SESSION;
+    seedSearchOrigin();
     renderRoot();
     expect(await screen.findByRole('heading', { name: /Where to start\?/i })).toBeInTheDocument();
+  });
+
+  it('sends a signed-in visitor with no origin this session to S8 instead of Home', async () => {
+    // A fresh tab: the Supabase session is real, but sessionStorage — being
+    // per-tab — carries no chosen area yet.
+    sessionRef.current = AUTHED_SESSION;
+    renderRoot();
+    expect(await screen.findByRole('heading', { name: /Pick your area/i })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /Where to start\?/i })).not.toBeInTheDocument();
   });
 
   it('renders neither page while the session is still resolving', async () => {
     sessionRef.delayMs = 50;
     sessionRef.current = AUTHED_SESSION;
+    seedSearchOrigin();
     renderRoot();
 
     // The marketing page must not flash before the session resolves — that
@@ -111,22 +137,25 @@ describe("RootRoute — what '/' serves", () => {
     render(
       <QueryClientProvider client={queryClient}>
         <PersonaProvider>
-          <ToastProvider>
-            <MemoryRouter initialEntries={['/']}>
-              <Routes>
-                <Route
-                  path="/"
-                  element={
-                    <>
-                      <SetAdminPersona />
-                      <RootRoute />
-                    </>
-                  }
-                />
-                <Route path="/app" element={<h1>Where to start?</h1>} />
-              </Routes>
-            </MemoryRouter>
-          </ToastProvider>
+          <SearchProvider>
+            <ToastProvider>
+              <MemoryRouter initialEntries={['/']}>
+                <Routes>
+                  <Route
+                    path="/"
+                    element={
+                      <>
+                        <SetAdminPersona />
+                        <RootRoute />
+                      </>
+                    }
+                  />
+                  <Route path="/app" element={<h1>Where to start?</h1>} />
+                  <Route path="/area" element={<h1>Pick your area</h1>} />
+                </Routes>
+              </MemoryRouter>
+            </ToastProvider>
+          </SearchProvider>
         </PersonaProvider>
       </QueryClientProvider>,
     );
