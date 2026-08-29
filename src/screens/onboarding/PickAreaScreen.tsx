@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { AppShell } from '../layout/AppShell';
@@ -9,9 +9,26 @@ import { Switch } from '../../components/forms/Switch';
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { useToast } from '../../components/feedback/ToastProvider';
 import { usePersona } from '../../dev/PersonaContext';
-import { useSearch } from '../../lib/searchState';
+import { DEFAULT_CENTER, haversineMeters, useSearch } from '../../lib/searchState';
 import { areas, nearestArea, type Area } from '../../fixtures/areas';
 import { fetchHomeAreaId, setHomeAreaId } from '../../data/homeArea';
+import { hasMapsApiKey } from '../../lib/googleMaps';
+import {
+  reverseGeocodeArea,
+  resolveAreaCenter,
+  suggestAreas,
+  type AreaSuggestion,
+} from '../../lib/placesSearch';
+
+/**
+ * How far a GPS reading can be from the nearest seeded neighbourhood and
+ * still be treated as it — roughly the seeded eight's own spread plus a
+ * margin, not a hard administrative boundary. Madli is not restricted to one
+ * city: a reading from anywhere else in the world should get its own real
+ * name (via reverse geocoding) rather than being mislabelled as whichever of
+ * the eight happens to be least-far away.
+ */
+const SEEDED_AREA_RADIUS_METERS = 30_000;
 
 interface AreaNavState {
   /** Where to continue once an area is chosen. Defaults to Home. */
@@ -27,8 +44,8 @@ interface AreaNavState {
  * gap, and sample size is scoped to an area — so this is one required step
  * between the auth choice and Home, not an interruption sitting after a door
  * tap. There is no skip: an unscoped search returns rankings that mean
- * nothing, so nothing downstream in this session runs without one of the
- * eight seeded neighbourhoods attached.
+ * nothing, so nothing downstream in this session runs without a real area
+ * attached.
  *
  * The two ways to answer sit at equal weight, not primary-and-fallback:
  * the GPS button and the searchable list are both live from the first
@@ -36,6 +53,16 @@ interface AreaNavState {
  * a denial is not an error: it just leaves you looking at the list that was
  * already there. The button visually softens after a decline rather than
  * showing an alert or a separate state.
+ *
+ * Not restricted to Hyderabad. The eight seeded neighbourhoods are the ones
+ * with real ranking depth, so they stay the quick picks, but typing anything
+ * else runs a live Google Places search (`suggestAreas`/`resolveAreaCenter`
+ * — built for the old S9 typed-area screen, unused since that screen was
+ * merged away, revived here) so a real area anywhere in the world resolves
+ * to a real centre. GPS mirrors this: a reading near the eight snaps to the
+ * nearest one as before, but a reading far from all of them (someone
+ * actually elsewhere) is reverse-geocoded to its own real name instead of
+ * being mislabelled as whichever Hyderabad neighbourhood is least-far away.
  *
  * "Set as my home area" is the one guest/user difference. It writes to
  * `profiles.home_area_id`, real persistence a signed-in person carries into
@@ -46,6 +73,9 @@ export function PickAreaScreen() {
   const [query, setQuery] = useState('');
   const [asking, setAsking] = useState(false);
   const [locationDeclined, setLocationDeclined] = useState(false);
+  const [suggestions, setSuggestions] = useState<AreaSuggestion[]>([]);
+  const [suggestLoading, setSuggestLoading] = useState(false);
+  const [resolvingPlaceId, setResolvingPlaceId] = useState<string | null>(null);
   const [homeOverride, setHomeOverride] = useState<string | null | undefined>(undefined);
   const navigate = useNavigate();
   const routerLocation = useLocation();
@@ -67,6 +97,42 @@ export function PickAreaScreen() {
 
   const filtered = areas.filter((a) => a.name.toLowerCase().includes(query.toLowerCase()));
 
+  // Live search for anywhere the seeded eight don't cover — debounced so
+  // typing doesn't fire a Google call per keystroke. `hasMapsApiKey()` gates
+  // the whole thing off cleanly when Maps isn't configured, same as every
+  // other live-search surface in this app.
+  useEffect(() => {
+    if (!hasMapsApiKey() || query.trim().length < 2) {
+      // Deriving local UI state from `query` becoming too short to search —
+      // not a side effect on an external system, so this is the accepted
+      // exception rather than something to route through an event handler.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSuggestions([]);
+      setSuggestLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setSuggestLoading(true);
+    const timer = setTimeout(() => {
+      suggestAreas(query, DEFAULT_CENTER)
+        .then((results) => {
+          if (!cancelled) setSuggestions(results);
+        })
+        .catch(() => {
+          // No key, network blip, API not enabled — the seeded list above is
+          // still fully usable, so this just quietly offers nothing extra.
+          if (!cancelled) setSuggestions([]);
+        })
+        .finally(() => {
+          if (!cancelled) setSuggestLoading(false);
+        });
+    }, 300);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [query]);
+
   const chooseArea = (area: Area) => {
     // The seeded neighbourhoods now carry real centroids, so a manual pick
     // gets a real center too — not just text. Leaving center unset here is
@@ -82,6 +148,23 @@ export function PickAreaScreen() {
     // question runs once, right after settling on an area, for every path
     // that reaches this screen.
     navigate('/local-or-visitor', { state: { next } });
+  };
+
+  const chooseLiveSuggestion = async (suggestion: AreaSuggestion) => {
+    setResolvingPlaceId(suggestion.placeId);
+    try {
+      const center = await resolveAreaCenter(suggestion.placeId);
+      setSearch({
+        areaText: suggestion.label,
+        areaPlaceId: suggestion.placeId,
+        center,
+        centerSource: 'area',
+      });
+      navigate('/local-or-visitor', { state: { next } });
+    } catch (err) {
+      setResolvingPlaceId(null);
+      show(err instanceof Error ? err.message : 'Could not look up that place.');
+    }
   };
 
   const toggleHome = async (area: Area, on: boolean) => {
@@ -101,21 +184,45 @@ export function PickAreaScreen() {
     }
     setAsking(true);
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setAsking(false);
+      async (pos) => {
         const point = { lat: pos.coords.latitude, lng: pos.coords.longitude };
         const nearest = nearestArea(point);
-        // The real device position stays as `center` — it is more accurate
-        // for distance math than the neighbourhood centroid would be. The
-        // neighbourhood name is what "resolving to the nearest seeded area"
-        // actually means: which of the eight this search is scoped to.
-        setSearch({
-          areaText: nearest.name,
-          areaPlaceId: null,
-          center: point,
-          centerSource: 'geolocation',
-        });
-        // Same detour as chooseArea, below — through the local/visitor ask.
+        const distanceToNearest = haversineMeters(point, { lat: nearest.lat, lng: nearest.lng });
+
+        if (distanceToNearest <= SEEDED_AREA_RADIUS_METERS) {
+          // Close enough to one of the eight — the real device position
+          // stays as `center` (more accurate for distance math than the
+          // neighbourhood centroid), and the neighbourhood name is what
+          // "resolving to the nearest seeded area" actually means.
+          setSearch({
+            areaText: nearest.name,
+            areaPlaceId: null,
+            center: point,
+            centerSource: 'geolocation',
+          });
+          setAsking(false);
+          navigate('/local-or-visitor', { state: { next } });
+          return;
+        }
+
+        // Nowhere near the seeded eight — actually somewhere else. Reverse
+        // geocode for a real name rather than force-fitting it into
+        // whichever of the eight happens to be least-far away. Raced against
+        // a timeout: a stalled network call must not leave the person stuck
+        // on "Finding you…" forever.
+        let areaText = 'Your current location';
+        try {
+          const label = await Promise.race([
+            reverseGeocodeArea(point),
+            new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000)),
+          ]);
+          if (label) areaText = label;
+        } catch {
+          // No maps key, network blip, geocoding disabled — still proceed
+          // with a generic label rather than blocking the flow entirely.
+        }
+        setSearch({ areaText, areaPlaceId: null, center: point, centerSource: 'geolocation' });
+        setAsking(false);
         navigate('/local-or-visitor', { state: { next } });
       },
       () => {
@@ -162,11 +269,18 @@ export function PickAreaScreen() {
           />
 
           {filtered.length === 0 ? (
-            <EmptyState
-              icon="map-pin-off"
-              title="Nothing matches that"
-              body="We rank eight Hyderabad neighbourhoods so far. Try one of those, or ask us to add yours."
-            />
+            query.trim() && hasMapsApiKey() ? (
+              <p style={{ font: 'var(--type-body-sm)', color: 'var(--text-muted)' }}>
+                None of our eight home-turf neighbourhoods match that — search below for any other
+                place.
+              </p>
+            ) : (
+              <EmptyState
+                icon="map-pin-off"
+                title="Nothing matches that"
+                body="We have real ranking depth in eight neighbourhoods so far. Try one of those, or search for wherever you are."
+              />
+            )
           ) : (
             <ul
               style={{
@@ -218,6 +332,53 @@ export function PickAreaScreen() {
             </ul>
           )}
         </div>
+
+        {hasMapsApiKey() && query.trim().length >= 2 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+            <h4 style={{ font: 'var(--type-label)', color: 'var(--text-muted)' }}>
+              Or search any other location
+            </h4>
+            {suggestLoading ? (
+              <p style={{ font: 'var(--type-body-sm)', color: 'var(--text-muted)' }}>Searching…</p>
+            ) : suggestions.length === 0 ? (
+              <p style={{ font: 'var(--type-body-sm)', color: 'var(--text-muted)' }}>
+                Nothing found yet — keep typing.
+              </p>
+            ) : (
+              <ul
+                style={{
+                  listStyle: 'none',
+                  padding: 0,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 'var(--space-2)',
+                }}
+              >
+                {suggestions.map((s) => (
+                  <li key={s.placeId}>
+                    <button
+                      onClick={() => void chooseLiveSuggestion(s)}
+                      disabled={resolvingPlaceId === s.placeId}
+                      style={{
+                        width: '100%',
+                        background: 'none',
+                        border: '1px solid var(--border-hairline)',
+                        borderRadius: 'var(--radius-md)',
+                        padding: 'var(--space-4)',
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                        font: 'var(--type-body)',
+                        color: 'var(--text-heading)',
+                      }}
+                    >
+                      {resolvingPlaceId === s.placeId ? 'Finding it…' : s.label}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        ) : null}
       </div>
     </AppShell>
   );

@@ -486,3 +486,37 @@ export async function resolveAreaCenter(placeId: string): Promise<LatLng> {
     throw asMapsError(err, 'Places API (New)');
   }
 }
+
+/**
+ * A raw GPS reading, named. Used when a device position is too far from any
+ * of the eight seeded neighbourhoods to bucket into one honestly (S8) —
+ * Madli is not restricted to one city, so a reading from anywhere else in
+ * the world still needs a real, human name rather than being force-fit into
+ * the nearest Hyderabad neighbourhood regardless of actual distance.
+ *
+ * Prefers the smallest real locality Google reports — a sublocality/
+ * neighbourhood over the whole city — falling back to the city, then the
+ * full formatted address, so this always returns *something* nameable
+ * rather than a bare coordinate pair.
+ */
+export async function reverseGeocodeArea(point: LatLng): Promise<string | null> {
+  const maps = await loadGoogleMaps();
+  try {
+    const { Geocoder } = (await maps.importLibrary('geocoding')) as google.maps.GeocodingLibrary;
+    const { results } = await new Geocoder().geocode({ location: point });
+    const first = results?.[0];
+    if (!first) return null;
+    const pick = (type: string) =>
+      first.address_components.find((c) => c.types.includes(type))?.long_name;
+    return (
+      pick('sublocality_level_1') ??
+      pick('sublocality') ??
+      pick('neighborhood') ??
+      pick('locality') ??
+      first.formatted_address ??
+      null
+    );
+  } catch (err) {
+    throw asMapsError(err, 'Geocoding API');
+  }
+}

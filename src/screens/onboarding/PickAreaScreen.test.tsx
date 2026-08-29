@@ -28,6 +28,21 @@ import { PickAreaScreen } from './PickAreaScreen';
 let homeAreaId: string | null = null;
 const updateSpy = vi.fn();
 
+const hasMapsApiKeyMock = vi.fn(() => false);
+const suggestAreasMock = vi.fn();
+const resolveAreaCenterMock = vi.fn();
+const reverseGeocodeAreaMock = vi.fn();
+
+vi.mock('../../lib/googleMaps', () => ({
+  hasMapsApiKey: () => hasMapsApiKeyMock(),
+}));
+
+vi.mock('../../lib/placesSearch', () => ({
+  suggestAreas: (...args: unknown[]) => suggestAreasMock(...args),
+  resolveAreaCenter: (...args: unknown[]) => resolveAreaCenterMock(...args),
+  reverseGeocodeArea: (...args: unknown[]) => reverseGeocodeAreaMock(...args),
+}));
+
 vi.mock('../../lib/supabaseClient', () => ({
   supabase: {
     // No real session in any of these tests — persona is driven entirely by
@@ -119,6 +134,13 @@ describe('PickAreaScreen — S8, merged', () => {
     sessionStorage.clear();
     homeAreaId = null;
     updateSpy.mockClear();
+    // Not configured by default — matches most of these tests, which only
+    // care about the seeded eight. Tests that exercise live search or the
+    // GPS-far-away path opt in explicitly.
+    hasMapsApiKeyMock.mockReturnValue(false);
+    suggestAreasMock.mockReset().mockResolvedValue([]);
+    resolveAreaCenterMock.mockReset();
+    reverseGeocodeAreaMock.mockReset();
   });
 
   afterEach(() => {
@@ -236,5 +258,82 @@ describe('PickAreaScreen — S8, merged', () => {
     await userEvent.click(screen.getByRole('button', { name: 'set persona guest' }));
     await screen.findByText('Jubilee Hills');
     expect(screen.queryByRole('switch', { name: 'Home' })).not.toBeInTheDocument();
+  });
+
+  describe('not restricted to Hyderabad', () => {
+    it('offers a live search for any other location, and picking one resolves a real centre', async () => {
+      hasMapsApiKeyMock.mockReturnValue(true);
+      suggestAreasMock.mockResolvedValue([
+        { placeId: 'place-mumbai-bandra', label: 'Bandra, Mumbai, Maharashtra, India' },
+      ]);
+      resolveAreaCenterMock.mockResolvedValue({ lat: 19.0596, lng: 72.8295 });
+
+      render(<Harness />);
+      await userEvent.type(screen.getByPlaceholderText('Search a neighbourhood'), 'bandra');
+
+      expect(
+        await screen.findByText('Bandra, Mumbai, Maharashtra, India'),
+      ).toBeInTheDocument();
+      expect(suggestAreasMock).toHaveBeenCalledWith('bandra', expect.any(Object));
+
+      await userEvent.click(screen.getByText('Bandra, Mumbai, Maharashtra, India'));
+      expect(await screen.findByRole('heading', { name: 'Where to start?' })).toBeInTheDocument();
+
+      const state = probe();
+      expect(state.areaText).toBe('Bandra, Mumbai, Maharashtra, India');
+      expect(state.areaPlaceId).toBe('place-mumbai-bandra');
+      expect(state.center).toEqual({ lat: 19.0596, lng: 72.8295 });
+      expect(state.centerSource).toBe('area');
+    });
+
+    it('does not offer live search at all when Maps is not configured', async () => {
+      render(<Harness />);
+      await userEvent.type(screen.getByPlaceholderText('Search a neighbourhood'), 'bandra');
+      expect(screen.queryByText('Or search any other location')).not.toBeInTheDocument();
+      expect(suggestAreasMock).not.toHaveBeenCalled();
+    });
+
+    it('a GPS reading far from all eight seeded areas is reverse-geocoded, not mislabelled as one of them', async () => {
+      hasMapsApiKeyMock.mockReturnValue(true);
+      reverseGeocodeAreaMock.mockResolvedValue('Indiranagar, Bengaluru, Karnataka, India');
+      // Bengaluru — hundreds of km from every seeded Hyderabad neighbourhood.
+      const getCurrentPosition = vi.fn((success: PositionCallback) => {
+        success({ coords: { latitude: 12.9716, longitude: 77.5946 } } as GeolocationPosition);
+      });
+      Object.defineProperty(navigator, 'geolocation', {
+        value: { getCurrentPosition },
+        configurable: true,
+      });
+
+      render(<Harness />);
+      await userEvent.click(await screen.findByRole('button', { name: 'Use my current location' }));
+
+      expect(await screen.findByRole('heading', { name: 'Where to start?' })).toBeInTheDocument();
+      const state = probe();
+      expect(state.areaText).toBe('Indiranagar, Bengaluru, Karnataka, India');
+      expect(state.centerSource).toBe('geolocation');
+      // The raw device reading, not snapped to any seeded neighbourhood.
+      expect(state.center).toEqual({ lat: 12.9716, lng: 77.5946 });
+    });
+
+    it('still proceeds with a generic label if reverse geocoding itself fails', async () => {
+      hasMapsApiKeyMock.mockReturnValue(true);
+      reverseGeocodeAreaMock.mockRejectedValue(new Error('geocoding API not enabled'));
+      const getCurrentPosition = vi.fn((success: PositionCallback) => {
+        success({ coords: { latitude: 12.9716, longitude: 77.5946 } } as GeolocationPosition);
+      });
+      Object.defineProperty(navigator, 'geolocation', {
+        value: { getCurrentPosition },
+        configurable: true,
+      });
+
+      render(<Harness />);
+      await userEvent.click(await screen.findByRole('button', { name: 'Use my current location' }));
+
+      expect(await screen.findByRole('heading', { name: 'Where to start?' })).toBeInTheDocument();
+      const state = probe();
+      expect(state.areaText).toBe('Your current location');
+      expect(state.center).toEqual({ lat: 12.9716, lng: 77.5946 });
+    });
   });
 });

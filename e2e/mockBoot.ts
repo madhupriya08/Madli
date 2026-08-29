@@ -83,6 +83,8 @@ export async function mockBoot(page: Page): Promise<void> {
     id: a.id,
     name: a.name,
     coverage_depth_label: a.coverageDepthLabel,
+    lat: a.lat,
+    lng: a.lng,
   }));
 
   // Playwright matches the *last-registered* route first, so the catch-all

@@ -66,7 +66,7 @@ export function hasMapsApiKey(): boolean {
 }
 
 /** Libraries this app uses. Requested up front so no screen triggers a second load. */
-const LIBRARIES = ['maps', 'places', 'marker', 'routes', 'geometry'] as const;
+const LIBRARIES = ['maps', 'places', 'marker', 'routes', 'geometry', 'geocoding'] as const;
 
 type MapsNs = {
   importLibrary: (library: string, ...args: unknown[]) => Promise<unknown>;
