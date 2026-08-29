@@ -16,6 +16,13 @@
 // `p_lat?: number`, and these allow `| null` too, because passing an explicit
 // SQL NULL is meaningful here — a ranked place may genuinely have no
 // coordinates.
+//
+// `fn_area_door_counts` (20260828100000) is hand-added the same way, not yet
+// re-verified against a fresh generation — same reasoning as above, this
+// file stays curated rather than a raw dump.
+//
+// `areas.lat`/`areas.lng` (20260827090000) are included below — those were
+// verified against a real generation when added.
 
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
@@ -531,6 +538,10 @@ export type Database = {
           p_tier: string;
         };
         Returns: { entry_id: string; landed_position: number; total_in_category: number }[];
+      };
+      fn_area_door_counts: {
+        Args: { p_area_id: string };
+        Returns: { door: string; place_count: number; ranked_count: number }[];
       };
       fn_google_place_ranking_counts: {
         Args: { p_google_place_ids: string[] };

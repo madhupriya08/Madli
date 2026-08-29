@@ -50,12 +50,17 @@ test('a guest has no "Set as my home area" toggle', async ({ page }) => {
   await expect(page.getByRole('switch', { name: 'Home' })).toHaveCount(0);
 });
 
-test('selecting an area continues straight to Home, which leads with the area name', async ({
+test('selecting an area continues through the local/visitor ask, then to Home leading with the area name', async ({
   page,
 }) => {
   await mockBoot(page);
   await page.goto('/area');
   await page.getByText('Madhapur', { exact: true }).click();
+
+  // S53 (Local or visitor) runs once, right after settling on an area —
+  // entirely optional, so skipping it still reaches Home.
+  await expect(page).toHaveURL(/\/local-or-visitor$/);
+  await page.getByRole('button', { name: 'Skip for now' }).click();
 
   await expect(page).toHaveURL(/\/app$/);
   await expect(page.getByText('Madhapur · Change')).toBeVisible();
@@ -90,6 +95,9 @@ test('geolocation only fires on the button tap, never on mount, and resolves to 
   expect(callsBeforeTap).toBe(0);
 
   await page.getByRole('button', { name: 'Use my current location' }).click();
+
+  await expect(page).toHaveURL(/\/local-or-visitor$/);
+  await page.getByRole('button', { name: 'Skip for now' }).click();
 
   await expect(page).toHaveURL(/\/app$/);
   await expect(page.getByText('Jubilee Hills · Change')).toBeVisible();

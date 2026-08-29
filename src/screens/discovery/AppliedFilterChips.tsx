@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Tag } from '../../components/core/Tag';
 import { useSearch, type SearchState } from '../../lib/searchState';
 
@@ -22,11 +22,13 @@ interface ChipSpec {
   label: string;
   /** Where to go to change this answer. */
   to: string;
+  /** Extra router state for `to` — only the area chip needs this. */
+  navState?: { next: string };
   /** What "clear this" means for this particular answer. */
   clear: Partial<SearchState>;
 }
 
-function chipsFor(search: SearchState): ChipSpec[] {
+function chipsFor(search: SearchState, currentPath: string): ChipSpec[] {
   const chips: ChipSpec[] = [];
   const intake = '/intake';
   const filters = '/filters';
@@ -43,22 +45,24 @@ function chipsFor(search: SearchState): ChipSpec[] {
     });
   }
 
-  // The hard constraint reads as one chip whichever of the three forms it
-  // took, because that is how the person thinks of it — "I have 20 minutes",
-  // not "constraintMode: time".
-  if (search.constraintMode === 'radius' && search.radiusKm.trim()) {
+  // S15's hard constraint — whichever of the three it is — reads as one
+  // chip, because that is how the person thinks of it ("I'm going tonight",
+  // not "constraintMode: time"). S16's own Distance filter, below, is a
+  // separate chip: the two used to share one field, which meant this chip
+  // and the Distance one silently fought over the same value.
+  if (search.constraintMode === 'time' && search.timeWindow) {
     chips.push({
-      key: 'radius',
-      label: `Within ${search.radiusKm.trim()} km`,
+      key: 'time-window',
+      label: search.timeWindow,
       to: intake,
-      clear: { radiusKm: '', constraintMode: 'radius' },
+      clear: { timeWindow: null },
     });
-  } else if (search.constraintMode === 'time' && search.timeMinutes.trim()) {
+  } else if (search.constraintMode === 'drive' && search.driveTimePreset) {
     chips.push({
-      key: 'time',
-      label: `${search.timeMinutes.trim()} min`,
+      key: 'drive-preset',
+      label: `${search.driveTimePreset} drive`,
       to: intake,
-      clear: { timeMinutes: '', constraintMode: 'time' },
+      clear: { driveTimePreset: null },
     });
   }
   if (search.budgetCap) {
@@ -73,7 +77,11 @@ function chipsFor(search: SearchState): ChipSpec[] {
     chips.push({
       key: 'area',
       label: search.areaText.trim(),
-      to: intake,
+      // Area now belongs to S8 (Pick your area), settled before Home is ever
+      // reached — not intake. `next` brings the person back to this exact
+      // screen rather than defaulting to Home once they have re-picked.
+      to: '/area',
+      navState: { next: currentPath },
       // Dropping the area drops the coordinates resolved for it too —
       // keeping a centre for an area nobody asked for is how results end up
       // clipped around somewhere the person never named.
@@ -97,6 +105,14 @@ function chipsFor(search: SearchState): ChipSpec[] {
   }
   if (search.kitchen && search.door === 'eat') {
     chips.push({ key: 'kitchen', label: search.kitchen, to: filters, clear: { kitchen: null } });
+  }
+  if (search.distanceKm.trim()) {
+    chips.push({
+      key: 'distance',
+      label: `Within ${search.distanceKm.trim()} km`,
+      to: filters,
+      clear: { distanceKm: '' },
+    });
   }
   if (search.areaType && search.door === 'explore') {
     chips.push({
@@ -129,8 +145,9 @@ function chipsFor(search: SearchState): ChipSpec[] {
 
 export function AppliedFilterChips() {
   const navigate = useNavigate();
+  const routerLocation = useLocation();
   const { search, setSearch } = useSearch();
-  const chips = chipsFor(search);
+  const chips = chipsFor(search, routerLocation.pathname);
 
   return (
     <div
@@ -151,7 +168,7 @@ export function AppliedFilterChips() {
           <Tag
             key={chip.key}
             selected
-            onClick={() => navigate(chip.to)}
+            onClick={() => navigate(chip.to, chip.navState ? { state: chip.navState } : undefined)}
             onRemove={() => setSearch(chip.clear)}
             removeLabel={`Remove ${chip.label}`}
           >

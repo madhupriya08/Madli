@@ -100,6 +100,17 @@ export const screenRegistry: ScreenMeta[] = [
     roles: 'Guest, User',
   },
   {
+    // Not one of the original 52 — a new screen this round asked for,
+    // inserted right after S8. Given the next free sequential id rather than
+    // a slug, matching how S52 (also added later) was numbered.
+    id: 'S53',
+    name: 'Local or visitor',
+    path: '/local-or-visitor',
+    group: 'App shell & onboarding',
+    states: ['default'],
+    roles: 'Guest, User',
+  },
+  {
     id: 'S10',
     name: 'Out of coverage',
     path: '/out-of-coverage',

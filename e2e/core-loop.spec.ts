@@ -19,8 +19,8 @@ test.describe('Core loop — search to ranked list', () => {
     await expect(page).toHaveURL(/\/places\//);
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(firstPickName ?? '');
 
-    await page.getByRole('button', { name: 'Save this place' }).click();
-    await expect(page.getByRole('button', { name: 'Remove bookmark' })).toBeVisible({
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Saved', exact: true })).toBeVisible({
       timeout: 10_000,
     });
 

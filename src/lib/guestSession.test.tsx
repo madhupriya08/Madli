@@ -77,13 +77,31 @@ describe('useGuestSession — reject list', () => {
   });
 });
 
+describe('useGuestSession — local or visitor', () => {
+  it('starts unanswered and holds whichever answer is set', () => {
+    const { result } = renderHook(() => useGuestSession(), { wrapper });
+    expect(result.current.residentStatus).toBeNull();
+
+    act(() => {
+      result.current.setResidentStatus('local');
+    });
+    expect(result.current.residentStatus).toBe('local');
+
+    act(() => {
+      result.current.setResidentStatus('visitor');
+    });
+    expect(result.current.residentStatus).toBe('visitor');
+  });
+});
+
 describe('useGuestSession — reset', () => {
-  it('clears the counter, reject list, and free-use flag', () => {
+  it('clears the counter, reject list, free-use flag, and local/visitor answer', () => {
     const { result } = renderHook(() => useGuestSession(), { wrapper });
     act(() => {
       result.current.recordSearch();
       result.current.rejectPlaces(['place-1']);
       result.current.useFreeNoneOfThese();
+      result.current.setResidentStatus('local');
     });
     act(() => {
       result.current.reset();
@@ -91,5 +109,6 @@ describe('useGuestSession — reset', () => {
     expect(result.current.searchCount).toBe(0);
     expect(result.current.isRejected('place-1')).toBe(false);
     expect(result.current.noneOfTheseUsedOnce).toBe(false);
+    expect(result.current.residentStatus).toBeNull();
   });
 });

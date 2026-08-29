@@ -118,6 +118,26 @@ export function useMyGoogleRankings(door?: Door) {
   });
 }
 
+/** The signed-in person's own current answer, or null if never asked/answered. */
+export async function fetchResidentStatus(userId: string): Promise<ResidentStatus | null> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('resident_status')
+    .eq('id', userId)
+    .single();
+  if (error) throw error;
+  return (data?.resident_status as ResidentStatus | null) ?? null;
+}
+
+export function useResidentStatus(userId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ['resident-status', userId],
+    queryFn: () => fetchResidentStatus(userId),
+    enabled: enabled && !!userId,
+    retry: false,
+  });
+}
+
 /**
  * Records the person's own statement about where they live.
  *

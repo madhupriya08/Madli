@@ -77,10 +77,34 @@ export function AppShell({
       </nav>
     ) : null;
 
+  // A guest has no tab bar at all (showNav is false for them), so without
+  // this there is nothing in the chrome that leads back to signing in — a
+  // guest several screens deep would have to back out all the way to the
+  // marketing page to find it. Every screen through AppShell gets it, on
+  // both breakpoints, regardless of that screen's own showTabBar setting.
+  const guestSignIn =
+    persona === 'guest' ? (
+      <button
+        onClick={() => navigate('/login')}
+        style={{
+          background: 'none',
+          border: 'none',
+          cursor: 'pointer',
+          padding: 0,
+          font: 'var(--type-body-sm)',
+          fontWeight: 'var(--weight-demi)',
+          color: 'var(--teal-600)',
+        }}
+      >
+        Sign in
+      </button>
+    ) : null;
+
   const topBarTrailing =
-    desktopNav || trailing ? (
+    desktopNav || guestSignIn || trailing ? (
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)' }}>
         {desktopNav}
+        {guestSignIn}
         {trailing}
       </div>
     ) : undefined;

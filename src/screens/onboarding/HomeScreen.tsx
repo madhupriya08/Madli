@@ -5,6 +5,7 @@ import { Icon } from '../../components/core/Icon';
 import { usePersona } from '../../dev/PersonaContext';
 import { useSearch, type Door } from '../../lib/searchState';
 import { areas } from '../../fixtures/areas';
+import { useAreaDoorCounts } from '../../data/areaCounts';
 
 // S7: two doors, CSS grid with a 280px minimum so desktop side-by-side and
 // mobile stack are the same markup — real divergence starts at S17.
@@ -35,6 +36,9 @@ export function HomeScreen() {
   // an area here — this looks it up only to print the real coverage-depth
   // line below, never to decide whether to redirect anywhere.
   const matchedArea = areas.find((a) => a.name === search.areaText);
+  // Real counts, not the door's flavour copy — how many places and how many
+  // logged rankings actually exist behind each door for this area.
+  const { data: doorCounts } = useAreaDoorCounts(matchedArea?.id ?? null);
 
   const openDoor = (door: Door) => {
     // Clear the other door's vibes so Eat chips don't bias an Explore search.
@@ -137,6 +141,12 @@ export function HomeScreen() {
               <Icon name={door.icon} size={32} color="var(--teal-500)" />
               <h2 style={{ font: 'var(--type-h3)' }}>{door.label}</h2>
               <p style={{ font: 'var(--type-body-sm)', color: 'var(--text-muted)' }}>{door.body}</p>
+              {doorCounts ? (
+                <p style={{ font: 'var(--type-evidence)', color: 'var(--evidence-text)' }}>
+                  {doorCounts[door.value].placeCount} places ·{' '}
+                  {doorCounts[door.value].rankedCount} rankings logged
+                </p>
+              ) : null}
             </Card>
           ))}
         </div>

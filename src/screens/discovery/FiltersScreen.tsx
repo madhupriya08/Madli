@@ -30,7 +30,7 @@ export function FiltersScreen() {
   const navigate = useNavigate();
   const { search, setSearch, resetFilters } = useSearch();
   const door = search.door;
-  const { vibes, budget, kitchen, radiusKm, areaType } = search;
+  const { vibes, budget, kitchen, distanceKm, areaType } = search;
   const vibeOptions = vibeOptionsFor(door);
 
   const toggleVibe = (v: string) =>
@@ -101,14 +101,14 @@ export function FiltersScreen() {
 
         {group(
           'Distance',
-          // These write radiusKm rather than a field of their own: the intake
-          // distance input is the same axis, and two sources of truth for one
-          // radius is how a search ends up ignoring what it was just told.
+          // Its own field (distanceKm), independent of S15's hard-constraint
+          // toggle — the two used to share one field, so picking a distance
+          // here silently overwrote whatever S15 had set.
           DISTANCE_PRESETS.map((p) => (
             <Tag
               key={p.label}
-              selected={p.km === null ? radiusKm === '' : radiusKm === p.km}
-              onClick={() => setSearch({ radiusKm: p.km ?? '', constraintMode: 'radius' })}
+              selected={p.km === null ? distanceKm === '' : distanceKm === p.km}
+              onClick={() => setSearch({ distanceKm: p.km ?? '' })}
             >
               {p.label}
             </Tag>

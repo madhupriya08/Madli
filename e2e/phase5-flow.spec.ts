@@ -15,31 +15,36 @@ test('a door click goes straight to intake instead of re-asking for location', a
 
 // S15 is real divergence, not a reflow — desktop shows every step at once,
 // mobile walks them one at a time — so the two layouts are asserted
-// separately rather than assuming one of them.
-test('intake shows all four groups at once on desktop', async ({ page }) => {
+// separately rather than assuming one of them. Three groups, not four: area
+// is settled at S8 (Pick your area) before intake is ever reached now, so
+// there is no separate "Which area?" step to ask about it again.
+test('intake shows all three groups at once on desktop', async ({ page }) => {
   await mockBoot(page);
   await page.goto('/intake');
 
   await expect(page.getByRole('heading', { name: 'Who is it for?' })).toBeVisible();
   await expect(page.getByRole('heading', { name: "What's the occasion?" })).toBeVisible();
-  await expect(page.getByRole('heading', { name: "What's the hard limit?" })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Which area?' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Your one hard constraint' })).toBeVisible();
 
   await expect(page.getByText('Solo', { exact: true })).toBeVisible();
   await expect(page.getByText('Work lunch', { exact: true })).toBeVisible();
-  await expect(page.getByLabel('Minutes you have')).toBeVisible();
-  await expect(page.getByLabel('Distance (km)')).toBeVisible();
+  // The hard constraint is a real three-way toggle, not two freeform number
+  // fields — "Time window" is selected by default and shows its own chips.
+  await expect(page.getByRole('button', { name: 'Time window' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Drive time' })).toBeVisible();
+  await expect(page.getByText('Right now', { exact: true })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Budget' }).click();
   // The budget cap — the design's third hard constraint, previously absent.
   await expect(page.getByText('Under ₹400 a head', { exact: true })).toBeVisible();
-  await expect(page.getByLabel('Neighbourhood')).toBeVisible();
 });
 
-test('intake walks who → occasion → hard limit → area on mobile', async ({ page }) => {
+test('intake walks who → occasion → hard constraint on mobile', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await mockBoot(page);
   await page.goto('/intake');
 
-  await expect(page.getByRole('progressbar')).toHaveAttribute('aria-valuemax', '4');
+  await expect(page.getByRole('progressbar')).toHaveAttribute('aria-valuemax', '3');
 
   await page.getByText('Couple', { exact: true }).click();
   await page.getByRole('button', { name: 'Next' }).click();
@@ -48,12 +53,13 @@ test('intake walks who → occasion → hard limit → area on mobile', async ({
   await page.getByText('Date', { exact: true }).click();
   await page.getByRole('button', { name: 'Next' }).click();
 
-  await expect(page.getByLabel('Minutes you have')).toBeVisible();
-  await expect(page.getByLabel('Distance (km)')).toBeVisible();
+  // AppShell's title is not a semantic heading (a plain styled span in
+  // TopBar), so the step transition is checked via the step's own content
+  // instead — the three-way toggle only exists on this step.
+  await expect(page.getByRole('button', { name: 'Time window' })).toBeVisible();
+  await page.getByRole('button', { name: 'Budget' }).click();
   await page.getByText('Under ₹400 a head', { exact: true }).click();
-  await page.getByRole('button', { name: 'Next' }).click();
 
-  await expect(page.getByLabel('Neighbourhood')).toBeVisible();
   await expect(page.getByRole('button', { name: 'See picks' })).toBeVisible();
 });
 

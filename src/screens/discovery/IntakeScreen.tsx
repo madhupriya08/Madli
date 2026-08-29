@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppShell } from '../layout/AppShell';
 import { Tag } from '../../components/core/Tag';
-import { Input } from '../../components/forms/Input';
 import { Button } from '../../components/core/Button';
 import { usePersona } from '../../dev/PersonaContext';
 import {
@@ -10,22 +9,35 @@ import {
   WHO_OPTIONS,
   OCCASION_OPTIONS,
   BUDGET_CAP_OPTIONS,
+  TIME_WINDOW_OPTIONS,
+  DRIVE_TIME_OPTIONS,
+  type ConstraintMode,
 } from '../../lib/searchState';
+
+const CONSTRAINT_TABS: Array<{ mode: ConstraintMode; label: string }> = [
+  { mode: 'time', label: 'Time window' },
+  { mode: 'drive', label: 'Drive time' },
+  { mode: 'budget', label: 'Budget' },
+];
 
 // S15: real divergence, not a reflow. Desktop holds all steps in one panel
 // because a 1280 canvas can show the whole ask at once; mobile walks one step
 // at a time with a progress bar. "Skip and browse" is always visible.
 //
-// Four groups, matching the design's own intake summary — "Who is it for",
-// "The occasion", "Hard constraint", "Area". The first two used to be one
-// merged "what are you after?" vibe list, which collapsed two different
-// questions (who you are with vs. what the outing is) into one answer and
-// left the design's vibe chips with nowhere to live. Those now sit in S16
-// where the design puts them.
+// Three groups, matching the prototype's own step list exactly — "Who is it
+// for", "The occasion", "Your one constraint". There is no separate area
+// step here: that answer is now settled at S8 (PickAreaScreen), a required
+// stop before Home, before intake is ever reached — asking again here would
+// be the same question a second time in one flow. (An earlier build of this
+// screen predates that S8/S9 merge and still asked for area itself.)
 //
-// The hard constraint keeps minutes and kilometres as two separate fields —
-// the last one edited drives the radius — and adds the budget cap the design
-// offers as its third option.
+// The hard constraint is a real three-way toggle — Time window / Drive time
+// / Budget — not two freeform number fields shown at once. That used to be a
+// misreading of the design: "minutes you have" and "distance (km)" read as
+// one axis with two units, but the actual design asks three different
+// questions (when are you going / how far will you drive / what can you
+// spend) and only one applies at a time, each with fixed preset chips
+// rather than free text.
 export function IntakeScreen() {
   const { breakpoint } = usePersona();
   const navigate = useNavigate();
@@ -34,7 +46,7 @@ export function IntakeScreen() {
   // away, dropping every answer — results queried on `type` alone. It now
   // writes into the shared search state that results and the map read.
   const { search, setSearch } = useSearch();
-  const { who, occasion, budgetCap, timeMinutes, radiusKm, areaText: area, door } = search;
+  const { who, occasion, budgetCap, constraintMode, timeWindow, driveTimePreset, door } = search;
 
   const toggle = <T extends string>(current: T | null, value: T) =>
     current === value ? null : value;
@@ -63,45 +75,53 @@ export function IntakeScreen() {
       body: chipRow(OCCASION_OPTIONS, occasion, (v) => setSearch({ occasion: v })),
     },
     {
-      title: "What's the hard limit?",
+      title: 'Your one hard constraint',
       body: (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-          <Input
-            label="Minutes you have"
-            value={timeMinutes}
-            onChange={(e) => setSearch({ timeMinutes: e.target.value, constraintMode: 'time' })}
-            type="number"
-            placeholder="e.g. 20"
-          />
-          <Input
-            label="Distance (km)"
-            value={radiusKm}
-            onChange={(e) => setSearch({ radiusKm: e.target.value, constraintMode: 'radius' })}
-            type="number"
-            placeholder="e.g. 5"
-          />
-          <p style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>
-            Fill one. The last field you edit is what we search with.
+          <p style={{ font: 'var(--type-body-sm)', color: 'var(--text-muted)' }}>
+            Pick the one that actually decides it. The others we will work around.
           </p>
-          <div>
-            <h4 style={{ font: 'var(--type-label)', marginBottom: 'var(--space-2)' }}>
-              Budget cap
-            </h4>
-            {chipRow(BUDGET_CAP_OPTIONS, budgetCap, (v) => setSearch({ budgetCap: v }))}
+          <div
+            style={{
+              display: 'inline-flex',
+              gap: 2,
+              padding: 3,
+              borderRadius: 'var(--radius-sm)',
+              background: 'var(--surface-sunken)',
+              width: 'fit-content',
+            }}
+          >
+            {CONSTRAINT_TABS.map((tab) => (
+              <button
+                key={tab.mode}
+                onClick={() => setSearch({ constraintMode: tab.mode })}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: 4,
+                  border: 'none',
+                  cursor: 'pointer',
+                  font: 'var(--type-label)',
+                  color: 'var(--text-heading)',
+                  background: constraintMode === tab.mode ? 'var(--white)' : 'transparent',
+                  boxShadow: constraintMode === tab.mode ? 'var(--shadow-xs)' : 'none',
+                }}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
+          {constraintMode === 'time'
+            ? chipRow(TIME_WINDOW_OPTIONS, timeWindow, (v) => setSearch({ timeWindow: v }))
+            : null}
+          {constraintMode === 'drive'
+            ? chipRow(DRIVE_TIME_OPTIONS, driveTimePreset, (v) =>
+                setSearch({ driveTimePreset: v }),
+              )
+            : null}
+          {constraintMode === 'budget'
+            ? chipRow(BUDGET_CAP_OPTIONS, budgetCap, (v) => setSearch({ budgetCap: v }))
+            : null}
         </div>
-      ),
-    },
-    {
-      title: 'Which area?',
-      body: (
-        <Input
-          label="Neighbourhood"
-          value={area}
-          // Typing a new area invalidates the coordinates resolved for the old one.
-          onChange={(e) => setSearch({ areaText: e.target.value, areaPlaceId: null })}
-          placeholder="e.g. Jubilee Hills"
-        />
       ),
     },
   ];

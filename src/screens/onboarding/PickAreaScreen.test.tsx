@@ -1,7 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, Routes, Route, type InitialEntry } from 'react-router-dom';
+import {
+  MemoryRouter,
+  Routes,
+  Route,
+  Navigate,
+  useLocation,
+  type InitialEntry,
+} from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { PersonaProvider, usePersona } from '../../dev/PersonaContext';
 import { ToastProvider } from '../../components/feedback/ToastProvider';
@@ -59,6 +66,17 @@ function probe(): SearchState {
   return JSON.parse(screen.getByTestId('probe').textContent ?? '{}') as SearchState;
 }
 
+// PickAreaScreen now hands off to '/local-or-visitor' rather than straight to
+// `next` — that screen's own behaviour is covered by its own test file. Here
+// it is stubbed as a transparent pass-through, so these tests keep verifying
+// what they always verified: that PickAreaScreen itself carries the right
+// `next` forward.
+function ForwardToNext() {
+  const location = useLocation();
+  const next = (location.state as { next?: string } | null)?.next ?? '/app';
+  return <Navigate to={next} replace />;
+}
+
 function Harness({ initialEntry = '/area' }: { initialEntry?: InitialEntry }) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return (
@@ -82,6 +100,7 @@ function Harness({ initialEntry = '/area' }: { initialEntry?: InitialEntry }) {
                     </>
                   }
                 />
+                <Route path="/local-or-visitor" element={<ForwardToNext />} />
                 <Route path="/app" element={<h1>Where to start?</h1>} />
                 <Route path="/owner/profile" element={<h1>Owner profile</h1>} />
               </Routes>

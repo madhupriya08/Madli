@@ -78,7 +78,10 @@ export function PickAreaScreen() {
       center: { lat: area.lat, lng: area.lng },
       centerSource: 'area',
     });
-    navigate(next);
+    // Through the local/visitor ask rather than straight to `next` — that
+    // question runs once, right after settling on an area, for every path
+    // that reaches this screen.
+    navigate('/local-or-visitor', { state: { next } });
   };
 
   const toggleHome = async (area: Area, on: boolean) => {
@@ -112,7 +115,8 @@ export function PickAreaScreen() {
           center: point,
           centerSource: 'geolocation',
         });
-        navigate(next);
+        // Same detour as chooseArea, below — through the local/visitor ask.
+        navigate('/local-or-visitor', { state: { next } });
       },
       () => {
         // Not an error path. Stay on this screen — the list below is already

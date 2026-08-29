@@ -31,7 +31,7 @@ export function ResultsScreen({ door }: { door: 'eat' | 'explore' }) {
   const { search, setSearch, effectiveCenter } = useSearch();
   const [showLoading, setShowLoading] = useState(true);
   const [mapView, setMapView] = useState(false);
-  const [showGate, setShowGate] = useState<'none' | 'paywall' | 'reject-intercept'>('none');
+  const [showGate, setShowGate] = useState<'none' | 'paywall' | 'signup-needed'>('none');
   const [rejectedGoogleIds, setRejectedGoogleIds] = useState<Set<string>>(new Set());
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_PICKS);
 
@@ -104,13 +104,17 @@ export function ResultsScreen({ door }: { door: 'eat' | 'explore' }) {
     [ranked],
   );
 
+  // Both actions below used to look at guestSession.useFreeNoneOfThese() —
+  // one free "None of these" per session, then an intercept. That quota is
+  // gone: a Guest tapping either action now sees the signup prompt every
+  // time. useFreeNoneOfThese/noneOfTheseUsedOnce stay in guestSession.tsx
+  // (marked deprecated there) but nothing here calls them anymore — the
+  // guestPaywallAtSearch-driven 'paywall' gate above is a separate trigger
+  // and is untouched by this.
   const handleNoneOfThese = () => {
     if (persona === 'guest') {
-      const free = guestSession.useFreeNoneOfThese();
-      if (!free) {
-        setShowGate('reject-intercept');
-        return;
-      }
+      setShowGate('signup-needed');
+      return;
     }
     const next = new Set(rejectedGoogleIds);
     for (const r of ranked) next.add(r.candidate.placeId);
@@ -119,6 +123,10 @@ export function ResultsScreen({ door }: { door: 'eat' | 'explore' }) {
   };
 
   const handleShowTwoMore = () => {
+    if (persona === 'guest') {
+      setShowGate('signup-needed');
+      return;
+    }
     setVisibleCount((n) => Math.min(MAX_VISIBLE_PICKS, n + 2));
   };
 
@@ -253,17 +261,21 @@ export function ResultsScreen({ door }: { door: 'eat' | 'explore' }) {
       </Dialog>
 
       <Dialog
-        open={showGate === 'reject-intercept'}
-        title="One more thing"
+        open={showGate === 'signup-needed'}
+        title="This one needs an account"
         onClose={() => setShowGate('none')}
         variant={breakpoint === 'desktop' ? 'modal' : 'sheet'}
       >
         <p style={{ font: 'var(--type-body)', marginBottom: 'var(--space-5)' }}>
-          You've used your free "none of these" this session. Sign up to keep refining — it's free.
+          Saving, two-stop plans and your ranked list are the parts we have to store. Everything
+          you have done so far carries over.
         </p>
-        <Button block onClick={() => navigate('/signup')}>
-          Sign up
-        </Button>
+        <div style={{ display: 'flex', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
+          <Button onClick={() => navigate('/signup')}>Sign up</Button>
+          <Button variant="ghost" onClick={() => setShowGate('none')}>
+            Continue as guest
+          </Button>
+        </div>
       </Dialog>
     </AppShell>
   );

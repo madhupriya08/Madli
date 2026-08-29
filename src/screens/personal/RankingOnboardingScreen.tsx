@@ -11,9 +11,11 @@ import { useToast } from '../../components/feedback/ToastProvider';
 import { searchCandidates, type GoogleCandidate } from '../../lib/placesSearch';
 import { hasMapsApiKey } from '../../lib/googleMaps';
 import { useSearch } from '../../lib/searchState';
+import { usePersona } from '../../dev/PersonaContext';
 import {
   setResidentStatus,
   useRankGooglePlace,
+  useResidentStatus,
   type RankTier,
   type ResidentStatus,
 } from '../../data/googleRankings';
@@ -46,8 +48,19 @@ const TIERS: Array<{ tier: RankTier; label: string }> = [
 export function RankingOnboardingScreen() {
   const navigate = useNavigate();
   const { show } = useToast();
+  const { userId } = usePersona();
   const { search, effectiveCenter } = useSearch();
-  const [residency, setResidency] = useState<ResidentStatus | null>(null);
+  // The question this screen used to ask directly now runs earlier, right
+  // after S8 (LocalOrVisitorScreen) — this reads whatever that answer was
+  // rather than asking a second time. `residencyOverride` only exists so a
+  // fresh answer made right here (for the person who skipped it earlier)
+  // shows immediately, without waiting on a refetch.
+  const existingResidency = useResidentStatus(userId, true);
+  const [residencyOverride, setResidencyOverride] = useState<ResidentStatus | null | undefined>(
+    undefined,
+  );
+  const residency =
+    residencyOverride !== undefined ? residencyOverride : (existingResidency.data ?? null);
   const [ranked, setRanked] = useState<Record<string, RankTier>>({});
   const rank = useRankGooglePlace();
 
@@ -85,10 +98,10 @@ export function RankingOnboardingScreen() {
       // with fn_rank_google_place's 23514 — which reads, verbatim, "set
       // profiles.resident_status before ranking". Confusing on its own, and
       // impossible to act on when the UI insists you already answered.
-      setResidency(status);
+      setResidencyOverride(status);
       track('residency_declared', { status });
     } catch (err) {
-      setResidency(null);
+      setResidencyOverride(null);
       show(err instanceof Error ? err.message : 'Could not save that. Try again in a moment.');
     }
   };
@@ -143,29 +156,38 @@ export function RankingOnboardingScreen() {
           </p>
         </div>
 
-        <div>
-          <h3 style={{ font: 'var(--type-label)', marginBottom: 'var(--space-2)' }}>
-            Do you live around here?
-          </h3>
-          <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-            <Tag selected={residency === 'local'} onClick={() => void chooseResidency('local')}>
-              I live here
-            </Tag>
-            <Tag selected={residency === 'visitor'} onClick={() => void chooseResidency('visitor')}>
-              I&apos;m visiting
-            </Tag>
-          </div>
-          <p
-            style={{
-              font: 'var(--type-caption)',
-              color: 'var(--text-muted)',
-              marginTop: 'var(--space-2)',
-            }}
-          >
-            We keep local and visitor rankings apart, and show both counts. We ask rather than guess
-            from your location — being here today does not mean you live here.
+        {residency ? (
+          // Already answered — at S8's LocalOrVisitorScreen, most likely.
+          // Asking again here would be the same question twice in one flow.
+          <p style={{ font: 'var(--type-body-sm)', color: 'var(--text-muted)' }}>
+            You told us you{residency === 'local' ? ' live here' : "'re visiting"} — that is what
+            these ratings will count as.
           </p>
-        </div>
+        ) : (
+          <div>
+            <h3 style={{ font: 'var(--type-label)', marginBottom: 'var(--space-2)' }}>
+              Do you live around here?
+            </h3>
+            <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+              <Tag selected={false} onClick={() => void chooseResidency('local')}>
+                I live here
+              </Tag>
+              <Tag selected={false} onClick={() => void chooseResidency('visitor')}>
+                I&apos;m visiting
+              </Tag>
+            </div>
+            <p
+              style={{
+                font: 'var(--type-caption)',
+                color: 'var(--text-muted)',
+                marginTop: 'var(--space-2)',
+              }}
+            >
+              We keep local and visitor rankings apart, and show both counts. We ask rather than
+              guess from your location — being here today does not mean you live here.
+            </p>
+          </div>
+        )}
 
         {nearby.isLoading ? (
           <div style={{ display: 'grid', gap: 'var(--space-4)' }}>

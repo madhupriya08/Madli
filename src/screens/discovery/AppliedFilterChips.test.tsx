@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { SearchProvider, useSearch, type SearchState } from '../../lib/searchState';
 import { AppliedFilterChips } from './AppliedFilterChips';
 
@@ -22,6 +22,12 @@ function seed(initial: Partial<SearchState>) {
   sessionStorage.setItem('madli.search', JSON.stringify(initial));
 }
 
+function AreaRouteProbe() {
+  const location = useLocation();
+  const next = (location.state as { next?: string } | null)?.next;
+  return <div>reached /area, next={next}</div>;
+}
+
 function Harness() {
   return (
     <SearchProvider>
@@ -36,6 +42,7 @@ function Harness() {
               </>
             }
           />
+          <Route path="/area" element={<AreaRouteProbe />} />
           <Route path="*" element={<div>navigated away</div>} />
         </Routes>
       </MemoryRouter>
@@ -62,8 +69,11 @@ describe('AppliedFilterChips — S16 filters leaving as chips on results', () =>
       door: 'eat',
       who: 'Couple',
       occasion: 'Date',
-      radiusKm: '5',
-      constraintMode: 'radius',
+      // S15's hard constraint (drive-time preset) and S16's own Distance
+      // filter are independent fields — both should show, as two chips.
+      constraintMode: 'drive',
+      driveTimePreset: '20 min',
+      distanceKm: '5',
       areaText: 'Jubilee Hills',
       vibes: ['Diner', 'Tiffin'],
       budget: '₹300–600',
@@ -75,6 +85,7 @@ describe('AppliedFilterChips — S16 filters leaving as chips on results', () =>
     for (const label of [
       'Couple',
       'Date',
+      '20 min drive',
       'Within 5 km',
       'Jubilee Hills',
       'Diner',
@@ -156,5 +167,28 @@ describe('AppliedFilterChips — S16 filters leaving as chips on results', () =>
     expect(screen.queryByText('Non-veg')).not.toBeInTheDocument();
     // The wait switch is worded per door.
     expect(screen.getByText('Avoid crowded times')).toBeInTheDocument();
+  });
+
+  it('tapping a chip body — not its × — opens the screen that owns that answer', async () => {
+    const user = userEvent.setup();
+    seed({ door: 'eat', who: 'Couple', vibes: ['Diner'] });
+    render(<Harness />);
+
+    // "Couple" came from intake (S15); reopening it should not require
+    // starting the whole flow over.
+    await user.click(screen.getByText('Couple'));
+    expect(await screen.findByText('navigated away')).toBeInTheDocument();
+  });
+
+  it('tapping the area chip opens S8 (Pick your area), not intake, and carries a way back', async () => {
+    const user = userEvent.setup();
+    seed({ door: 'eat', areaText: 'Jubilee Hills' });
+    render(<Harness />);
+
+    await user.click(screen.getByText('Jubilee Hills'));
+
+    // Not '/intake': area is settled at S8 now, and re-picking it should
+    // return here rather than default to Home.
+    expect(await screen.findByText('reached /area, next=/results/eat')).toBeInTheDocument();
   });
 });

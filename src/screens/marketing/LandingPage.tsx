@@ -49,7 +49,10 @@ export function LandingPage() {
   // hardcoded string, so the eyebrow's neighbourhood count stays true if the
   // areas table changes.
   const [isLocal, setIsLocal] = useState(true);
-  const areaLabel = areas[0]?.name ?? 'Hyderabad';
+  // Fallback only, for the edge case where `areas` is empty (e.g. before
+  // loadLiveConfig() has populated it) — city-agnostic on purpose, since the
+  // copy here should not hardcode which city this deployment covers.
+  const areaLabel = areas[0]?.name ?? 'your area';
 
   const whoChip = (active: boolean): React.CSSProperties => ({
     padding: '4px 12px',
@@ -81,7 +84,7 @@ export function LandingPage() {
             color: 'var(--teal-600)',
           }}
         >
-          Hyderabad · {areas.length} neighbourhoods
+          {areas.length} neighbourhoods, ranked by the people who live there
         </span>
         <h1 style={{ font: 'var(--type-display)', maxWidth: '15ch', textWrap: 'pretty' }}>
           Three picks. One reason each.
@@ -96,14 +99,19 @@ export function LandingPage() {
           Madli ranks restaurants and places to visit by asking the people who actually live there —
           not by whoever paid. Every pick comes with the one reason it beat the rest.
         </p>
+        {/* All three the same weight, on purpose — matching the same call on
+            S6 Splash. Signing up must not read as the "real" path with guest
+            browsing tacked on as an afterthought: neither is coral (`accent`
+            is reserved for one CTA per view anyway, so it can't badge both),
+            neither is smaller. */}
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-          <Button variant="accent" size="lg" onClick={() => navigate('/signup')}>
+          <Button variant="secondary" size="lg" onClick={() => navigate('/signup')}>
             Sign up free
           </Button>
           <Button variant="secondary" size="lg" onClick={() => navigate('/login')}>
             Log in
           </Button>
-          <Button variant="quiet" size="lg" onClick={() => navigate('/area')}>
+          <Button variant="secondary" size="lg" onClick={() => navigate('/area')}>
             Look around as a guest
           </Button>
         </div>
@@ -315,7 +323,7 @@ export function LandingPage() {
             }}
           />
           <span style={{ font: 'var(--type-evidence)', color: 'var(--evidence-text)' }}>
-            Hyderabad · more cities when the ranking is deep enough to be worth it
+            One city today — more once the ranking runs deep enough to trust
           </span>
         </div>
         <nav style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
