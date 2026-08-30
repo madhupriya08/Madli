@@ -1,9 +1,10 @@
 // Admin-surface fixtures, sourced verbatim from the prototype's own mock
-// tables (ADMIN_ROWS, CLAIM_ROWS, REPORT_ROWS, AUDIT_ROWS, gemCandidates,
-// lhRows/lhReasons in Madli Prototype.dc.html) — same source Phase 1 used
-// for its real seed data. Place references are resolved against fixtures/places.ts.
-import { placeById } from './places';
-
+// tables (ADMIN_ROWS, CLAIM_ROWS, REPORT_ROWS, AUDIT_ROWS, gemCandidates in
+// Madli Prototype.dc.html) — same source Phase 1 used for its real seed
+// data. Place references are resolved against fixtures/places.ts.
+// Phase 7 §6: the lhRows/lhReasons (location history) and CAT_ROWS
+// (catalogue status) fixtures that used to live here were removed along
+// with the admin pages that were their only consumer (see registry.ts).
 export const PLACE_IDS = {
   hotelShadab: '00000000-0000-0000-0000-0000000000f1',
   nimrah: '00000000-0000-0000-0000-0000000000f2',
@@ -269,82 +270,3 @@ export const gemCandidatesSeed: GemCandidateFixture[] = [
   },
 ];
 
-export type LocationHistoryAction = 'search' | 'log_visit' | 'directions';
-
-export interface LocationHistoryFixture {
-  id: string;
-  when: string;
-  area: string;
-  action: LocationHistoryAction;
-  actionLabel: string;
-}
-
-// lhRows — the target user's location history, revealed only through the
-// admin gate (S51). actionLabel preserves the prototype's exact copy.
-export const locationHistorySeed: LocationHistoryFixture[] = [
-  {
-    id: 'lh-1',
-    when: 'Today, 13:40',
-    area: 'Jubilee Hills',
-    action: 'search',
-    actionLabel: 'Search',
-  },
-  { id: 'lh-2', when: 'Today, 09:12', area: 'Madhapur', action: 'search', actionLabel: 'Search' },
-  {
-    id: 'lh-3',
-    when: 'Yesterday, 20:05',
-    area: 'Old City',
-    action: 'log_visit',
-    actionLabel: 'Logged a visit',
-  },
-  {
-    id: 'lh-4',
-    when: 'Yesterday, 13:22',
-    area: 'Jubilee Hills',
-    action: 'search',
-    actionLabel: 'Search',
-  },
-  {
-    id: 'lh-5',
-    when: '3 Aug, 19:44',
-    area: 'Kondapur',
-    action: 'directions',
-    actionLabel: 'Directions',
-  },
-  {
-    id: 'lh-6',
-    when: '3 Aug, 08:30',
-    area: 'Jubilee Hills',
-    action: 'search',
-    actionLabel: 'Search',
-  },
-  {
-    id: 'lh-7',
-    when: '2 Aug, 21:10',
-    area: 'Secunderabad',
-    action: 'log_visit',
-    actionLabel: 'Logged a visit',
-  },
-  {
-    id: 'lh-8',
-    when: '1 Aug, 12:55',
-    area: 'Banjara Hills',
-    action: 'search',
-    actionLabel: 'Search',
-  },
-];
-
-// lhReasons
-export const locationHistoryReasonOptions = [
-  { value: 'support', label: 'Support ticket' },
-  { value: 'abuse', label: 'Abuse investigation' },
-  { value: 'legal', label: 'Legal request' },
-] as const;
-
-// CAT_ROWS-derived catalogue status, for the S43 list (derived from live
-// place data rather than duplicated as a separate fixture).
-export function catalogueStatus(placeId: string): 'Live' | 'Thin' | 'Closed' {
-  const place = placeById(placeId);
-  if (!place || !place.isActive) return 'Closed';
-  return place.locals >= 50 ? 'Live' : 'Thin';
-}

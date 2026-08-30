@@ -28,3 +28,16 @@ export function supabaseWithShareToken(token: string) {
     global: { headers: { 'x-share-token': token } },
   });
 }
+
+/**
+ * Phase 7 §7: a fresh, throwaway client for calling `auth.signUp()` on
+ * someone else's behalf (S50's "create another admin") without touching the
+ * calling admin's own session — `persistSession`/`autoRefreshToken` off means
+ * this never writes to the shared localStorage key the module-level
+ * `supabase` client owns, so the admin stays signed in as themselves.
+ */
+export function createDetachedAuthClient() {
+  return createClient<Database>(url, anonKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+}

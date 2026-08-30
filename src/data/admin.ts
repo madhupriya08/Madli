@@ -2,7 +2,7 @@
 // SECURITY DEFINER Postgres function Phase 1 built and Phase 3 verified live
 // (see PHASE_3_COMPLETION_REPORT.md §4): real invalid_credentials/access_denied
 // rows for fn_log_admin_login_attempt.
-import { supabase } from '../lib/supabaseClient';
+import { supabase, createDetachedAuthClient } from '../lib/supabaseClient';
 import type { AdminAccountRow, AdminAccountStatus, AdminTier, GemCandidateFixture } from '../fixtures/admin';
 
 function formatRelative(iso: string | null): string {
@@ -85,6 +85,46 @@ export async function getFunnelStats(days = 30): Promise<FunnelStats> {
     comparison2Completed: row?.comparison2_completed ?? 0,
     avgSearchToPickSeconds: row?.avg_search_to_pick_seconds ?? null,
   };
+}
+
+export interface CreateAdminAccountInput {
+  email: string;
+  password: string;
+  displayName?: string;
+  adminTier: AdminTier;
+  canOverrideRanking: boolean;
+  canAccessLocationHistory: boolean;
+  reason: string;
+}
+
+/**
+ * Phase 7 §7: "add a feature to add another admin" (S50). Two real steps,
+ * not one call — this creates a genuinely new person's account
+ * (auth.users + the profiles row handle_new_user() always creates for a
+ * fresh signup), then promotes that fresh profile to admin. Uses a detached
+ * client for the signUp half so the calling admin's own session is
+ * untouched (see createDetachedAuthClient). Only a superadmin session can
+ * complete the second half — fn_admin_create_admin_account enforces that
+ * server-side regardless of what this screen shows.
+ */
+export async function createAdminAccount(input: CreateAdminAccountInput): Promise<void> {
+  const detached = createDetachedAuthClient();
+  const { data, error } = await detached.auth.signUp({
+    email: input.email,
+    password: input.password,
+    options: { data: { display_name: input.displayName?.trim() } },
+  });
+  if (error) throw error;
+  if (!data.user) throw new Error('Account creation did not return a user.');
+
+  const { error: promoteError } = await supabase.rpc('fn_admin_create_admin_account', {
+    p_user_id: data.user.id,
+    p_admin_tier: input.adminTier,
+    p_can_override_ranking: input.canOverrideRanking,
+    p_can_access_location_history: input.canAccessLocationHistory,
+    p_reason: input.reason,
+  });
+  if (promoteError) throw promoteError;
 }
 
 export async function listAdminAccounts(): Promise<AdminAccountRow[]> {

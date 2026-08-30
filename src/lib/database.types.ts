@@ -585,6 +585,16 @@ export type Database = {
       fn_admin_capture_rank_snapshot: { Args: Record<string, never>; Returns: number };
       fn_admin_count_active_users: { Args: { p_days?: number }; Returns: number };
       fn_admin_count_ranked_entries: { Args: Record<string, never>; Returns: number };
+      fn_admin_create_admin_account: {
+        Args: {
+          p_admin_tier: string;
+          p_can_access_location_history: boolean;
+          p_can_override_ranking: boolean;
+          p_reason: string;
+          p_user_id: string;
+        };
+        Returns: string;
+      };
       fn_admin_funnel_stats: {
         Args: { p_days?: number };
         Returns: {

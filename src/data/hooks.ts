@@ -233,6 +233,17 @@ export function useAdminAccounts() {
   return useQuery({ queryKey: ['adminAccounts'], queryFn: adminApi.listAdminAccounts });
 }
 
+export function useCreateAdminAccount() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: adminApi.createAdminAccount,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['adminAccounts'] });
+      void qc.invalidateQueries({ queryKey: ['auditLog'] });
+    },
+  });
+}
+
 export function useRankedEntriesCount() {
   return useQuery({ queryKey: ['rankedEntriesCount'], queryFn: adminApi.countRankedEntries });
 }
