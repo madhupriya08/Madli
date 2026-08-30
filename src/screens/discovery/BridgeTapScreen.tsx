@@ -6,6 +6,7 @@ import { PhotoFrame } from '../../components/core/PhotoFrame';
 import { RankBadge, type Rank } from '../../components/trust/RankBadge';
 import { ReasonNote } from '../../components/trust/ReasonNote';
 import { Button } from '../../components/core/Button';
+import { Tabs } from '../../components/navigation/Tabs';
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { PickSkeleton } from '../../components/feedback/Skeleton';
 import { GoogleMapView, type MapMarker } from '../../components/map/GoogleMapView';
@@ -13,10 +14,10 @@ import { usePersona } from '../../dev/PersonaContext';
 import { useToast } from '../../components/feedback/ToastProvider';
 import { placeBySlug } from '../../fixtures/places';
 import { fetchPlaceDetails, searchCandidates, type GoogleCandidate } from '../../lib/placesSearch';
-import { haversineMeters, type Door, type LatLng } from '../../lib/searchState';
+import { haversineMeters, useSearch, type Door, type LatLng } from '../../lib/searchState';
 import { hasMapsApiKey } from '../../lib/googleMaps';
 import { pickReason } from '../../data/hybridPicks';
-import { addOutingStop, isStopInOuting } from '../../lib/outingPlans';
+import { addOutingStop, getOuting, isStopInOuting } from '../../lib/outingPlans';
 import { usePlans, useCreatePlan, useAddPlanItem } from '../../data/hooks';
 
 const NEARBY_RADIUS_M = 12_000;
@@ -84,15 +85,38 @@ function openGoogleMapsRoute(anchor: Anchor, stops: Array<{ location: LatLng }>)
 
 /**
  * S20 — Places nearby after a pick.
- * From an eat place → three closest explore spots.
- * From an explore place → three closest places to eat.
+ * From an eat place → three closest explore spots by default.
+ * From an explore place → three closest places to eat by default.
+ *
+ * Phase 6 §7: that default is now a starting point, not the only option —
+ * two Eat/Explore buttons let a person search the other door instead. And
+ * the search is no longer always centred on the place first tapped: for a
+ * plan already being built, it centres on whichever stop was added most
+ * recently, so "nearby" means nearby *where the outing currently is*, not
+ * nearby the very first stop from an hour ago. Stated plainly, since this
+ * was a pre-decided interpretation, not a guess: the priority is (1) the
+ * most recently added stop, (2) the plan's anchor — read here as its
+ * "first stop", since a Plan's anchor fields (anchor_lat/anchor_lng) are
+ * literally the outing's starting point, stored separately from `stops`
+ * only because that is how the schema records it — and (3) the user's
+ * current location. Tier 3 only matters if tier 2 could somehow be empty;
+ * in this screen it never is once `anchor` itself resolves (the screen
+ * shows an empty state before that point), so it is wired in for
+ * completeness/robustness rather than because it is reachable today.
  */
 export function BridgeTapScreen() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const { breakpoint, hasSession, userId } = usePersona();
   const { show } = useToast();
+  const { effectiveCenter } = useSearch();
   const [planVersion, setPlanVersion] = useState(0);
+  // Keyed by anchor id rather than reset via an effect: this component stays
+  // mounted across a route-param change (a new slug), so a manual door
+  // choice must not silently carry over to a different place's default.
+  const [doorOverrideFor, setDoorOverrideFor] = useState<{ anchorId: string; door: Door } | null>(
+    null,
+  );
   const decoded = slug ? decodeURIComponent(slug) : undefined;
 
   // Signed-in Users get a real, shareable plan (P5 §4); a Guest keeps the
@@ -138,19 +162,58 @@ export function BridgeTapScreen() {
     return null;
   }, [catalogue, googleAnchorQuery.data]);
 
+  const existingPlan =
+    hasSession && anchor ? ownPlans.find((p) => p.anchorKey === anchor.id) : undefined;
+  const doorOverride =
+    anchor && doorOverrideFor?.anchorId === anchor.id ? doorOverrideFor.door : null;
+  const effectiveDoor: Door = doorOverride ?? anchor?.bridgeDoor ?? 'eat';
+
+  const referencePoint: { location: LatLng; name: string } = useMemo(() => {
+    const fallback = { location: anchor?.location ?? effectiveCenter, name: anchor?.name ?? '' };
+    if (!anchor) return fallback;
+    if (hasSession) {
+      const stops = existingPlan?.stops ?? [];
+      const lastStop = stops[stops.length - 1];
+      if (lastStop?.lat != null && lastStop.lng != null) {
+        return { location: { lat: lastStop.lat, lng: lastStop.lng }, name: lastStop.placeName };
+      }
+      if (existingPlan?.anchorLat != null && existingPlan.anchorLng != null) {
+        return {
+          location: { lat: existingPlan.anchorLat, lng: existingPlan.anchorLng },
+          name: existingPlan.anchorName,
+        };
+      }
+      return fallback;
+    }
+    // Guest — the local-only outing plays the same role as a signed-in
+    // User's Plan (anchor + ordered stops), just stored client-side.
+    const outing = getOuting(anchor.id);
+    const stops = outing?.stops ?? [];
+    const lastStop = stops[stops.length - 1];
+    if (lastStop?.lat != null && lastStop.lng != null) {
+      return { location: { lat: lastStop.lat, lng: lastStop.lng }, name: lastStop.name };
+    }
+    if (outing?.anchorLat != null && outing?.anchorLng != null) {
+      return { location: { lat: outing.anchorLat, lng: outing.anchorLng }, name: outing.anchorName };
+    }
+    return fallback;
+    // planVersion forces this to re-read localStorage after a Guest adds a stop.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [anchor, hasSession, existingPlan, effectiveCenter, planVersion]);
+
   const nearbyQuery = useQuery({
     queryKey: [
       'bridgeNearby',
       anchor?.id,
-      anchor?.bridgeDoor,
-      anchor?.location.lat,
-      anchor?.location.lng,
+      effectiveDoor,
+      referencePoint.location.lat,
+      referencePoint.location.lng,
     ],
     queryFn: async (): Promise<NearbyStop[]> => {
       if (!anchor) return [];
       const candidates = await searchCandidates({
-        door: anchor.bridgeDoor,
-        center: anchor.location,
+        door: effectiveDoor,
+        center: referencePoint.location,
         radiusMeters: NEARBY_RADIUS_M,
         areaText: '',
         clipToRadius: true,
@@ -159,7 +222,7 @@ export function BridgeTapScreen() {
       return candidates
         .filter((c) => c.placeId !== anchor.id)
         .map((c) => {
-          const distanceMeters = haversineMeters(anchor.location, c.location);
+          const distanceMeters = haversineMeters(referencePoint.location, c.location);
           return {
             ...c,
             distanceMeters,
@@ -175,7 +238,6 @@ export function BridgeTapScreen() {
   });
 
   const nearby = nearbyQuery.data ?? [];
-  const existingPlan = hasSession && anchor ? ownPlans.find((p) => p.anchorKey === anchor.id) : undefined;
   const loading =
     (!catalogue && googleAnchorQuery.isLoading) ||
     (Boolean(catalogue) && catalogue?.lat == null && googleAnchorQuery.isLoading) ||
@@ -192,11 +254,16 @@ export function BridgeTapScreen() {
     }));
   }, [nearby, navigate]);
 
+  const referenceIsAnchor =
+    anchor != null &&
+    referencePoint.location.lat === anchor.location.lat &&
+    referencePoint.location.lng === anchor.location.lng;
+
   const headline =
-    anchor?.bridgeDoor === 'eat'
+    effectiveDoor === 'eat'
       ? 'The three closest places to eat afterwards'
       : 'The three closest places worth stopping at afterwards';
-  const screenTitle = anchor?.bridgeDoor === 'eat' ? 'Eat nearby' : 'Explore nearby';
+  const screenTitle = effectiveDoor === 'eat' ? 'Eat nearby' : 'Explore nearby';
 
   if (!decoded) {
     return (
@@ -236,9 +303,6 @@ export function BridgeTapScreen() {
       </AppShell>
     );
   }
-
-  // planVersion forces a re-read of localStorage after Add to plan.
-  void planVersion;
 
   return (
     <AppShell title={screenTitle} onBack={() => navigate(-1)}>
@@ -282,9 +346,25 @@ export function BridgeTapScreen() {
               maxWidth: 'var(--reason-max)',
             }}
           >
-            Anchored to {anchor.name}, nearest first. Add as many as you want — each one joins the
-            route without leaving this screen.
+            {referenceIsAnchor
+              ? `Anchored to ${anchor.name}, nearest first.`
+              : `Nearest to ${referencePoint.name} — the stop you added most recently — first.`}{' '}
+            Add as many as you want — each one joins the route without leaving this screen.
           </p>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <span style={{ font: 'var(--type-label)', color: 'var(--text-muted)' }}>
+              Search nearby for
+            </span>
+            <Tabs
+              size="sm"
+              items={[
+                { value: 'eat', label: 'Eat' },
+                { value: 'explore', label: 'Explore' },
+              ]}
+              value={effectiveDoor}
+              onChange={(v) => setDoorOverrideFor({ anchorId: anchor.id, door: v as Door })}
+            />
+          </div>
         </div>
 
         <div
@@ -298,7 +378,7 @@ export function BridgeTapScreen() {
         >
           <GoogleMapView
             height={breakpoint === 'desktop' ? 280 : 200}
-            center={anchor.location}
+            center={referencePoint.location}
             onMapClick={() => openGoogleMapsRoute(anchor, nearby)}
             markers={[
               {
@@ -306,6 +386,15 @@ export function BridgeTapScreen() {
                 position: anchor.location,
                 title: anchor.name,
               },
+              ...(referenceIsAnchor
+                ? []
+                : [
+                    {
+                      id: `${anchor.id}-reference`,
+                      position: referencePoint.location,
+                      title: `${referencePoint.name} (searching from here)`,
+                    },
+                  ]),
               ...markers,
             ]}
             emptyLabel="Map · tap to open the route in Google Maps"
@@ -416,7 +505,7 @@ export function BridgeTapScreen() {
                           color: 'var(--evidence-text)',
                         }}
                       >
-                        {stop.driveLabel} from {anchor.name}
+                        {stop.driveLabel} from {referencePoint.name}
                       </p>
                       <div
                         style={{

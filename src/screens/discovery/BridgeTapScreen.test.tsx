@@ -44,9 +44,11 @@ vi.mock('../../lib/placesSearch', () => ({
 
 const addOutingStopMock = vi.fn();
 const isStopInOutingMock = vi.fn();
+const getOutingMock = vi.fn();
 vi.mock('../../lib/outingPlans', () => ({
   addOutingStop: (...args: unknown[]) => addOutingStopMock(...args),
   isStopInOuting: (...args: unknown[]) => isStopInOutingMock(...args),
+  getOuting: (...args: unknown[]) => getOutingMock(...args),
 }));
 
 const usePlansMock = vi.fn();
@@ -88,11 +90,13 @@ describe('BridgeTapScreen — Add to plan', () => {
     searchCandidatesMock.mockReset();
     addOutingStopMock.mockReset();
     isStopInOutingMock.mockReset();
+    getOutingMock.mockReset();
     usePlansMock.mockReset();
     createPlanMutateAsyncMock.mockReset();
     addPlanItemMutateAsyncMock.mockReset();
     searchCandidatesMock.mockResolvedValue([NEARBY_STOP]);
     isStopInOutingMock.mockReturnValue(false);
+    getOutingMock.mockReturnValue(undefined);
     usePlansMock.mockReturnValue({ data: [] });
     createPlanMutateAsyncMock.mockResolvedValue(undefined);
     addPlanItemMutateAsyncMock.mockResolvedValue(undefined);
@@ -217,5 +221,124 @@ describe('BridgeTapScreen — Add to plan', () => {
 
     expect(createPlanMutateAsyncMock).not.toHaveBeenCalled();
     expect(addPlanItemMutateAsyncMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('BridgeTapScreen — Phase 6 §7: door selector + reference-point priority', () => {
+  beforeEach(() => {
+    searchCandidatesMock.mockReset();
+    addOutingStopMock.mockReset();
+    isStopInOutingMock.mockReset();
+    getOutingMock.mockReset();
+    usePlansMock.mockReset();
+    createPlanMutateAsyncMock.mockReset();
+    addPlanItemMutateAsyncMock.mockReset();
+    searchCandidatesMock.mockResolvedValue([NEARBY_STOP]);
+    isStopInOutingMock.mockReturnValue(false);
+    getOutingMock.mockReturnValue(undefined);
+    usePlansMock.mockReturnValue({ data: [] });
+  });
+
+  it('Hotel Shadab (an Eat place) defaults to searching Explore', async () => {
+    usePersonaMock.mockReturnValue({ breakpoint: 'desktop', hasSession: false, userId: '' });
+    render(<Harness />);
+
+    await screen.findByRole('tab', { name: 'Explore' });
+    expect(screen.getByRole('tab', { name: 'Explore' })).toHaveAttribute('aria-selected', 'true');
+    expect(searchCandidatesMock).toHaveBeenCalledWith(
+      expect.objectContaining({ door: 'explore' }),
+    );
+  });
+
+  it('clicking "Eat" overrides the default and re-searches that door instead', async () => {
+    usePersonaMock.mockReturnValue({ breakpoint: 'desktop', hasSession: false, userId: '' });
+    const user = userEvent.setup();
+    render(<Harness />);
+
+    await user.click(await screen.findByRole('tab', { name: 'Eat' }));
+
+    expect(await screen.findByRole('tab', { name: 'Eat' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    expect(searchCandidatesMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ door: 'eat' }),
+    );
+  });
+
+  it("a Guest's outing already in progress searches from the most recently added stop, not the original anchor", async () => {
+    usePersonaMock.mockReturnValue({ breakpoint: 'desktop', hasSession: false, userId: '' });
+    getOutingMock.mockReturnValue({
+      anchorPlaceId: 'ChIJKyxGIoiXyzsRPY8PASGdTW0',
+      anchorName: 'Hotel Shadab',
+      anchorLat: 17.368888,
+      anchorLng: 78.4755104,
+      stops: [
+        {
+          placeId: 'first-stop',
+          name: 'First Stop',
+          address: '',
+          lat: 17.4,
+          lng: 78.4,
+          addedAt: 1,
+        },
+        {
+          placeId: 'most-recent-stop',
+          name: 'Most Recent Stop',
+          address: '',
+          lat: 17.45,
+          lng: 78.45,
+          addedAt: 2,
+        },
+      ],
+    });
+    render(<Harness />);
+
+    expect(await screen.findByText(/Nearest to Most Recent Stop/)).toBeInTheDocument();
+    expect(searchCandidatesMock).toHaveBeenCalledWith(
+      expect.objectContaining({ center: { lat: 17.45, lng: 78.45 } }),
+    );
+  });
+
+  it("a signed-in User's plan searches from the most recently added stop (highest position), not the anchor", async () => {
+    usePersonaMock.mockReturnValue({ breakpoint: 'desktop', hasSession: true, userId: 'user-1' });
+    usePlansMock.mockReturnValue({
+      data: [
+        {
+          id: 'plan-1',
+          userId: 'user-1',
+          anchorKey: 'ChIJKyxGIoiXyzsRPY8PASGdTW0',
+          anchorName: 'Hotel Shadab',
+          anchorLat: 17.368888,
+          anchorLng: 78.4755104,
+          name: null,
+          shareToken: null,
+          stops: [
+            {
+              googlePlaceId: 'stop-a',
+              placeName: 'Stop A',
+              address: null,
+              lat: 17.4,
+              lng: 78.4,
+              position: 1,
+            },
+            {
+              googlePlaceId: 'stop-b',
+              placeName: 'Stop B',
+              address: null,
+              lat: 17.42,
+              lng: 78.42,
+              position: 2,
+            },
+          ],
+        },
+      ],
+    });
+    render(<Harness />);
+
+    expect(await screen.findByText(/Nearest to Stop B/)).toBeInTheDocument();
+    expect(searchCandidatesMock).toHaveBeenCalledWith(
+      expect.objectContaining({ center: { lat: 17.42, lng: 78.42 } }),
+    );
   });
 });
