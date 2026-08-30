@@ -1,7 +1,17 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 import type { ReactNode } from 'react';
-import { SearchProvider, useSearch, radiusFromConstraint } from './searchState';
+import {
+  SearchProvider,
+  useSearch,
+  radiusFromConstraint,
+  distanceUnitForCountry,
+  usesAbsoluteBudgetLabels,
+  budgetCapOptionsFor,
+  budgetOptionsFor,
+  distancePresetsFor,
+  formatDistanceKm,
+} from './searchState';
 
 const wrapper = ({ children }: { children: ReactNode }) => (
   <SearchProvider>{children}</SearchProvider>
@@ -136,5 +146,64 @@ describe('radiusFromConstraint', () => {
     expect(
       radiusFromConstraint({ constraintMode: 'time', driveTimePreset: null, distanceKm: '-4' }),
     ).toBe(3000);
+  });
+});
+
+describe('locale-aware distance and budget labels', () => {
+  it('only the mile-measuring countries get miles — everywhere else, including unset, is km', () => {
+    expect(distanceUnitForCountry('US')).toBe('mi');
+    expect(distanceUnitForCountry('GB')).toBe('mi');
+    expect(distanceUnitForCountry('IN')).toBe('km');
+    expect(distanceUnitForCountry('FR')).toBe('km');
+    expect(distanceUnitForCountry(null)).toBe('km');
+  });
+
+  it('only India (or nothing chosen yet) gets real absolute rupee thresholds', () => {
+    expect(usesAbsoluteBudgetLabels('IN')).toBe(true);
+    expect(usesAbsoluteBudgetLabels(null)).toBe(true);
+    expect(usesAbsoluteBudgetLabels('US')).toBe(false);
+    expect(usesAbsoluteBudgetLabels('FR')).toBe(false);
+  });
+
+  it('budget cap chips are real rupee amounts for India, relative $-tiers elsewhere', () => {
+    expect(budgetCapOptionsFor('IN')).toEqual([
+      'Under ₹150 a head',
+      'Under ₹400 a head',
+      'Under ₹800 a head',
+      'Price is not the issue',
+    ]);
+    expect(budgetCapOptionsFor('US')).toEqual(['$', '$$', '$$$', '$$$$', 'Price is not the issue']);
+  });
+
+  it('the S16 budget band is the same India-vs-relative split', () => {
+    expect(budgetOptionsFor('IN')).toEqual(['Under ₹150', '₹150–300', '₹300–600', '₹600+']);
+    expect(budgetOptionsFor('US')).toEqual(['$', '$$', '$$$', '$$$$']);
+  });
+
+  it('distance presets are round km numbers for most places, round mile numbers (stored as their km equivalent) for mile countries', () => {
+    expect(distancePresetsFor('IN')).toEqual([
+      { label: 'Under 2 km', km: '2' },
+      { label: 'Under 5 km', km: '5' },
+      { label: 'Under 15 km', km: '15' },
+      { label: 'Any distance', km: null },
+    ]);
+    const usPresets = distancePresetsFor('US');
+    expect(usPresets.map((p) => p.label)).toEqual([
+      'Under 1 mile',
+      'Under 3 miles',
+      'Under 10 miles',
+      'Any distance',
+    ]);
+    // Stored value is still real kilometres — the canonical unit radius math uses.
+    expect(usPresets[0].km).toBe(String(Math.round(1 * 1.60934 * 10) / 10));
+    expect(usPresets[3].km).toBeNull();
+  });
+
+  it('formats a stored km figure back into the locale-correct label', () => {
+    expect(formatDistanceKm('5', 'IN')).toBe('5 km');
+    expect(formatDistanceKm('5', null)).toBe('5 km');
+    expect(formatDistanceKm('8', 'US')).toBe(`${Math.round((8 / 1.60934) * 10) / 10} mi`);
+    // Non-numeric input is returned unchanged rather than blowing up.
+    expect(formatDistanceKm('', 'IN')).toBe('');
   });
 });

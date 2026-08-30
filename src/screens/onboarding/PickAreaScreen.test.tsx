@@ -266,7 +266,10 @@ describe('PickAreaScreen — S8, merged', () => {
       suggestAreasMock.mockResolvedValue([
         { placeId: 'place-mumbai-bandra', label: 'Bandra, Mumbai, Maharashtra, India' },
       ]);
-      resolveAreaCenterMock.mockResolvedValue({ lat: 19.0596, lng: 72.8295 });
+      resolveAreaCenterMock.mockResolvedValue({
+        center: { lat: 19.0596, lng: 72.8295 },
+        countryCode: 'IN',
+      });
 
       render(<Harness />);
       await userEvent.type(screen.getByPlaceholderText('Search a neighbourhood'), 'bandra');
@@ -284,6 +287,7 @@ describe('PickAreaScreen — S8, merged', () => {
       expect(state.areaPlaceId).toBe('place-mumbai-bandra');
       expect(state.center).toEqual({ lat: 19.0596, lng: 72.8295 });
       expect(state.centerSource).toBe('area');
+      expect(state.countryCode).toBe('IN');
     });
 
     it('does not offer live search at all when Maps is not configured', async () => {
@@ -295,7 +299,10 @@ describe('PickAreaScreen — S8, merged', () => {
 
     it('a GPS reading far from all eight seeded areas is reverse-geocoded, not mislabelled as one of them', async () => {
       hasMapsApiKeyMock.mockReturnValue(true);
-      reverseGeocodeAreaMock.mockResolvedValue('Indiranagar, Bengaluru, Karnataka, India');
+      reverseGeocodeAreaMock.mockResolvedValue({
+        label: 'Indiranagar, Bengaluru, Karnataka, India',
+        countryCode: 'IN',
+      });
       // Bengaluru — hundreds of km from every seeded Hyderabad neighbourhood.
       const getCurrentPosition = vi.fn((success: PositionCallback) => {
         success({ coords: { latitude: 12.9716, longitude: 77.5946 } } as GeolocationPosition);
@@ -314,6 +321,7 @@ describe('PickAreaScreen — S8, merged', () => {
       expect(state.centerSource).toBe('geolocation');
       // The raw device reading, not snapped to any seeded neighbourhood.
       expect(state.center).toEqual({ lat: 12.9716, lng: 77.5946 });
+      expect(state.countryCode).toBe('IN');
     });
 
     it('still proceeds with a generic label if reverse geocoding itself fails', async () => {
@@ -334,6 +342,7 @@ describe('PickAreaScreen — S8, merged', () => {
       const state = probe();
       expect(state.areaText).toBe('Your current location');
       expect(state.center).toEqual({ lat: 12.9716, lng: 77.5946 });
+      expect(state.countryCode).toBeNull();
     });
   });
 });

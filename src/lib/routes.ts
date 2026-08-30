@@ -23,7 +23,11 @@ export interface RouteResult {
   path: LatLng[];
 }
 
-export async function fetchRoute(origin: LatLng, destination: LatLng): Promise<RouteResult> {
+export async function fetchRoute(
+  origin: LatLng,
+  destination: LatLng,
+  unit: 'km' | 'mi' = 'km',
+): Promise<RouteResult> {
   const maps = await loadGoogleMaps();
 
   try {
@@ -36,6 +40,9 @@ export async function fetchRoute(origin: LatLng, destination: LatLng): Promise<R
       origin,
       destination,
       travelMode: maps.TravelMode.DRIVING,
+      // Google formats `distanceText` itself once told which system to use
+      // — no manual km/mi conversion needed here, just the right request.
+      unitSystem: unit === 'mi' ? maps.UnitSystem.IMPERIAL : maps.UnitSystem.METRIC,
     });
 
     const route = response.routes[0];

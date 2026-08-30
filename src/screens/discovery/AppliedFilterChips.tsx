@@ -1,6 +1,6 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Tag } from '../../components/core/Tag';
-import { useSearch, type SearchState } from '../../lib/searchState';
+import { formatDistanceKm, useSearch, type SearchState } from '../../lib/searchState';
 
 /**
  * S16's own rule, finally implemented: "Applied filters do not stay in this
@@ -109,7 +109,7 @@ function chipsFor(search: SearchState, currentPath: string): ChipSpec[] {
   if (search.distanceKm.trim()) {
     chips.push({
       key: 'distance',
-      label: `Within ${search.distanceKm.trim()} km`,
+      label: `Within ${formatDistanceKm(search.distanceKm.trim(), search.countryCode)}`,
       to: filters,
       clear: { distanceKm: '' },
     });

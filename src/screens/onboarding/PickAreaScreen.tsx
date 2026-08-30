@@ -141,6 +141,9 @@ export function PickAreaScreen() {
     setSearch({
       areaText: area.name,
       areaPlaceId: null,
+      // All eight seeded neighbourhoods are Hyderabad — no lookup needed,
+      // this is a known fact about the fixture, not a guess.
+      countryCode: 'IN',
       center: { lat: area.lat, lng: area.lng },
       centerSource: 'area',
     });
@@ -153,10 +156,11 @@ export function PickAreaScreen() {
   const chooseLiveSuggestion = async (suggestion: AreaSuggestion) => {
     setResolvingPlaceId(suggestion.placeId);
     try {
-      const center = await resolveAreaCenter(suggestion.placeId);
+      const { center, countryCode } = await resolveAreaCenter(suggestion.placeId);
       setSearch({
         areaText: suggestion.label,
         areaPlaceId: suggestion.placeId,
+        countryCode,
         center,
         centerSource: 'area',
       });
@@ -193,10 +197,12 @@ export function PickAreaScreen() {
           // Close enough to one of the eight — the real device position
           // stays as `center` (more accurate for distance math than the
           // neighbourhood centroid), and the neighbourhood name is what
-          // "resolving to the nearest seeded area" actually means.
+          // "resolving to the nearest seeded area" actually means. Always
+          // Hyderabad, same as the direct seeded pick above.
           setSearch({
             areaText: nearest.name,
             areaPlaceId: null,
+            countryCode: 'IN',
             center: point,
             centerSource: 'geolocation',
           });
@@ -206,22 +212,24 @@ export function PickAreaScreen() {
         }
 
         // Nowhere near the seeded eight — actually somewhere else. Reverse
-        // geocode for a real name rather than force-fitting it into
-        // whichever of the eight happens to be least-far away. Raced against
-        // a timeout: a stalled network call must not leave the person stuck
-        // on "Finding you…" forever.
+        // geocode for a real name (and country) rather than force-fitting it
+        // into whichever of the eight happens to be least-far away. Raced
+        // against a timeout: a stalled network call must not leave the
+        // person stuck on "Finding you…" forever.
         let areaText = 'Your current location';
+        let countryCode: string | null = null;
         try {
-          const label = await Promise.race([
+          const resolved = await Promise.race([
             reverseGeocodeArea(point),
             new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000)),
           ]);
-          if (label) areaText = label;
+          if (resolved?.label) areaText = resolved.label;
+          if (resolved?.countryCode) countryCode = resolved.countryCode;
         } catch {
           // No maps key, network blip, geocoding disabled — still proceed
           // with a generic label rather than blocking the flow entirely.
         }
-        setSearch({ areaText, areaPlaceId: null, center: point, centerSource: 'geolocation' });
+        setSearch({ areaText, areaPlaceId: null, countryCode, center: point, centerSource: 'geolocation' });
         setAsking(false);
         navigate('/local-or-visitor', { state: { next } });
       },

@@ -210,16 +210,24 @@ function textQueryFor(input: SearchCandidatesInput): string {
  * issue — an empty `priceLevels` array would filter everything out.
  */
 const PRICE_TIERS: Record<string, number[]> = {
-  // S15 caps
+  // S15 caps — India, real per-head rupee amounts.
   'Under ₹150 a head': [1],
   'Under ₹400 a head': [1, 2],
   'Under ₹800 a head': [1, 2, 3],
   'Price is not the issue': [],
-  // S16 bands
+  // S16 bands — India.
   'Under ₹150': [1],
   '₹150–300': [1, 2],
   '₹300–600': [2, 3],
   '₹600+': [3, 4],
+  // Everywhere else: the relative $-tier notation Google/Yelp already use
+  // worldwide, rather than invented absolute thresholds in a currency this
+  // app has no real local pricing knowledge for. Same four tiers, same
+  // meaning, both S15 and S16.
+  $: [1],
+  $$: [1, 2],
+  $$$: [2, 3],
+  $$$$: [3, 4],
 };
 
 function priceTiersFor(input: SearchCandidatesInput): number[] | null {
@@ -472,50 +480,75 @@ export async function suggestAreas(query: string, near: LatLng): Promise<AreaSug
   }
 }
 
-/** Resolves an autocomplete suggestion to the coordinates a search needs. */
-export async function resolveAreaCenter(placeId: string): Promise<LatLng> {
+export interface ResolvedArea {
+  center: LatLng;
+  /** ISO 3166-1 alpha-2 (e.g. "IN", "US"), or null when Google didn't return one. */
+  countryCode: string | null;
+}
+
+/**
+ * Resolves an autocomplete suggestion to the coordinates a search needs —
+ * and its country, which is what actually decides currency and distance
+ * unit for the filters built from wherever this area turns out to be.
+ */
+export async function resolveAreaCenter(placeId: string): Promise<ResolvedArea> {
   const maps = await loadGoogleMaps();
   try {
     const { Place } = (await maps.importLibrary('places')) as google.maps.PlacesLibrary;
     const place = new Place({ id: placeId });
-    await place.fetchFields({ fields: ['location'] });
+    await place.fetchFields({ fields: ['location', 'addressComponents'] });
     const loc = place.location;
     if (!loc) throw new Error(`place ${placeId} has no location`);
-    return { lat: loc.lat(), lng: loc.lng() };
+    const countryCode =
+      place.addressComponents?.find((c) => c.types.includes('country'))?.shortText ?? null;
+    return { center: { lat: loc.lat(), lng: loc.lng() }, countryCode };
   } catch (err) {
     throw asMapsError(err, 'Places API (New)');
   }
 }
 
+export interface ReverseGeocodedArea {
+  /** The smallest real locality name Google reports, or null. */
+  label: string | null;
+  /** ISO 3166-1 alpha-2 (e.g. "IN", "US"), or null when Google didn't return one. */
+  countryCode: string | null;
+}
+
 /**
- * A raw GPS reading, named. Used when a device position is too far from any
- * of the eight seeded neighbourhoods to bucket into one honestly (S8) —
- * Madli is not restricted to one city, so a reading from anywhere else in
- * the world still needs a real, human name rather than being force-fit into
- * the nearest Hyderabad neighbourhood regardless of actual distance.
+ * A raw GPS reading, named — and its country, for the same reason
+ * `resolveAreaCenter` above returns one. Used when a device position is too
+ * far from any of the eight seeded neighbourhoods to bucket into one
+ * honestly (S8) — Madli is not restricted to one city, so a reading from
+ * anywhere else in the world still needs a real, human name rather than
+ * being force-fit into the nearest Hyderabad neighbourhood regardless of
+ * actual distance.
  *
- * Prefers the smallest real locality Google reports — a sublocality/
- * neighbourhood over the whole city — falling back to the city, then the
- * full formatted address, so this always returns *something* nameable
- * rather than a bare coordinate pair.
+ * `label` prefers the smallest real locality Google reports — a
+ * sublocality/neighbourhood over the whole city — falling back to the
+ * city, then the full formatted address, so this always returns
+ * *something* nameable rather than a bare coordinate pair.
  */
-export async function reverseGeocodeArea(point: LatLng): Promise<string | null> {
+export async function reverseGeocodeArea(point: LatLng): Promise<ReverseGeocodedArea> {
   const maps = await loadGoogleMaps();
   try {
     const { Geocoder } = (await maps.importLibrary('geocoding')) as google.maps.GeocodingLibrary;
     const { results } = await new Geocoder().geocode({ location: point });
     const first = results?.[0];
-    if (!first) return null;
+    if (!first) return { label: null, countryCode: null };
     const pick = (type: string) =>
       first.address_components.find((c) => c.types.includes(type))?.long_name;
-    return (
-      pick('sublocality_level_1') ??
-      pick('sublocality') ??
-      pick('neighborhood') ??
-      pick('locality') ??
-      first.formatted_address ??
-      null
-    );
+    const pickShort = (type: string) =>
+      first.address_components.find((c) => c.types.includes(type))?.short_name;
+    return {
+      label:
+        pick('sublocality_level_1') ??
+        pick('sublocality') ??
+        pick('neighborhood') ??
+        pick('locality') ??
+        first.formatted_address ??
+        null,
+      countryCode: pickShort('country') ?? null,
+    };
   } catch (err) {
     throw asMapsError(err, 'Geocoding API');
   }

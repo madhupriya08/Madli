@@ -158,6 +158,13 @@ describe('AppliedFilterChips — S16 filters leaving as chips on results', () =>
     expect(after.centerSource).toBe('geolocation');
   });
 
+  it('shows the distance chip in miles for a country that measures roads that way', () => {
+    seed({ door: 'eat', distanceKm: '8', countryCode: 'US' });
+    render(<Harness />);
+
+    expect(screen.getByText(`Within ${Math.round((8 / 1.60934) * 10) / 10} mi`)).toBeInTheDocument();
+  });
+
   it('only offers the door-relevant chips', () => {
     seed({ door: 'explore', kitchen: 'Non-veg', areaType: 'Outdoor', waitCare: true });
     render(<Harness />);

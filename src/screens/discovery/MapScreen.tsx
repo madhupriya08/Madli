@@ -5,7 +5,7 @@ import { AppShell } from '../layout/AppShell';
 import { Button } from '../../components/core/Button';
 import { GoogleMapView } from '../../components/map/GoogleMapView';
 import { usePersona } from '../../dev/PersonaContext';
-import { useSearch, type LatLng } from '../../lib/searchState';
+import { distanceUnitForCountry, useSearch, type LatLng } from '../../lib/searchState';
 import { fetchRoute, type RouteResult } from '../../lib/routes';
 import { placeBySlug } from '../../fixtures/places';
 import { fetchPlaceDetails } from '../../lib/placesSearch';
@@ -21,7 +21,7 @@ export function MapScreen() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const { breakpoint } = usePersona();
-  const { effectiveCenter } = useSearch();
+  const { effectiveCenter, search } = useSearch();
   const decoded = slug ? decodeURIComponent(slug) : undefined;
   const place = decoded ? placeBySlug(decoded) : undefined;
   const googleQuery = useQuery({
@@ -56,7 +56,7 @@ export function MapScreen() {
   useEffect(() => {
     if (!destination || !tripKey) return;
     let cancelled = false;
-    fetchRoute(effectiveCenter, destination)
+    fetchRoute(effectiveCenter, destination, distanceUnitForCountry(search.countryCode))
       .then((r) => {
         if (!cancelled) setFetched({ key: tripKey, route: r, error: null });
       })

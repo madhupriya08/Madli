@@ -8,7 +8,7 @@ import {
   useSearch,
   WHO_OPTIONS,
   OCCASION_OPTIONS,
-  BUDGET_CAP_OPTIONS,
+  budgetCapOptionsFor,
   TIME_WINDOW_OPTIONS,
   DRIVE_TIME_OPTIONS,
   type ConstraintMode,
@@ -46,7 +46,9 @@ export function IntakeScreen() {
   // away, dropping every answer — results queried on `type` alone. It now
   // writes into the shared search state that results and the map read.
   const { search, setSearch } = useSearch();
-  const { who, occasion, budgetCap, constraintMode, timeWindow, driveTimePreset, door } = search;
+  const { who, occasion, budgetCap, constraintMode, timeWindow, driveTimePreset, door, countryCode } =
+    search;
+  const budgetCapOptions = budgetCapOptionsFor(countryCode);
 
   const toggle = <T extends string>(current: T | null, value: T) =>
     current === value ? null : value;
@@ -119,7 +121,7 @@ export function IntakeScreen() {
               )
             : null}
           {constraintMode === 'budget'
-            ? chipRow(BUDGET_CAP_OPTIONS, budgetCap, (v) => setSearch({ budgetCap: v }))
+            ? chipRow(budgetCapOptions, budgetCap, (v) => setSearch({ budgetCap: v }))
             : null}
         </div>
       ),

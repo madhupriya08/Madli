@@ -20,7 +20,7 @@ import { placePhotoUrl } from '../../lib/placePhoto';
 import { GoogleMapView } from '../../components/map/GoogleMapView';
 import { fetchPlaceDetails, type GooglePlaceDetails } from '../../lib/placesSearch';
 import { pickReason } from '../../data/hybridPicks';
-import { useSearch } from '../../lib/searchState';
+import { distanceUnitForCountry, useSearch } from '../../lib/searchState';
 import { fetchRoute } from '../../lib/routes';
 import {
   isGooglePlaceSaved,
@@ -152,7 +152,7 @@ export function PlaceDetailScreen() {
       return;
     }
     let cancelled = false;
-    fetchRoute(effectiveCenter, dest)
+    fetchRoute(effectiveCenter, dest, distanceUnitForCountry(search.countryCode))
       .then((r) => {
         if (!cancelled) setDriveLine(`${r.durationText} · ${r.distanceText}`);
       })
@@ -162,6 +162,7 @@ export function PlaceDetailScreen() {
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dest?.lat, dest?.lng, place?.drive, effectiveCenter.lat, effectiveCenter.lng]);
 
   if (!place && googleQuery.isLoading) {

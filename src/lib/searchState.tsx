@@ -46,16 +46,49 @@ export const OCCASION_OPTIONS = [
 ] as const;
 
 /**
+ * Countries whose everyday road-distance convention is miles, not
+ * kilometres — the rest of the world, India included, uses km. Small and
+ * explicit on purpose: this is a units question with one clean, factual
+ * answer per country, not a currency question where the "right" number is
+ * a real economic judgment call.
+ */
+const MILE_COUNTRIES = new Set(['US', 'GB', 'LR', 'MM']);
+
+export function distanceUnitForCountry(countryCode: string | null): 'km' | 'mi' {
+  return countryCode != null && MILE_COUNTRIES.has(countryCode) ? 'mi' : 'km';
+}
+
+const KM_PER_MILE = 1.60934;
+
+/**
+ * Whether real, locally-meaningful per-head amounts exist for this country.
+ * Today that is exactly India — the ₹150/₹400/₹800 caps were chosen for the
+ * Hyderabad catalogue this app actually has local pricing knowledge about.
+ * Inventing equivalent-feeling dollar or euro thresholds would be a genuine
+ * economic guess, not a units conversion, so everywhere else uses the
+ * relative $/$$/$$$ notation the rest of the industry (Google Maps, Yelp)
+ * already relies on for exactly this reason. `null` (nothing chosen yet)
+ * defaults to the same absolute India labels, matching this app's only
+ * real catalogue.
+ */
+export function usesAbsoluteBudgetLabels(countryCode: string | null): boolean {
+  return countryCode === 'IN' || countryCode === null;
+}
+
+const RELATIVE_BUDGET_TIERS = ['$', '$$', '$$$', '$$$$'] as const;
+
+/**
  * S15 step 3 — the budget cap, the third hard-constraint the prototype offers
  * alongside time and distance. Per-head rupee caps, exactly as written in the
- * prototype's `budgetCapChips`.
+ * prototype's `budgetCapChips`, for the one country this app has real local
+ * pricing knowledge about; the relative $-tier notation everywhere else.
  */
-export const BUDGET_CAP_OPTIONS = [
-  'Under ₹150 a head',
-  'Under ₹400 a head',
-  'Under ₹800 a head',
-  'Price is not the issue',
-] as const;
+export function budgetCapOptionsFor(countryCode: string | null): readonly string[] {
+  if (usesAbsoluteBudgetLabels(countryCode)) {
+    return ['Under ₹150 a head', 'Under ₹400 a head', 'Under ₹800 a head', 'Price is not the issue'];
+  }
+  return [...RELATIVE_BUDGET_TIERS, 'Price is not the issue'];
+}
 
 /**
  * S15 step 3's "Time window" chips — when, not how far. Exactly the
@@ -95,26 +128,63 @@ export const EXPLORE_VIBE_OPTIONS = [
   'Scenic',
 ] as const;
 
-/** S16 budget band — a price range, not the per-head cap S15 asks for. */
-export const BUDGET_OPTIONS = ['Under ₹150', '₹150–300', '₹300–600', '₹600+'] as const;
+/**
+ * S16 budget band — a price range, not the per-head cap S15 asks for. Same
+ * India-real-vs-everywhere-relative split as budgetCapOptionsFor.
+ */
+export function budgetOptionsFor(countryCode: string | null): readonly string[] {
+  if (usesAbsoluteBudgetLabels(countryCode)) {
+    return ['Under ₹150', '₹150–300', '₹300–600', '₹600+'];
+  }
+  return RELATIVE_BUDGET_TIERS;
+}
 
 /** S16 kitchen. Eat door only — Explore has no kitchen to describe. */
 export const KITCHEN_OPTIONS = ['Veg-only kitchen', 'Veg available', 'Non-veg'] as const;
 
 /**
- * S16's own Distance filter, in kilometres — independent of S15's hard
- * constraint below. The prototype keeps these as two separate pieces of
- * state (`st.dist` vs `st.radius`); an earlier build here had conflated them
- * into one shared field, which meant opening Filters and picking a distance
- * silently overwrote whatever S15's hard constraint had been. `null` means
- * "Any distance" — no preference at all.
+ * S16's own Distance filter — independent of S15's hard constraint below.
+ * The prototype keeps these as two separate pieces of state (`st.dist` vs
+ * `st.radius`); an earlier build here had conflated them into one shared
+ * field, which meant opening Filters and picking a distance silently
+ * overwrote whatever S15's hard constraint had been.
+ *
+ * The *stored* value (`km`) is always real kilometres — the one canonical
+ * unit the actual radius math (radiusFromConstraint, below) works in. Only
+ * the *label* changes with the country: nice round km numbers for most of
+ * the world, nice round mile numbers (converted to their km equivalent for
+ * storage) for the handful of countries that measure road distance in
+ * miles. `null` means "Any distance" — no preference at all.
  */
-export const DISTANCE_PRESETS: ReadonlyArray<{ label: string; km: string | null }> = [
-  { label: 'Under 2 km', km: '2' },
-  { label: 'Under 5 km', km: '5' },
-  { label: 'Under 15 km', km: '15' },
-  { label: 'Any distance', km: null },
-];
+export function distancePresetsFor(
+  countryCode: string | null,
+): ReadonlyArray<{ label: string; km: string | null }> {
+  if (distanceUnitForCountry(countryCode) === 'mi') {
+    const milePresets: Array<{ label: string; km: string | null }> = [1, 3, 10].map((mi) => ({
+      label: `Under ${mi} mile${mi === 1 ? '' : 's'}`,
+      km: String(Math.round(mi * KM_PER_MILE * 10) / 10),
+    }));
+    milePresets.push({ label: 'Any distance', km: null });
+    return milePresets;
+  }
+  return [
+    { label: 'Under 2 km', km: '2' },
+    { label: 'Under 5 km', km: '5' },
+    { label: 'Under 15 km', km: '15' },
+    { label: 'Any distance', km: null },
+  ];
+}
+
+/** The applied-filter chip's "Within X km/mi" label — same km→mi conversion as distancePresetsFor. */
+export function formatDistanceKm(km: string, countryCode: string | null): string {
+  const n = Number.parseFloat(km);
+  if (!Number.isFinite(n)) return km;
+  if (distanceUnitForCountry(countryCode) === 'mi') {
+    const miles = Math.round((n / KM_PER_MILE) * 10) / 10;
+    return `${miles} mi`;
+  }
+  return `${n} km`;
+}
 
 export interface SearchState {
   door: Door;
@@ -138,14 +208,25 @@ export interface SearchState {
   /** Set only when constraintMode === 'drive'. One of DRIVE_TIME_OPTIONS. */
   driveTimePreset: string | null;
   /**
-   * S16's own Distance filter, in km — independent of S15's constraintMode
-   * above (see DISTANCE_PRESETS). Empty string means "no preference set".
+   * S16's own Distance filter — independent of S15's constraintMode above
+   * (see distancePresetsFor). Always real kilometres regardless of which
+   * unit the presets were labelled in. Empty string means "no preference
+   * set".
    */
   distanceKm: string;
   /** Set at S8 (Pick your area), before intake is ever reached. */
   areaText: string;
   /** Google Place ID for the area, when it came from autocomplete rather than typing. */
   areaPlaceId: string | null;
+  /**
+   * ISO 3166-1 alpha-2 for wherever `center` actually is — 'IN' for any of
+   * the eight seeded neighbourhoods (always Hyderabad), the real resolved
+   * country for a live-searched area or a reverse-geocoded GPS reading
+   * outside them. Drives budgetCapOptionsFor/budgetOptionsFor/
+   * distancePresetsFor: null (nothing resolved yet) defaults to the same
+   * behaviour as 'IN', matching this app's only real catalogue.
+   */
+  countryCode: string | null;
   /** Where to search around: device geolocation, or the resolved area centre. */
   center: LatLng | null;
   /** How `center` was obtained — drives the honest "Showing picks near…" line. */
@@ -182,6 +263,7 @@ const DEFAULT_STATE: SearchState = {
   distanceKm: '',
   areaText: '',
   areaPlaceId: null,
+  countryCode: null,
   center: null,
   centerSource: null,
   allowsPets: false,

@@ -7,9 +7,9 @@ import { usePersona } from '../../dev/PersonaContext';
 import {
   useSearch,
   vibeOptionsFor,
-  BUDGET_OPTIONS,
+  budgetOptionsFor,
   KITCHEN_OPTIONS,
-  DISTANCE_PRESETS,
+  distancePresetsFor,
   type AreaType,
 } from '../../lib/searchState';
 
@@ -30,8 +30,10 @@ export function FiltersScreen() {
   const navigate = useNavigate();
   const { search, setSearch, resetFilters } = useSearch();
   const door = search.door;
-  const { vibes, budget, kitchen, distanceKm, areaType } = search;
+  const { vibes, budget, kitchen, distanceKm, areaType, countryCode } = search;
   const vibeOptions = vibeOptionsFor(door);
+  const budgetOptions = budgetOptionsFor(countryCode);
+  const distancePresets = distancePresetsFor(countryCode);
 
   const toggleVibe = (v: string) =>
     setSearch({ vibes: vibes.includes(v) ? vibes.filter((x) => x !== v) : [...vibes, v] });
@@ -89,7 +91,7 @@ export function FiltersScreen() {
 
         {group(
           'Budget',
-          oneOf(BUDGET_OPTIONS, budget, (v) => setSearch({ budget: v })),
+          oneOf(budgetOptions, budget, (v) => setSearch({ budget: v })),
         )}
 
         {door === 'eat'
@@ -103,8 +105,10 @@ export function FiltersScreen() {
           'Distance',
           // Its own field (distanceKm), independent of S15's hard-constraint
           // toggle — the two used to share one field, so picking a distance
-          // here silently overwrote whatever S15 had set.
-          DISTANCE_PRESETS.map((p) => (
+          // here silently overwrote whatever S15 had set. Presets are
+          // locale-aware (km or miles) but distanceKm itself always stores
+          // real kilometres — the one unit the actual radius math works in.
+          distancePresets.map((p) => (
             <Tag
               key={p.label}
               selected={p.km === null ? distanceKm === '' : distanceKm === p.km}
