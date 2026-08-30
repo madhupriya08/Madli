@@ -113,6 +113,28 @@ function includedTypesFor(input: SearchCandidatesInput): string[] {
 }
 
 /**
+ * The Places API (New) Text Search request accepts exactly one
+ * `includedType` — not a list — so a domain whose real candidate set is
+ * several types (Explore's park/tourist_attraction/historical_landmark/
+ * museum/art_gallery/night_club, or any of its narrowed Indoor/Outdoor
+ * subsets, none of which ever collapse to a single type) cannot be
+ * expressed as a structural filter at all. Passing `includedTypesFor(...)[0]`
+ * silently narrowed every Explore search to whichever type happened to sit
+ * first in the list ("park") and discarded the other five — the confirmed
+ * cause of Explore returning zero results in areas with real museums,
+ * galleries, or landmarks but no place literally typed "park". Only pass a
+ * structural type when the candidate set genuinely is one type (Eat, always
+ * "restaurant"); otherwise rely on the free-text query — already carrying
+ * the vibe/who/occasion words — and let Google's own relevance ranking
+ * choose among the door's whole category set.
+ */
+function singleIncludedTypeFor(input: SearchCandidatesInput): string | undefined {
+  if (input.door === 'eat') return 'restaurant';
+  const types = includedTypesFor(input);
+  return types.length === 1 ? types[0] : undefined;
+}
+
+/**
  * Chip label → the words Google actually understands.
  *
  * Anything absent falls back to the label itself, so adding a chip to the UI
@@ -387,6 +409,7 @@ export async function searchCandidates(input: SearchCandidatesInput): Promise<Go
     const placesLib = (await maps.importLibrary('places')) as google.maps.PlacesLibrary;
     const { Place } = placesLib;
     const priceLevels = priceLevelsFor(placesLib, priceTiersFor(input));
+    const includedType = singleIncludedTypeFor(input);
 
     const { places } = await Place.searchByText({
       textQuery: textQueryFor(input),
@@ -395,12 +418,12 @@ export async function searchCandidates(input: SearchCandidatesInput): Promise<Go
         center: new maps.LatLng(input.center.lat, input.center.lng),
         radius: input.radiusMeters,
       },
-      includedType: input.door === 'eat' ? 'restaurant' : includedTypesFor(input)[0],
       maxResultCount: maxResults,
       // Both omitted unless asked for: `isOpenNow: false` is a request to see
       // only closed places, not an absence of preference.
       ...(input.openNow ? { isOpenNow: true } : {}),
       ...(priceLevels ? { priceLevels } : {}),
+      ...(includedType ? { includedType } : {}),
     });
 
     const candidates = (places ?? [])
