@@ -52,6 +52,10 @@ const CONSTRAINT_TABS: Array<{ mode: ConstraintMode; label: string }> = [
 // below it (S16's own price-band field, budget). Removed the second one:
 // Budget is asked exactly once now, the same hard-constraint question S15
 // already asks, not a second independent band filter nothing else surfaced.
+//
+// Phase 9 §1: "Serves pet food" — deleted from both doors in Phase 8 §7 —
+// is back, Explore only. The user clarified afterward it belongs there, not
+// on Eat.
 export function FiltersScreen() {
   const { breakpoint, persona } = usePersona();
   const navigate = useNavigate();
@@ -222,6 +226,13 @@ export function FiltersScreen() {
             checked={search.allowsPets}
             onChange={(v) => setSearch({ allowsPets: v })}
           />
+          {door === 'explore' ? (
+            <Switch
+              label="Serves pet food"
+              checked={search.servesPetFood}
+              onChange={(v) => setSearch({ servesPetFood: v })}
+            />
+          ) : null}
           <Switch
             label="Family friendly"
             checked={search.familyFriendly}

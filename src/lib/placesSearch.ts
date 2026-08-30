@@ -99,6 +99,8 @@ export interface SearchCandidatesInput {
   areaText?: string;
   areaType?: AreaType | null;
   allowsPets?: boolean;
+  /** Phase 9 §1: Explore door only — see SearchState.servesPetFood's own comment. */
+  servesPetFood?: boolean;
   familyFriendly?: boolean;
   coupleFriendly?: boolean;
   openLate?: boolean;
@@ -160,8 +162,12 @@ const EAT_ONLY_TYPES = new Set([
   'food',
 ]);
 
-function belongsOnDoor(door: Door, types: string[]): boolean {
-  if (door !== 'explore') return true;
+function belongsOnDoor(input: SearchCandidatesInput, types: string[]): boolean {
+  if (input.door !== 'explore') return true;
+  // Phase 9 §1: someone who explicitly asked for a pet-food-serving Explore
+  // place is asking for exactly the food-adjacent result this filter would
+  // otherwise strip — honour the ask instead of silently emptying it out.
+  if (input.servesPetFood) return true;
   return !types.some((t) => EAT_ONLY_TYPES.has(t));
 }
 
@@ -234,6 +240,7 @@ function textQueryFor(input: SearchCandidatesInput): string {
   if (input.occasion) parts.push(OCCASION_QUERY[input.occasion] ?? input.occasion);
   if (input.kitchen) parts.push(KITCHEN_QUERY[input.kitchen] ?? input.kitchen);
   if (input.allowsPets) parts.push('pet friendly');
+  if (input.servesPetFood) parts.push('serves pet food');
   if (input.familyFriendly) parts.push('family friendly');
   if (input.coupleFriendly) parts.push('good for couples');
   if (input.openLate) parts.push('open late');
@@ -444,7 +451,7 @@ export async function searchCandidates(input: SearchCandidatesInput): Promise<Go
     const candidates = (places ?? [])
       .map(toCandidate)
       .filter((c): c is GoogleCandidate => c !== null)
-      .filter((c) => belongsOnDoor(input.door, c.types));
+      .filter((c) => belongsOnDoor(input, c.types));
 
     if (input.clipToRadius === false) return candidates;
     return withinRadius(candidates, input.center, input.radiusMeters);

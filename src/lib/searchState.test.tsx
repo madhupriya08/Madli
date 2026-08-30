@@ -262,6 +262,7 @@ describe('filterSliceOf / isFilterSliceAtDefaults — P5 §5 account persistence
       kitchen: null,
       distanceKm: '',
       allowsPets: false,
+      servesPetFood: false,
       familyFriendly: false,
       coupleFriendly: false,
       openLate: false,

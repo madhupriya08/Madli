@@ -155,4 +155,33 @@ describe('searchCandidates — drops the other door\'s places (P8 §8)', () => {
     });
     expect(results.map((c) => c.placeId)).toEqual(['restaurant-1']);
   });
+
+  it('Phase 9 §1: keeps a food-typed place on Explore when servesPetFood is explicitly asked for', async () => {
+    searchByTextMock.mockResolvedValue({
+      places: [
+        place({ id: 'museum-1', types: ['museum'] }),
+        place({ id: 'pet-cafe-1', types: ['cafe', 'food'] }),
+      ],
+    });
+    const results = await searchCandidates({
+      door: 'explore',
+      center: { lat: 40.735, lng: -74.002 },
+      radiusMeters: 5000,
+      clipToRadius: false,
+      servesPetFood: true,
+    });
+    expect(results.map((c) => c.placeId).sort()).toEqual(['museum-1', 'pet-cafe-1']);
+  });
+
+  it('Phase 9 §1: "serves pet food" reaches the actual text query sent to Google', async () => {
+    searchByTextMock.mockResolvedValue({ places: [] });
+    await searchCandidates({
+      door: 'explore',
+      center: { lat: 40.735, lng: -74.002 },
+      radiusMeters: 5000,
+      servesPetFood: true,
+    });
+    const request = searchByTextMock.mock.calls[0][0];
+    expect(request.textQuery).toContain('serves pet food');
+  });
 });

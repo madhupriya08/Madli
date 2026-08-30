@@ -316,6 +316,9 @@ export interface SearchState {
   centerSource: 'geolocation' | 'area' | 'default' | null;
   /** S16 filters. */
   allowsPets: boolean;
+  /** Phase 9 §1: Explore door only. Phase 8 §7 removed this from both doors;
+   * the user clarified afterward it should exist for Explore, not Eat. */
+  servesPetFood: boolean;
   /** S16 budget band. */
   budget: string | null;
   /** S16 kitchen. Eat door only. */
@@ -349,6 +352,7 @@ export const DEFAULT_STATE: SearchState = {
   center: null,
   centerSource: null,
   allowsPets: false,
+  servesPetFood: false,
   budget: null,
   kitchen: null,
   familyFriendly: false,
@@ -494,6 +498,7 @@ const FILTER_DEFAULTS: Partial<SearchState> = {
   kitchen: null,
   distanceKm: '',
   allowsPets: false,
+  servesPetFood: false,
   familyFriendly: false,
   coupleFriendly: false,
   openLate: false,
@@ -510,6 +515,7 @@ export interface FilterSlice {
   kitchen: string | null;
   distanceKm: string;
   allowsPets: boolean;
+  servesPetFood: boolean;
   familyFriendly: boolean;
   coupleFriendly: boolean;
   openLate: boolean;
@@ -526,6 +532,7 @@ export function filterSliceOf(search: SearchState): FilterSlice {
     kitchen: search.kitchen,
     distanceKm: search.distanceKm,
     allowsPets: search.allowsPets,
+    servesPetFood: search.servesPetFood,
     familyFriendly: search.familyFriendly,
     coupleFriendly: search.coupleFriendly,
     openLate: search.openLate,
