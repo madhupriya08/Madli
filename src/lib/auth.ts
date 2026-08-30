@@ -20,6 +20,7 @@
 // returns the project's real "provider not enabled" error — it is not
 // silently faked as working.
 import { supabase } from './supabaseClient';
+import { logEvent } from './analytics';
 
 export interface SignupInput {
   email: string;
@@ -62,6 +63,10 @@ export async function signUp(input: SignupInput): Promise<void> {
       'Account created, but this project requires email confirmation. Turn that off in Supabase Auth settings so signup completes in one step.',
     );
   }
+  // Fired here, not in SignupScreen: this is the one place that has actually
+  // confirmed a session exists, i.e. that signup truly completed rather than
+  // merely being attempted.
+  logEvent('signup_completed', data.session.user.id);
 }
 
 export interface LoginResult {

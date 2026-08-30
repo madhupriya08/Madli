@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AppShell } from '../layout/AppShell';
 import { Card } from '../../components/core/Card';
@@ -7,6 +7,7 @@ import { usePersona } from '../../dev/PersonaContext';
 import { useLogRankedVisit, useComparisonTargets } from '../../data/hooks';
 import { placeById } from '../../fixtures/places';
 import { appConfig } from '../../fixtures/appConfig';
+import { logEvent } from '../../lib/analytics';
 import type { Tier } from '../../fixtures/mockDb';
 
 interface NavState {
@@ -21,7 +22,8 @@ interface NavState {
 export function LogVisitComparisonScreen() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { breakpoint, userId } = usePersona();
+  const { breakpoint, userId, hasSession } = usePersona();
+  const analyticsUserId = hasSession ? userId : null;
   const logVisit = useLogRankedVisit(userId);
   const state = location.state as NavState | null;
   const [step, setStep] = useState<1 | 2>(1);
@@ -37,6 +39,19 @@ export function LogVisitComparisonScreen() {
   useEffect(() => {
     if (!state || !newPlace) navigate('/log-visit');
   }, [state, newPlace, navigate]);
+
+  // Phase 7 §4: "comparison_started" for comparison 1 fires the moment it is
+  // actually about to be shown (not the first-in-category path) — a ref
+  // guard rather than a dependency-driven re-fire, since this must happen
+  // exactly once per visit logged, not once per render where it's still true.
+  const comparison1StartedRef = useRef(false);
+  useEffect(() => {
+    if (comparison1StartedRef.current) return;
+    if (targetsLoading || !targets?.first) return;
+    comparison1StartedRef.current = true;
+    logEvent('comparison_started', analyticsUserId, { comparison_number: 1 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [targetsLoading, targets?.first]);
 
   if (!state || !newPlace) return null;
 
@@ -86,6 +101,24 @@ export function LogVisitComparisonScreen() {
   const compareTarget = step === 1 ? compareTarget1 : compareTarget2!;
   const columns = breakpoint === 'desktop' ? 'repeat(2, 1fr)' : '1fr';
 
+  // A real choice for the step just shown — "completed", not abandoned.
+  // Skipping comparison 2 (below) deliberately does not call this, so it
+  // stays start-without-complete, i.e. abandoned.
+  const chooseStep1 = (preferredNew1: boolean) => {
+    setChoice1(preferredNew1);
+    logEvent('comparison_completed', analyticsUserId, { comparison_number: 1 });
+    if (compareTarget2) {
+      logEvent('comparison_started', analyticsUserId, { comparison_number: 2 });
+      setStep(2);
+    } else {
+      void submit(preferredNew1);
+    }
+  };
+  const chooseStep2 = (preferredNew1: boolean, preferredNew2: boolean) => {
+    logEvent('comparison_completed', analyticsUserId, { comparison_number: 2 });
+    void submit(preferredNew1, preferredNew2);
+  };
+
   return (
     <AppShell title="Which do you prefer?" onBack={() => navigate(-1)} showTabBar={false}>
       <div style={{ padding: 'var(--space-6) var(--gutter)' }}>
@@ -103,16 +136,9 @@ export function LogVisitComparisonScreen() {
             interactive
             onClick={() => {
               if (step === 1) {
-                setChoice1(true);
-                if (compareTarget2 && secondComparisonSkippable === true) {
-                  setStep(2);
-                } else if (compareTarget2) {
-                  setStep(2);
-                } else {
-                  void submit(true);
-                }
+                chooseStep1(true);
               } else {
-                void submit(choice1 ?? true, true);
+                chooseStep2(choice1 ?? true, true);
               }
             }}
           >
@@ -125,14 +151,9 @@ export function LogVisitComparisonScreen() {
             interactive
             onClick={() => {
               if (step === 1) {
-                setChoice1(false);
-                if (compareTarget2) {
-                  setStep(2);
-                } else {
-                  void submit(false);
-                }
+                chooseStep1(false);
               } else {
-                void submit(choice1 ?? false, false);
+                chooseStep2(choice1 ?? false, false);
               }
             }}
           >

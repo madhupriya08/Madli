@@ -3,6 +3,7 @@ import { MarketingShell } from '../layout/MarketingShell';
 import { Button } from '../../components/core/Button';
 import { places } from '../../fixtures/places';
 import { areas } from '../../fixtures/areas';
+import { logEvent } from '../../lib/analytics';
 
 // S1. Ported from the prototype's own S1 block (design_handoff_madli/
 // prototype/Madli Prototype.dc.html), which is the authority for this screen
@@ -98,7 +99,14 @@ export function LandingPage() {
           <Button variant="secondary" size="lg" onClick={() => navigate('/login')}>
             Log in
           </Button>
-          <Button variant="secondary" size="lg" onClick={() => navigate('/area')}>
+          <Button
+            variant="secondary"
+            size="lg"
+            onClick={() => {
+              logEvent('session_started', null);
+              navigate('/area');
+            }}
+          >
             Look around as a guest
           </Button>
         </div>

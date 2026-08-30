@@ -93,6 +93,26 @@ export type Database = {
         Update: Partial<Database['public']['Tables']['admin_login_audit_log']['Insert']>;
         Relationships: [];
       };
+      analytics_events: {
+        Row: {
+          created_at: string;
+          event_type: string;
+          id: string;
+          metadata: Json;
+          session_id: string;
+          user_id: string | null;
+        };
+        Insert: {
+          created_at?: string;
+          event_type: string;
+          id?: string;
+          metadata?: Json;
+          session_id: string;
+          user_id?: string | null;
+        };
+        Update: Partial<Database['public']['Tables']['analytics_events']['Insert']>;
+        Relationships: [];
+      };
       app_config: {
         Row: { description: string | null; key: string; updated_at: string; value: Json };
         Insert: { description?: string | null; key: string; updated_at?: string; value: Json };
@@ -563,7 +583,23 @@ export type Database = {
         Returns: string;
       };
       fn_admin_capture_rank_snapshot: { Args: Record<string, never>; Returns: number };
+      fn_admin_count_active_users: { Args: { p_days?: number }; Returns: number };
       fn_admin_count_ranked_entries: { Args: Record<string, never>; Returns: number };
+      fn_admin_funnel_stats: {
+        Args: { p_days?: number };
+        Returns: {
+          avg_search_to_pick_seconds: number | null;
+          comparison1_completed: number;
+          comparison1_started: number;
+          comparison2_completed: number;
+          comparison2_started: number;
+          results_shown_events: number;
+          sessions_started: number;
+          show_two_more_clicks: number;
+          signups_completed: number;
+          total_picks_shown: number;
+        }[];
+      };
       fn_admin_list_accounts: {
         Args: Record<string, never>;
         Returns: {
@@ -589,6 +625,10 @@ export type Database = {
           p_reason: string;
         };
         Returns: string;
+      };
+      fn_admin_plan_stats: {
+        Args: Record<string, never>;
+        Returns: { shared_plans: number; total_plans: number }[];
       };
       fn_admin_read_location_history: {
         Args: { p_reason: string; p_target_user_id: string };

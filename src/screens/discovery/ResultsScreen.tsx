@@ -15,7 +15,7 @@ import { useSearch } from '../../lib/searchState';
 import { GoogleMapView, type MapMarker } from '../../components/map/GoogleMapView';
 import { AppliedFilterChips } from './AppliedFilterChips';
 import { useRankingCounts } from '../../data/googleRankings';
-import { track } from '../../lib/analytics';
+import { track, logEvent } from '../../lib/analytics';
 import type { Rank } from '../../components/trust/RankBadge';
 
 /**
@@ -26,7 +26,7 @@ import type { Rank } from '../../components/trust/RankBadge';
  */
 export function ResultsScreen({ door }: { door: 'eat' | 'explore' }) {
   const navigate = useNavigate();
-  const { breakpoint, persona } = usePersona();
+  const { breakpoint, persona, userId, hasSession } = usePersona();
   const guestSession = useGuestSession();
   const { search, setSearch, effectiveCenter } = useSearch();
   const [showLoading, setShowLoading] = useState(true);
@@ -64,6 +64,7 @@ export function ResultsScreen({ door }: { door: 'eat' | 'explore' }) {
 
   const openPlace = (placeId: string, rank: number) => {
     track('pick_opened', { door, rank, from: 'results_list' });
+    logEvent('pick_opened', hasSession ? userId : null);
     navigate(`/places/${encodeURIComponent(placeId)}`);
   };
 
@@ -90,6 +91,7 @@ export function ResultsScreen({ door }: { door: 'eat' | 'explore' }) {
       serves_pet_food: search.servesPetFood,
       open_now: search.openNow,
     });
+    logEvent('results_shown', hasSession ? userId : null, { ranked_count: ranked.length });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [discovery, isLoading, door, googleError]);
 
@@ -115,6 +117,7 @@ export function ResultsScreen({ door }: { door: 'eat' | 'explore' }) {
   // guestPaywallAtSearch-driven 'paywall' gate above is a separate trigger
   // and is untouched by this.
   const handleShowTwoMore = () => {
+    logEvent('show_two_more_clicked', hasSession ? userId : null);
     if (persona === 'guest') {
       setShowGate('signup-needed');
       return;

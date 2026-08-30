@@ -43,6 +43,58 @@ export async function countRankedEntries(): Promise<number> {
   return data;
 }
 
+/** Phase 7 §2: "Active users (30d)" — real Users only, via auth.users.last_sign_in_at (never exposed to the client directly). */
+export async function countActiveUsers(days = 30): Promise<number> {
+  const { data, error } = await supabase.rpc('fn_admin_count_active_users', { p_days: days });
+  if (error) throw error;
+  return data;
+}
+
+export interface PlanStats {
+  totalPlans: number;
+  sharedPlans: number;
+}
+
+/** Phase 7 §2: "Plans saved" / "Shares sent" — plans RLS is owner-only, same reasoning as countRankedEntries. */
+export async function getPlanStats(): Promise<PlanStats> {
+  const { data, error } = await supabase.rpc('fn_admin_plan_stats');
+  if (error) throw error;
+  const row = data[0];
+  return { totalPlans: row?.total_plans ?? 0, sharedPlans: row?.shared_plans ?? 0 };
+}
+
+export interface FunnelStats {
+  sessionsStarted: number;
+  signupsCompleted: number;
+  resultsShownEvents: number;
+  totalPicksShown: number;
+  showTwoMoreClicks: number;
+  comparison1Started: number;
+  comparison1Completed: number;
+  comparison2Started: number;
+  comparison2Completed: number;
+  avgSearchToPickSeconds: number | null;
+}
+
+/** Phase 7 §5: every event-derived Analytics tile in one round trip — see fn_admin_funnel_stats's own comment for why this needs a first-party events table at all. */
+export async function getFunnelStats(days = 30): Promise<FunnelStats> {
+  const { data, error } = await supabase.rpc('fn_admin_funnel_stats', { p_days: days });
+  if (error) throw error;
+  const row = data[0];
+  return {
+    sessionsStarted: row?.sessions_started ?? 0,
+    signupsCompleted: row?.signups_completed ?? 0,
+    resultsShownEvents: row?.results_shown_events ?? 0,
+    totalPicksShown: row?.total_picks_shown ?? 0,
+    showTwoMoreClicks: row?.show_two_more_clicks ?? 0,
+    comparison1Started: row?.comparison1_started ?? 0,
+    comparison1Completed: row?.comparison1_completed ?? 0,
+    comparison2Started: row?.comparison2_started ?? 0,
+    comparison2Completed: row?.comparison2_completed ?? 0,
+    avgSearchToPickSeconds: row?.avg_search_to_pick_seconds ?? null,
+  };
+}
+
 export async function listAdminAccounts(): Promise<AdminAccountRow[]> {
   const { data, error } = await supabase.rpc('fn_admin_list_accounts');
   if (error) throw error;

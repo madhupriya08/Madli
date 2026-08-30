@@ -243,6 +243,21 @@ export function useGemCandidates() {
   return useQuery({ queryKey: ['gemCandidates'], queryFn: adminApi.listGemCandidates });
 }
 
+export function useActiveUserCount(days = 30) {
+  return useQuery({
+    queryKey: ['activeUserCount', days],
+    queryFn: () => adminApi.countActiveUsers(days),
+  });
+}
+
+export function usePlanStats() {
+  return useQuery({ queryKey: ['planStats'], queryFn: adminApi.getPlanStats });
+}
+
+export function useFunnelStats(days = 30) {
+  return useQuery({ queryKey: ['funnelStats', days], queryFn: () => adminApi.getFunnelStats(days) });
+}
+
 export function useAdminReadLocationHistory() {
   return useMutation({
     mutationFn: (input: { targetUserId: string; reason: string }) =>

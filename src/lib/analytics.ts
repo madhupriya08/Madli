@@ -1,4 +1,6 @@
 import posthog from 'posthog-js';
+import { supabase } from './supabaseClient';
+import type { Json } from './database.types';
 
 /**
  * Product analytics, off by default.
@@ -94,4 +96,62 @@ export function identify(userId: string): void {
 export function resetAnalytics(): void {
   if (!analyticsEnabled()) return;
   posthog.reset();
+}
+
+/**
+ * Phase 7: a separate, first-party event log for the admin Analytics
+ * dashboard (S42) — everything above this point is PostHog, off by default
+ * and never reaches this app's own database. logEvent() always writes (no
+ * consent gate to check), because it carries none of the PII concerns
+ * PostHog's defaults above guard against: no autocapture, no free-form
+ * field contents, just a named event and the couple of numbers/ids each
+ * dashboard tile needs (see supabase/migrations/..._admin_analytics_metrics.sql).
+ */
+export type FunnelEvent =
+  | 'session_started'
+  | 'signup_completed'
+  | 'results_shown'
+  | 'pick_opened'
+  | 'show_two_more_clicked'
+  | 'comparison_started'
+  | 'comparison_completed';
+
+const SESSION_ID_KEY = 'madli.analyticsSessionId';
+
+/** One random id per tab, persisted for the tab's lifetime — how a Guest's own funnel is correlated with no account to key it on. */
+export function getSessionId(): string {
+  try {
+    const existing = sessionStorage.getItem(SESSION_ID_KEY);
+    if (existing) return existing;
+    const fresh =
+      typeof crypto !== 'undefined' && 'randomUUID' in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    sessionStorage.setItem(SESSION_ID_KEY, fresh);
+    return fresh;
+  } catch {
+    // sessionStorage unavailable (private mode, etc.) — a fresh id per call
+    // just means this one event can't be paired with another; never worth
+    // failing the action it's attached to over.
+    return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  }
+}
+
+export function logEvent(
+  event: FunnelEvent,
+  userId: string | null,
+  metadata?: Record<string, unknown>,
+): void {
+  supabase
+    .from('analytics_events')
+    .insert({
+      event_type: event,
+      user_id: userId,
+      session_id: getSessionId(),
+      metadata: (metadata ?? {}) as unknown as Json,
+    })
+    .then(undefined, () => {
+      // Best-effort, same as PostHog's track() above — a dropped analytics
+      // write is never a reason to disrupt what the person was doing.
+    });
 }
