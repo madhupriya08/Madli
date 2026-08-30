@@ -9,7 +9,8 @@ import { usePersona } from '../../dev/PersonaContext';
 import { usePlans, useSharedPlan, useCreatePlanShareToken } from '../../data/hooks';
 import type { Plan } from '../../data/plans';
 import { GoogleMapView, type MapMarker } from '../../components/map/GoogleMapView';
-import { getOuting, removeOutingPlan, type OutingPlan } from '../../lib/outingPlans';
+import { getOuting, removeOutingPlan, type OutingPlan, type OutingStop } from '../../lib/outingPlans';
+import { optimalStopOrder } from '../../lib/routeOrder';
 
 /** A real, backend plan rendered through the exact same view as a local Outing — same shape, same component, one fewer rendering path to keep honest. */
 function planToOutingView(plan: Plan): OutingPlan {
@@ -27,6 +28,33 @@ function planToOutingView(plan: Plan): OutingPlan {
       addedAt: 0,
     })),
   };
+}
+
+/**
+ * Phase 6 §9: a *display*-order computation only — this never writes
+ * anything back. The plan's stored order (plan_items.position, or insertion
+ * order for a local Guest Outing) is exactly what `plan.stops` already is;
+ * this returns a separate, reordered copy for showing the shortest route,
+ * recomputed fresh on every render from the plan's current stop set. Scoped
+ * to 3+ stops with real coordinates, matching the task's own scope — a 1- or
+ * 2-stop plan is shown exactly as stored, same as before this change. Stops
+ * with no coordinates can't be placed in a geometric route at all, so they
+ * are appended after the ordered ones rather than silently dropped.
+ */
+function orderedOutingStops(plan: OutingPlan): OutingStop[] {
+  const withCoords = plan.stops.filter(
+    (s): s is OutingStop & { lat: number; lng: number } => s.lat != null && s.lng != null,
+  );
+  const withoutCoords = plan.stops.filter((s) => s.lat == null || s.lng == null);
+  if (withCoords.length < 3 || plan.anchorLat == null || plan.anchorLng == null) {
+    return plan.stops;
+  }
+  const ordered = optimalStopOrder(
+    { lat: plan.anchorLat, lng: plan.anchorLng },
+    withCoords,
+    (s) => ({ lat: s.lat, lng: s.lng }),
+  );
+  return [...ordered, ...withoutCoords];
 }
 
 function openOutingInGoogleMaps(plan: OutingPlan) {
@@ -86,7 +114,13 @@ function OutingPlanDetail({
   const navigate = useNavigate();
   const { show } = useToast();
 
-  const markers: MapMarker[] = plan.stops
+  // Display order only — see orderedOutingStops's own comment. `plan` itself,
+  // and whatever actually persists it, are never touched by this.
+  const displayStops = orderedOutingStops(plan);
+  const isReordered = displayStops !== plan.stops;
+  const displayPlan: OutingPlan = { ...plan, stops: displayStops };
+
+  const markers: MapMarker[] = displayStops
     .filter((s): s is typeof s & { lat: number; lng: number } => s.lat != null && s.lng != null)
     .map((s, i) => ({
       id: s.placeId,
@@ -116,20 +150,25 @@ function OutingPlanDetail({
           Outing from {plan.anchorName} · {plan.stops.length} stop
           {plan.stops.length === 1 ? '' : 's'}
         </p>
+        {isReordered ? (
+          <p style={{ margin: 0, font: 'var(--type-caption)', color: 'var(--text-muted)' }}>
+            Ordered for the shortest route from {plan.anchorName} — not the order you added them.
+          </p>
+        ) : null}
 
         <GoogleMapView
           height={220}
           markers={markers}
-          onMapClick={() => openOutingInGoogleMaps(plan)}
+          onMapClick={() => openOutingInGoogleMaps(displayPlan)}
           emptyLabel="Stops need coordinates before we can map the route."
         />
 
-        <Button variant="primary" onClick={() => openOutingInGoogleMaps(plan)}>
+        <Button variant="primary" onClick={() => openOutingInGoogleMaps(displayPlan)}>
           Open route in Google Maps
         </Button>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-          {plan.stops.map((stop, i) => (
+          {displayStops.map((stop, i) => (
             <Card
               key={stop.placeId}
               interactive
