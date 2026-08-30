@@ -8,7 +8,6 @@ import { usePersona } from '../../dev/PersonaContext';
 import {
   useSearch,
   vibeOptionsFor,
-  budgetOptionsFor,
   KITCHEN_OPTIONS,
   distancePresetsFor,
   WHO_OPTIONS,
@@ -33,10 +32,10 @@ const CONSTRAINT_TABS: Array<{ mode: ConstraintMode; label: string }> = [
 // door-specific: absent behind the wrong door, never present-but-disabled.
 // "Save this set" is User only.
 //
-// The vibe chips, budget band, kitchen and distance presets are the design's
-// own filter groups. They were missing entirely — the panel held two pet
-// switches and an area type, so most of what someone told S15 and S16 never
-// reached the search.
+// The vibe chips, kitchen and distance presets are the design's own filter
+// groups. They were missing entirely — the panel held two pet switches and
+// an area type, so most of what someone told S15 and S16 never reached the
+// search.
 //
 // Phase 6 §4: "Edit filters" on results used to open only this screen, so it
 // showed S16's own answers (vibe/budget/kitchen/distance/etc.) but not S15's
@@ -46,6 +45,13 @@ const CONSTRAINT_TABS: Array<{ mode: ConstraintMode; label: string }> = [
 // constraint are now included here too, so "Edit filters" is the one place
 // that surfaces and lets you change everything — S15 itself is untouched and
 // still the first-time onboarding step.
+//
+// Phase 8 §11: that merge is also why Budget used to show up twice on this
+// one screen — once as the hard-constraint's own "Budget" tab (mirroring
+// S15's intake exactly, budgetCap) and again as a separate "Budget" group
+// below it (S16's own price-band field, budget). Removed the second one:
+// Budget is asked exactly once now, the same hard-constraint question S15
+// already asks, not a second independent band filter nothing else surfaced.
 export function FiltersScreen() {
   const { breakpoint, persona } = usePersona();
   const navigate = useNavigate();
@@ -53,7 +59,6 @@ export function FiltersScreen() {
   const door = search.door;
   const {
     vibes,
-    budget,
     kitchen,
     distanceKm,
     areaType,
@@ -66,7 +71,6 @@ export function FiltersScreen() {
     budgetCap,
   } = search;
   const vibeOptions = vibeOptionsFor(door);
-  const budgetOptions = budgetOptionsFor(countryCode);
   const distancePresets = distancePresetsFor(countryCode);
   const budgetCapOptions = budgetCapOptionsFor(countryCode);
 
@@ -160,11 +164,6 @@ export function FiltersScreen() {
               {v}
             </Tag>
           )),
-        )}
-
-        {group(
-          'Budget',
-          oneOf(budgetOptions, budget, (v) => setSearch({ budget: v })),
         )}
 
         {door === 'eat'

@@ -134,3 +134,13 @@ describe('FiltersScreen — Phase 6 §4: one combined edit surface for intake + 
     expect(screen.queryByRole('heading', { name: 'intake' })).not.toBeInTheDocument();
   });
 });
+
+describe('FiltersScreen — Phase 8 §11: Budget shown once, not twice', () => {
+  it('Budget appears only as the hard-constraint tab, not as its own separate filter group too', async () => {
+    seed({ door: 'eat' });
+    render(<Harness />);
+
+    expect(await screen.findByRole('tab', { name: 'Budget' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Budget' })).not.toBeInTheDocument();
+  });
+});
