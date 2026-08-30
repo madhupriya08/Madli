@@ -80,6 +80,7 @@ function Harness({
           <MemoryRouter initialEntries={[`/places/${slug}/bridge`]}>
             <Routes>
               <Route path="/places/:slug/bridge" element={<BridgeTapScreen />} />
+              <Route path="/plans/:id" element={<h1>plan detail</h1>} />
             </Routes>
           </MemoryRouter>
         </SearchProvider>
@@ -472,5 +473,86 @@ describe('BridgeTapScreen — Phase 6 §7: door selector + reference-point prior
     expect(searchCandidatesMock).toHaveBeenCalledWith(
       expect.objectContaining({ center: { lat: 17.42, lng: 78.42 } }),
     );
+  });
+});
+
+describe('BridgeTapScreen — Phase 8 §12: View plan button', () => {
+  beforeEach(() => {
+    searchCandidatesMock.mockReset();
+    addOutingStopMock.mockReset();
+    isStopInOutingMock.mockReset();
+    getOutingMock.mockReset();
+    usePlansMock.mockReset();
+    createPlanMutateAsyncMock.mockReset();
+    addPlanItemMutateAsyncMock.mockReset();
+    searchCandidatesMock.mockResolvedValue([NEARBY_STOP]);
+    isStopInOutingMock.mockReturnValue(false);
+    getOutingMock.mockReturnValue(undefined);
+    usePlansMock.mockReturnValue({ data: [] });
+  });
+
+  it('is absent for a Guest with no outing under way for this anchor yet', async () => {
+    usePersonaMock.mockReturnValue({ breakpoint: 'desktop', hasSession: false, userId: '' });
+    render(<Harness />);
+
+    await screen.findByRole('button', { name: 'Add to plan' });
+    expect(screen.queryByRole('button', { name: 'View plan' })).not.toBeInTheDocument();
+  });
+
+  it('appears for a Guest whose outing already has a stop, and opens that outing', async () => {
+    usePersonaMock.mockReturnValue({ breakpoint: 'desktop', hasSession: false, userId: '' });
+    getOutingMock.mockReturnValue({
+      anchorPlaceId: 'ChIJKyxGIoiXyzsRPY8PASGdTW0',
+      anchorName: 'Hotel Shadab',
+      anchorLat: 17.368888,
+      anchorLng: 78.4755104,
+      stops: [
+        { placeId: 'first-stop', name: 'First Stop', address: '', lat: 17.4, lng: 78.4, addedAt: 1 },
+      ],
+    });
+    const user = userEvent.setup();
+    render(<Harness />);
+
+    await user.click(await screen.findByRole('button', { name: 'View plan' }));
+    expect(await screen.findByRole('heading', { name: 'plan detail' })).toBeInTheDocument();
+  });
+
+  it('is absent for a signed-in User with no plan yet for this anchor', async () => {
+    usePersonaMock.mockReturnValue({ breakpoint: 'desktop', hasSession: true, userId: 'user-1' });
+    render(<Harness />);
+
+    await screen.findByRole('button', { name: 'Add to plan' });
+    expect(screen.queryByRole('button', { name: 'View plan' })).not.toBeInTheDocument();
+  });
+
+  it('appears for a signed-in User who already has a plan for this anchor, and opens that plan', async () => {
+    const existingPlan: Plan = {
+      id: 'plan-1',
+      userId: 'user-1',
+      anchorKey: 'ChIJKyxGIoiXyzsRPY8PASGdTW0',
+      anchorName: 'Hotel Shadab',
+      anchorLat: 17.368888,
+      anchorLng: 78.4755104,
+      name: null,
+      shareToken: null,
+      stops: [
+        {
+          googlePlaceId: 'already-there',
+          placeName: 'Somewhere Else',
+          address: null,
+          lat: null,
+          lng: null,
+          position: 1,
+        },
+      ],
+    };
+    usePlansMock.mockReturnValue({ data: [existingPlan] });
+    usePersonaMock.mockReturnValue({ breakpoint: 'desktop', hasSession: true, userId: 'user-1' });
+
+    const user = userEvent.setup();
+    render(<Harness />);
+
+    await user.click(await screen.findByRole('button', { name: 'View plan' }));
+    expect(await screen.findByRole('heading', { name: 'plan detail' })).toBeInTheDocument();
   });
 });

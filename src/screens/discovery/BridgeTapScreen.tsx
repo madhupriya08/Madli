@@ -175,6 +175,18 @@ export function BridgeTapScreen() {
 
   const existingPlan =
     hasSession && anchor ? ownPlans.find((p) => p.anchorKey === anchor.id) : undefined;
+  // Phase 8 §12: once this anchor already has a plan or outing under way —
+  // one stop was already added — "View plan" lets someone jump straight to
+  // the full thing without leaving this add-more-stops screen. Before that
+  // first stop there is nothing yet to view, so the button stays absent
+  // rather than opening onto an empty plan.
+  const viewPlanHref = hasSession
+    ? existingPlan
+      ? `/plans/${existingPlan.id}`
+      : null
+    : anchor && getOuting(anchor.id)
+      ? `/plans/${encodeURIComponent(anchor.id)}`
+      : null;
   const doorOverride =
     anchor && doorOverrideFor?.anchorId === anchor.id ? doorOverrideFor.door : null;
   const effectiveDoor: Door = doorOverride ?? anchor?.bridgeDoor ?? 'eat';
@@ -362,19 +374,34 @@ export function BridgeTapScreen() {
               : `Nearest to ${referencePoint.name} — the stop you added most recently — first.`}{' '}
             Add as many as you want — each one joins the route without leaving this screen.
           </p>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <span style={{ font: 'var(--type-label)', color: 'var(--text-muted)' }}>
-              Search nearby for
-            </span>
-            <Tabs
-              size="sm"
-              items={[
-                { value: 'eat', label: 'Eat' },
-                { value: 'explore', label: 'Explore' },
-              ]}
-              value={effectiveDoor}
-              onChange={(v) => setDoorOverrideFor({ anchorId: anchor.id, door: v as Door })}
-            />
+          <div
+            style={{
+              display: 'flex',
+              gap: 8,
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+            }}
+          >
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <span style={{ font: 'var(--type-label)', color: 'var(--text-muted)' }}>
+                Search nearby for
+              </span>
+              <Tabs
+                size="sm"
+                items={[
+                  { value: 'eat', label: 'Eat' },
+                  { value: 'explore', label: 'Explore' },
+                ]}
+                value={effectiveDoor}
+                onChange={(v) => setDoorOverrideFor({ anchorId: anchor.id, door: v as Door })}
+              />
+            </div>
+            {viewPlanHref ? (
+              <Button size="sm" variant="secondary" onClick={() => navigate(viewPlanHref)}>
+                View plan
+              </Button>
+            ) : null}
           </div>
         </div>
 
