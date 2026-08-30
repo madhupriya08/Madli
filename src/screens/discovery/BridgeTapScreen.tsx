@@ -17,6 +17,7 @@ import { haversineMeters, type Door, type LatLng } from '../../lib/searchState';
 import { hasMapsApiKey } from '../../lib/googleMaps';
 import { pickReason } from '../../data/hybridPicks';
 import { addOutingStop, isStopInOuting } from '../../lib/outingPlans';
+import { usePlans, useCreatePlan, useAddPlanItem } from '../../data/hooks';
 
 const NEARBY_RADIUS_M = 12_000;
 const MAX_NEARBY = 3;
@@ -89,10 +90,16 @@ function openGoogleMapsRoute(anchor: Anchor, stops: Array<{ location: LatLng }>)
 export function BridgeTapScreen() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
-  const { breakpoint } = usePersona();
+  const { breakpoint, hasSession, userId } = usePersona();
   const { show } = useToast();
   const [planVersion, setPlanVersion] = useState(0);
   const decoded = slug ? decodeURIComponent(slug) : undefined;
+
+  // Signed-in Users get a real, shareable plan (P5 §4); a Guest keeps the
+  // existing local-only Outing (no account to persist a real one under).
+  const { data: ownPlans = [] } = usePlans(hasSession ? userId : '');
+  const createPlan = useCreatePlan(userId);
+  const addPlanItem = useAddPlanItem(userId);
 
   const catalogue = decoded ? placeBySlug(decoded) : undefined;
 
@@ -168,6 +175,7 @@ export function BridgeTapScreen() {
   });
 
   const nearby = nearbyQuery.data ?? [];
+  const existingPlan = hasSession && anchor ? ownPlans.find((p) => p.anchorKey === anchor.id) : undefined;
   const loading =
     (!catalogue && googleAnchorQuery.isLoading) ||
     (Boolean(catalogue) && catalogue?.lat == null && googleAnchorQuery.isLoading) ||
@@ -338,7 +346,9 @@ export function BridgeTapScreen() {
               }}
             >
               {nearby.map((stop, i) => {
-                const added = isStopInOuting(anchor.id, stop.placeId);
+                const added = hasSession
+                  ? (existingPlan?.stops.some((s) => s.googlePlaceId === stop.placeId) ?? false)
+                  : isStopInOuting(anchor.id, stop.placeId);
                 const category = typeLabel(stop.types);
                 return (
                   <article
@@ -428,13 +438,56 @@ export function BridgeTapScreen() {
                         <Button
                           size="sm"
                           variant="primary"
-                          onClick={(e) => {
+                          disabled={createPlan.isPending || addPlanItem.isPending}
+                          onClick={async (e) => {
                             e.preventDefault();
                             e.stopPropagation();
                             if (added) {
                               show('Already on your plan.');
                               return;
                             }
+
+                            if (hasSession && userId) {
+                              try {
+                                if (existingPlan) {
+                                  await addPlanItem.mutateAsync({
+                                    planId: existingPlan.id,
+                                    stop: {
+                                      googlePlaceId: stop.placeId,
+                                      placeName: stop.name,
+                                      address: stop.address,
+                                      lat: stop.location.lat,
+                                      lng: stop.location.lng,
+                                    },
+                                  });
+                                } else {
+                                  await createPlan.mutateAsync({
+                                    anchor: {
+                                      key: anchor.id,
+                                      name: anchor.name,
+                                      lat: anchor.location.lat,
+                                      lng: anchor.location.lng,
+                                    },
+                                    firstStop: {
+                                      googlePlaceId: stop.placeId,
+                                      placeName: stop.name,
+                                      address: stop.address,
+                                      lat: stop.location.lat,
+                                      lng: stop.location.lng,
+                                    },
+                                  });
+                                }
+                                show(`Added ${stop.name} to your plan.`);
+                              } catch (err) {
+                                show(
+                                  err instanceof Error ? err.message : 'Could not save that to your plan.',
+                                );
+                              }
+                              return;
+                            }
+
+                            // Guest: no account to persist a real plan under
+                            // — same multi-stop experience, local-only.
                             addOutingStop(
                               anchor.id,
                               anchor.name,

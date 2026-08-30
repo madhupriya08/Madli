@@ -1,6 +1,5 @@
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { AppShell } from '../layout/AppShell';
-import { PickCard } from '../../components/trust/PickCard';
 import { Badge } from '../../components/core/Badge';
 import { Button } from '../../components/core/Button';
 import { Card } from '../../components/core/Card';
@@ -8,11 +7,27 @@ import { EmptyState } from '../../components/feedback/EmptyState';
 import { useToast } from '../../components/feedback/ToastProvider';
 import { usePersona } from '../../dev/PersonaContext';
 import { usePlans, useSharedPlan, useCreatePlanShareToken } from '../../data/hooks';
-import { placeById } from '../../fixtures/places';
-import { categoryName } from '../../fixtures/categories';
-import { placePhotoUrl } from '../../lib/placePhoto';
+import type { Plan } from '../../data/plans';
 import { GoogleMapView, type MapMarker } from '../../components/map/GoogleMapView';
 import { getOuting, removeOutingPlan, type OutingPlan } from '../../lib/outingPlans';
+
+/** A real, backend plan rendered through the exact same view as a local Outing — same shape, same component, one fewer rendering path to keep honest. */
+function planToOutingView(plan: Plan): OutingPlan {
+  return {
+    anchorPlaceId: plan.anchorKey,
+    anchorName: plan.anchorName,
+    anchorLat: plan.anchorLat ?? undefined,
+    anchorLng: plan.anchorLng ?? undefined,
+    stops: plan.stops.map((s) => ({
+      placeId: s.googlePlaceId,
+      name: s.placeName,
+      address: s.address ?? '',
+      lat: s.lat ?? undefined,
+      lng: s.lng ?? undefined,
+      addedAt: 0,
+    })),
+  };
+}
 
 function openOutingInGoogleMaps(plan: OutingPlan) {
   const withCoords = plan.stops.filter(
@@ -54,10 +69,19 @@ function OutingPlanDetail({
   plan,
   onBack,
   onRemoved,
+  isSharedLink = false,
+  onShare,
+  shareBusy = false,
 }: {
   plan: OutingPlan;
   onBack: () => void;
-  onRemoved: () => void;
+  /** Whole-plan removal — only meaningful for the local, guest-only Outing; a real plan has no delete built yet. */
+  onRemoved?: () => void;
+  /** True for an anonymous visitor on a share link — read-only, no owner actions. */
+  isSharedLink?: boolean;
+  /** Present only for a real, signed-in-User-owned plan — local Outings have no account to share from. */
+  onShare?: () => void;
+  shareBusy?: boolean;
 }) {
   const navigate = useNavigate();
   const { show } = useToast();
@@ -85,6 +109,9 @@ function OutingPlanDetail({
           width: '100%',
         }}
       >
+        {isSharedLink ? (
+          <Badge tone="teal">Shared link — no account needed, never expires</Badge>
+        ) : null}
         <p style={{ margin: 0, font: 'var(--type-body)', color: 'var(--text-body)' }}>
           Outing from {plan.anchorName} · {plan.stops.length} stop
           {plan.stops.length === 1 ? '' : 's'}
@@ -122,26 +149,35 @@ function OutingPlanDetail({
           ))}
         </div>
 
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          <Button
-            variant="secondary"
-            onClick={() =>
-              navigate(`/places/${encodeURIComponent(plan.anchorPlaceId)}/bridge`)
-            }
-          >
-            Edit nearby picks
-          </Button>
-          <Button
-            variant="quiet"
-            onClick={() => {
-              removeOutingPlan(plan.anchorPlaceId);
-              show('Plan removed.');
-              onRemoved();
-            }}
-          >
-            Remove plan
-          </Button>
-        </div>
+        {isSharedLink ? null : (
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <Button
+              variant="secondary"
+              onClick={() =>
+                navigate(`/places/${encodeURIComponent(plan.anchorPlaceId)}/bridge`)
+              }
+            >
+              Add another stop
+            </Button>
+            {onShare ? (
+              <Button variant="secondary" disabled={shareBusy} onClick={onShare}>
+                Share this plan
+              </Button>
+            ) : null}
+            {onRemoved ? (
+              <Button
+                variant="quiet"
+                onClick={() => {
+                  removeOutingPlan(plan.anchorPlaceId);
+                  show('Plan removed.');
+                  onRemoved();
+                }}
+              >
+                Remove plan
+              </Button>
+            ) : null}
+          </div>
+        )}
       </div>
     </AppShell>
   );
@@ -188,10 +224,7 @@ export function SavedPlanDetailScreen() {
 
   if (sharedLoading || ownLoading) return null;
 
-  const eat = plan ? placeById(plan.eatPlaceId) : undefined;
-  const explore = plan ? placeById(plan.explorePlaceId) : undefined;
-
-  if (!plan || !eat || !explore) {
+  if (!plan) {
     return (
       <AppShell title="Plan" onBack={() => navigate(-1)}>
         <EmptyState icon="map-pin-off" title="We can't find that plan" />
@@ -199,81 +232,22 @@ export function SavedPlanDetailScreen() {
     );
   }
 
-  // Both stops when both have coordinates, one when only one does — a plan
-  // is still worth mapping half-known.
-  const planMarkers: MapMarker[] = [];
-  if (eat.lat != null && eat.lng != null) {
-    planMarkers.push({
-      id: eat.id,
-      position: { lat: eat.lat, lng: eat.lng },
-      title: eat.name,
-      rank: 1,
-    });
-  }
-  if (explore.lat != null && explore.lng != null) {
-    planMarkers.push({
-      id: explore.id,
-      position: { lat: explore.lat, lng: explore.lng },
-      title: explore.name,
-      rank: 2,
-    });
-  }
-
   return (
-    <AppShell title={plan.name ?? 'Saved plan'} onBack={() => navigate(-1)}>
-      <div
-        style={{
-          padding: 'var(--space-6) var(--gutter)',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 'var(--space-5)',
-        }}
-      >
-        {isSharedLink ? (
-          <Badge tone="teal">Shared link — no account needed, never expires</Badge>
-        ) : null}
-        <GoogleMapView
-          height={220}
-          markers={planMarkers}
-          emptyLabel="Neither stop has coordinates yet — nothing to map."
-        />
-        <PickCard
-          rank={1}
-          name={eat.name}
-          category={categoryName(eat.categoryId)}
-          neighborhood={eat.neighborhood}
-          reason={eat.reason}
-          locals={eat.locals}
-          visitors={eat.visitors}
-          gapTone={eat.gapTone ?? 'clear'}
-          photoSrc={placePhotoUrl(eat.slug)}
-          photoLabel={eat.name}
-        />
-        <PickCard
-          rank={1}
-          name={explore.name}
-          category={categoryName(explore.categoryId)}
-          neighborhood={explore.neighborhood}
-          reason={explore.reason}
-          gapTone="clear"
-          photoSrc={placePhotoUrl(explore.slug)}
-          photoLabel={explore.name}
-        />
-        {isSharedLink ? null : (
-          <Button
-            variant="secondary"
-            disabled={createShareToken.isPending}
-            onClick={async () => {
+    <OutingPlanDetail
+      plan={planToOutingView(plan)}
+      onBack={() => navigate(-1)}
+      isSharedLink={isSharedLink}
+      shareBusy={createShareToken.isPending}
+      onShare={
+        isSharedLink
+          ? undefined
+          : async () => {
               const token = await createShareToken.mutateAsync(plan.id);
               const url = `${window.location.origin}/plans/${token}?shared=1`;
               await navigator.clipboard?.writeText(url).catch(() => {});
               show('Share link copied. No account needed, never expires.');
-            }}
-          >
-            Share this plan
-          </Button>
-        )}
-      </div>
-    </AppShell>
+            }
+      }
+    />
   );
 }

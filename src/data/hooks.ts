@@ -134,8 +134,21 @@ export function usePlans(userId: string) {
 export function useCreatePlan(userId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: { eatPlaceId: string; explorePlaceId: string; name?: string }) =>
-      plansApi.createPlan(userId, input.eatPlaceId, input.explorePlaceId, input.name),
+    mutationFn: (input: {
+      anchor: { key: string; name: string; lat?: number | null; lng?: number | null };
+      firstStop: plansApi.NewPlanStop;
+      name?: string;
+    }) => plansApi.createPlan(userId, input.anchor, input.firstStop, input.name),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['plans', userId] }),
+  });
+}
+
+/** The "add another stop" affordance, wherever a saved plan already exists. */
+export function useAddPlanItem(userId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { planId: string; stop: plansApi.NewPlanStop }) =>
+      plansApi.addPlanItem(input.planId, input.stop),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['plans', userId] }),
   });
 }

@@ -15,12 +15,3 @@ export interface RankedEntry {
   tier: Tier;
   position: number;
 }
-
-export interface Plan {
-  id: string;
-  userId: string;
-  eatPlaceId: string;
-  explorePlaceId: string;
-  name: string | null;
-  shareToken: string | null;
-}

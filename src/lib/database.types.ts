@@ -32,6 +32,14 @@
 // argument (20260830120000) were likewise checked field-for-field against a
 // real generation taken after that migration was applied.
 //
+// `plans` (eat_place_id/explore_place_id replaced with anchor_key/
+// anchor_name/anchor_lat/anchor_lng), the new `plan_items` table, and
+// `fn_add_plan_item` (20260830130000) were likewise checked field-for-field
+// against a real generation taken after that migration was applied — same
+// deliberate `| null` addition on `fn_add_plan_item`'s optional args as
+// `fn_rank_google_place` above, for the same reason (a stop can genuinely
+// have no address or coordinates).
+//
 // `areas.lat`/`areas.lng` (20260827090000) are included below — those were
 // verified against a real generation when added.
 
@@ -321,9 +329,11 @@ export type Database = {
       };
       plans: {
         Row: {
+          anchor_key: string;
+          anchor_lat: number | null;
+          anchor_lng: number | null;
+          anchor_name: string;
           created_at: string;
-          eat_place_id: string;
-          explore_place_id: string;
           id: string;
           name: string | null;
           share_token: string | null;
@@ -331,9 +341,11 @@ export type Database = {
           user_id: string;
         };
         Insert: {
+          anchor_key: string;
+          anchor_lat?: number | null;
+          anchor_lng?: number | null;
+          anchor_name: string;
           created_at?: string;
-          eat_place_id: string;
-          explore_place_id: string;
           id?: string;
           name?: string | null;
           share_token?: string | null;
@@ -342,6 +354,40 @@ export type Database = {
         };
         Update: Partial<Database['public']['Tables']['plans']['Insert']>;
         Relationships: [];
+      };
+      plan_items: {
+        Row: {
+          address: string | null;
+          created_at: string;
+          google_place_id: string;
+          id: string;
+          lat: number | null;
+          lng: number | null;
+          place_name: string;
+          plan_id: string;
+          position: number;
+        };
+        Insert: {
+          address?: string | null;
+          created_at?: string;
+          google_place_id: string;
+          id?: string;
+          lat?: number | null;
+          lng?: number | null;
+          place_name: string;
+          plan_id: string;
+          position: number;
+        };
+        Update: Partial<Database['public']['Tables']['plan_items']['Insert']>;
+        Relationships: [
+          {
+            foreignKeyName: 'plan_items_plan_id_fkey';
+            columns: ['plan_id'];
+            isOneToOne: false;
+            referencedRelation: 'plans';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       google_place_rankings: {
         Row: {
@@ -501,6 +547,17 @@ export type Database = {
     Functions: {
       can_access_location_history: { Args: Record<string, never>; Returns: boolean };
       can_override_ranking: { Args: Record<string, never>; Returns: boolean };
+      fn_add_plan_item: {
+        Args: {
+          p_address?: string | null;
+          p_google_place_id: string;
+          p_lat?: number | null;
+          p_lng?: number | null;
+          p_place_name: string;
+          p_plan_id: string;
+        };
+        Returns: { item_id: string; landed_position: number }[];
+      };
       fn_admin_adjust_contributor_weight: {
         Args: { p_new_weight: number; p_reason: string; p_target_user_id: string };
         Returns: string;

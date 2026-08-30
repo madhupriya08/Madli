@@ -12,8 +12,10 @@ import { listSavedGooglePlaces } from '../../lib/savedGooglePlaces';
 import { listOutingPlans } from '../../lib/outingPlans';
 
 // S23: Places and Plans are one list with a toggle, not two screens.
-// Bridge "Add to plan" writes local outing plans (Google place ids); catalogue
-// eat+explore pairs still come from Supabase when present.
+// Bridge "Add to plan" writes a real, arbitrary-length plan to Supabase for
+// a signed-in User (plan_items — P5 §4); a Guest gets the same multi-stop
+// experience, but local-only (outingPlans.ts), since there is no account to
+// persist it under.
 export function BookmarksScreen() {
   const [tab, setTab] = useState<'places' | 'plans'>('places');
   const navigate = useNavigate();
@@ -55,7 +57,7 @@ export function BookmarksScreen() {
       id: p.id,
       kind: 'catalogue' as const,
       name: p.name ?? 'Saved plan',
-      subtitle: undefined as string | undefined,
+      subtitle: `${p.anchorName} · ${p.stops.length} stop${p.stops.length === 1 ? '' : 's'}`,
     })),
   ];
 
