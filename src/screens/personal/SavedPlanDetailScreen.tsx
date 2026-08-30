@@ -1,3 +1,4 @@
+import { useReducer } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { AppShell } from '../layout/AppShell';
 import { Badge } from '../../components/core/Badge';
@@ -6,10 +7,10 @@ import { Card } from '../../components/core/Card';
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { useToast } from '../../components/feedback/ToastProvider';
 import { usePersona } from '../../dev/PersonaContext';
-import { usePlans, useSharedPlan, useCreatePlanShareToken } from '../../data/hooks';
+import { usePlans, useSharedPlan, useCreatePlanShareToken, useRemovePlanItem } from '../../data/hooks';
 import type { Plan } from '../../data/plans';
 import { GoogleMapView, type MapMarker } from '../../components/map/GoogleMapView';
-import { getOuting, removeOutingPlan, type OutingPlan } from '../../lib/outingPlans';
+import { getOuting, removeOutingPlan, removeOutingStop, type OutingPlan } from '../../lib/outingPlans';
 
 /** A real, backend plan rendered through the exact same view as a local Outing — same shape, same component, one fewer rendering path to keep honest. */
 function planToOutingView(plan: Plan): OutingPlan {
@@ -72,16 +73,22 @@ function OutingPlanDetail({
   isSharedLink = false,
   onShare,
   shareBusy = false,
+  onRemoveStop,
+  removingStopId = null,
 }: {
   plan: OutingPlan;
   onBack: () => void;
-  /** Whole-plan removal — only meaningful for the local, guest-only Outing; a real plan has no delete built yet. */
+  /** Whole-plan removal — fires from the last stop going too, or the explicit "Remove plan" button. */
   onRemoved?: () => void;
   /** True for an anonymous visitor on a share link — read-only, no owner actions. */
   isSharedLink?: boolean;
   /** Present only for a real, signed-in-User-owned plan — local Outings have no account to share from. */
   onShare?: () => void;
   shareBusy?: boolean;
+  /** Phase 8 §3: per-stop removal — present for both a real Plan and a Guest Outing. */
+  onRemoveStop?: (placeId: string) => void;
+  /** The stop currently being removed, so its button reads busy instead of double-submitting. */
+  removingStopId?: string | null;
 }) {
   const navigate = useNavigate();
   const { show } = useToast();
@@ -141,16 +148,31 @@ function OutingPlanDetail({
               key={stop.placeId}
               interactive
               onClick={() => navigate(`/places/${encodeURIComponent(stop.placeId)}`)}
-              style={{ display: 'flex', flexDirection: 'column', gap: 4 }}
+              style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}
             >
-              <div style={{ font: 'var(--type-label)', color: 'var(--text-muted)' }}>
-                Stop {i + 1}
-              </div>
-              <div style={{ font: 'var(--type-body)' }}>{stop.name}</div>
-              {stop.address ? (
-                <div style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>
-                  {stop.address}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1 }}>
+                <div style={{ font: 'var(--type-label)', color: 'var(--text-muted)' }}>
+                  Stop {i + 1}
                 </div>
+                <div style={{ font: 'var(--type-body)' }}>{stop.name}</div>
+                {stop.address ? (
+                  <div style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>
+                    {stop.address}
+                  </div>
+                ) : null}
+              </div>
+              {onRemoveStop && !isSharedLink ? (
+                <Button
+                  size="sm"
+                  variant="quiet"
+                  disabled={removingStopId === stop.placeId}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRemoveStop(stop.placeId);
+                  }}
+                >
+                  {removingStopId === stop.placeId ? 'Removing…' : 'Remove'}
+                </Button>
               ) : null}
             </Card>
           ))}
@@ -207,6 +229,12 @@ export function SavedPlanDetailScreen() {
   const { userId } = usePersona();
   const { show } = useToast();
   const createShareToken = useCreatePlanShareToken();
+  const removePlanItem = useRemovePlanItem(userId);
+  // Guest outings live in localStorage, not TanStack Query — getOuting()
+  // below re-reads it fresh on every render, so this only needs to force
+  // one after a stop is removed (Phase 8 §3), same idea as BridgeTapScreen's
+  // own planVersion counter.
+  const [, forceOutingRefresh] = useReducer((n: number) => n + 1, 0);
 
   const decodedId = id ? decodeURIComponent(id) : undefined;
   const outing = !isSharedLink && decodedId ? getOuting(decodedId) : undefined;
@@ -225,6 +253,15 @@ export function SavedPlanDetailScreen() {
         plan={outing}
         onBack={() => navigate(-1)}
         onRemoved={() => navigate('/bookmarks', { replace: true })}
+        onRemoveStop={(placeId) => {
+          const wholePlanRemoved = removeOutingStop(outing.anchorPlaceId, placeId);
+          if (wholePlanRemoved) {
+            show('Plan removed.');
+            navigate('/bookmarks', { replace: true });
+          } else {
+            forceOutingRefresh();
+          }
+        }}
       />
     );
   }
@@ -253,6 +290,27 @@ export function SavedPlanDetailScreen() {
               const url = `${window.location.origin}/plans/${token}?shared=1`;
               await navigator.clipboard?.writeText(url).catch(() => {});
               show('Share link copied. No account needed, never expires.');
+            }
+      }
+      removingStopId={removePlanItem.isPending ? removePlanItem.variables?.googlePlaceId : null}
+      onRemoveStop={
+        isSharedLink
+          ? undefined
+          : async (placeId) => {
+              try {
+                const wholePlanRemoved = await removePlanItem.mutateAsync({
+                  planId: plan.id,
+                  googlePlaceId: placeId,
+                });
+                if (wholePlanRemoved) {
+                  show('Plan removed.');
+                  navigate('/bookmarks', { replace: true });
+                }
+              } catch (err) {
+                show(err instanceof Error ? err.message : 'Could not remove that stop.', {
+                  tone: 'error',
+                });
+              }
             }
       }
     />

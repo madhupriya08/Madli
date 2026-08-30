@@ -175,6 +175,21 @@ export async function addPlanItem(planId: string, stop: NewPlanStop): Promise<vo
   if (error) throw error;
 }
 
+/**
+ * Phase 8 §3: removes one stop; if it was the last one, the whole plan goes
+ * with it (fn_remove_plan_item does both atomically — see its own comment).
+ * Returns true when the plan itself was deleted, so the caller can navigate
+ * away instead of re-rendering a plan that no longer exists.
+ */
+export async function removePlanItem(planId: string, googlePlaceId: string): Promise<boolean> {
+  const { data, error } = await supabase.rpc('fn_remove_plan_item', {
+    p_plan_id: planId,
+    p_google_place_id: googlePlaceId,
+  });
+  if (error) throw error;
+  return data;
+}
+
 export async function createPlanShareToken(planId: string): Promise<string> {
   const { data, error } = await supabase.rpc('fn_create_plan_share_token', { p_plan_id: planId });
   if (error) throw error;

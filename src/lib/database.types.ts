@@ -688,6 +688,10 @@ export type Database = {
         };
         Returns: { entry_id: string; landed_position: number; total_in_door: number }[];
       };
+      fn_remove_plan_item: {
+        Args: { p_google_place_id: string; p_plan_id: string };
+        Returns: boolean;
+      };
       fn_unrank_google_place: {
         Args: { p_google_place_id: string };
         Returns: undefined;

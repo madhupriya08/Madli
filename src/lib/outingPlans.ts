@@ -77,6 +77,24 @@ export function isStopInOuting(anchorPlaceId: string, placeId: string): boolean 
   return getOuting(anchorPlaceId)?.stops.some((s) => s.placeId === placeId) ?? false;
 }
 
+/**
+ * Phase 8 §3: removes one stop; if it was the last one, the whole outing
+ * goes with it — same shape as the real, signed-in-User plan's
+ * fn_remove_plan_item. Returns true when the outing itself was removed.
+ */
+export function removeOutingStop(anchorPlaceId: string, placeId: string): boolean {
+  const all = readAll();
+  const plan = all.find((p) => p.anchorPlaceId === anchorPlaceId);
+  if (!plan) return false;
+  plan.stops = plan.stops.filter((s) => s.placeId !== placeId);
+  if (plan.stops.length === 0) {
+    writeAll(all.filter((p) => p.anchorPlaceId !== anchorPlaceId));
+    return true;
+  }
+  writeAll(all);
+  return false;
+}
+
 export function removeOutingPlan(anchorPlaceId: string): void {
   writeAll(readAll().filter((p) => p.anchorPlaceId !== anchorPlaceId));
 }

@@ -146,6 +146,15 @@ export function useSharedPlan(token: string | undefined) {
   });
 }
 
+export function useRemovePlanItem(userId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { planId: string; googlePlaceId: string }) =>
+      plansApi.removePlanItem(input.planId, input.googlePlaceId),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['plans', userId] }),
+  });
+}
+
 // --- Admin ---
 
 export function useGemCandidates() {
