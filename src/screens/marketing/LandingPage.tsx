@@ -1,21 +1,27 @@
-import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { MarketingShell } from '../layout/MarketingShell';
 import { Button } from '../../components/core/Button';
-import { Icon } from '../../components/core/Icon';
-import { PhotoFrame } from '../../components/core/PhotoFrame';
 import { places } from '../../fixtures/places';
 import { areas } from '../../fixtures/areas';
-import { placePhotoUrl } from '../../lib/placePhoto';
 
 // S1. Ported from the prototype's own S1 block (design_handoff_madli/
 // prototype/Madli Prototype.dc.html), which is the authority for this screen
 // — not design-system/ui_kits/madli-site/, a separate multi-city marketing
 // kit whose copy ("34 cities", Istanbul, Lisbon) describes a product Madli
-// isn't. Phase 2 built a shortened, centre-aligned stand-in for this screen:
-// one CTA instead of three, no eyebrow, no evidence line, no area picker,
-// no footer, and the gem as a narrow PickCard rather than the full-width
-// inverse banner. All of that is restored here, left-aligned as designed.
+// isn't.
+//
+// Two things the prototype's own S1 has that this build deliberately does
+// NOT carry over, now that location is open to anywhere rather than one
+// city: the "Showing picks for {area} · change" + "Local or visiting?"
+// widget (the prototype hardcodes "Hyderabad · 8 neighbourhoods" here —
+// there is no honest universal default once the product isn't one city, and
+// the "local or visiting" toggle here was decorative, never persisted
+// anywhere, and duplicated the real ask S53 already does properly after a
+// real area is chosen), and the "Gem of the town" banner — moved to Home
+// (S7), which is where the prototype's own S7 block *also* independently
+// carries this exact banner, scoped to wherever the person actually is
+// rather than shown unconditionally to an anonymous visitor before they
+// have picked anywhere.
 const HOW_STEPS = [
   {
     n: '1',
@@ -44,25 +50,6 @@ const SECTION: React.CSSProperties = {
 
 export function LandingPage() {
   const navigate = useNavigate();
-  const gem = places.find((p) => p.gem);
-  // "Showing picks for" reflects the real seeded catalogue rather than a
-  // hardcoded string, so the eyebrow's neighbourhood count stays true if the
-  // areas table changes.
-  const [isLocal, setIsLocal] = useState(true);
-  // Fallback only, for the edge case where `areas` is empty (e.g. before
-  // loadLiveConfig() has populated it) — city-agnostic on purpose, since the
-  // copy here should not hardcode which city this deployment covers.
-  const areaLabel = areas[0]?.name ?? 'your area';
-
-  const whoChip = (active: boolean): React.CSSProperties => ({
-    padding: '4px 12px',
-    borderRadius: 'var(--radius-pill)',
-    cursor: 'pointer',
-    font: 'var(--type-body-sm)',
-    border: `1px solid ${active ? 'var(--teal-500)' : 'var(--border-hairline)'}`,
-    background: active ? 'var(--surface-accent-soft)' : 'transparent',
-    color: active ? 'var(--teal-700)' : 'var(--text-muted)',
-  });
 
   return (
     <MarketingShell>
@@ -118,68 +105,6 @@ export function LandingPage() {
         <span style={{ font: 'var(--type-evidence)', color: 'var(--evidence-text)' }}>
           {places.length} places ranked · no account needed to search
         </span>
-
-        <div
-          style={{
-            width: '100%',
-            padding: 'var(--space-5)',
-            background: 'var(--white)',
-            border: '1px solid var(--border-hairline)',
-            borderRadius: 'var(--radius-lg)',
-            boxShadow: 'var(--shadow-sm)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 'var(--space-5)',
-            flexWrap: 'wrap',
-          }}
-        >
-          <button
-            onClick={() => navigate('/area')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              cursor: 'pointer',
-              flex: 1,
-              minWidth: 200,
-              background: 'transparent',
-              border: 'none',
-              padding: 0,
-              textAlign: 'left',
-            }}
-          >
-            <Icon name="map-pin" size={22} color="var(--teal-500)" />
-            <span style={{ display: 'flex', flexDirection: 'column' }}>
-              <span style={{ font: 'var(--type-evidence)', color: 'var(--text-muted)' }}>
-                Showing picks for
-              </span>
-              <span style={{ font: 'var(--type-label)', color: 'var(--text-heading)' }}>
-                {areaLabel} · change
-              </span>
-            </span>
-          </button>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <span style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>
-              Are you local, or visiting?
-            </span>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button
-                onClick={() => setIsLocal(true)}
-                aria-pressed={isLocal}
-                style={whoChip(isLocal)}
-              >
-                Local
-              </button>
-              <button
-                onClick={() => setIsLocal(false)}
-                aria-pressed={!isLocal}
-                style={whoChip(!isLocal)}
-              >
-                Visiting
-              </button>
-            </div>
-          </div>
-        </div>
       </section>
 
       <section
@@ -239,67 +164,6 @@ export function LandingPage() {
         </div>
       </section>
 
-      {gem ? (
-        <section style={SECTION}>
-          <Link
-            to="/gem"
-            style={{
-              borderBottom: 'none',
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-              gap: 'var(--space-6)',
-              alignItems: 'center',
-              padding: 'var(--space-7)',
-              borderRadius: 'var(--radius-xl)',
-              background: 'var(--surface-inverse)',
-              color: 'var(--white)',
-            }}
-          >
-            <span style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <span
-                style={{
-                  font: 'var(--type-eyebrow)',
-                  textTransform: 'uppercase',
-                  letterSpacing: 'var(--tracking-eyebrow)',
-                  color: 'var(--text-on-dark-muted)',
-                }}
-              >
-                Gem of the town
-              </span>
-              <span
-                style={{
-                  font: 'var(--type-h2)',
-                  color: 'var(--white)',
-                  letterSpacing: 'var(--tracking-display)',
-                }}
-              >
-                {gem.name}
-              </span>
-              <span
-                style={{
-                  font: 'var(--type-body-lg)',
-                  color: 'var(--text-on-dark-muted)',
-                  maxWidth: 'var(--reason-max)',
-                }}
-              >
-                {gem.reason}
-              </span>
-              <span style={{ font: 'var(--type-evidence)', color: 'var(--text-on-dark-muted)' }}>
-                {gem.locals} locals · {gem.visitors} visitors · last 90 days
-              </span>
-            </span>
-            <span style={{ width: 220, justifySelf: 'end' }}>
-              <PhotoFrame
-                src={placePhotoUrl(gem.slug, 440, 330)}
-                alt={gem.name}
-                label={gem.name}
-                ratio="4 / 3"
-              />
-            </span>
-          </Link>
-        </section>
-      ) : null}
-
       <footer
         style={{
           ...SECTION,
@@ -323,7 +187,7 @@ export function LandingPage() {
             }}
           />
           <span style={{ font: 'var(--type-evidence)', color: 'var(--evidence-text)' }}>
-            One city today — more once the ranking runs deep enough to trust
+            Search anywhere — deep local rankings today go as far as {areas.length} neighbourhoods
           </span>
         </div>
         <nav style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>

@@ -2,9 +2,12 @@ import { useNavigate } from 'react-router-dom';
 import { AppShell } from '../layout/AppShell';
 import { Card } from '../../components/core/Card';
 import { Icon } from '../../components/core/Icon';
+import { PhotoFrame } from '../../components/core/PhotoFrame';
 import { usePersona } from '../../dev/PersonaContext';
-import { useSearch, type Door } from '../../lib/searchState';
+import { haversineMeters, useSearch, type Door } from '../../lib/searchState';
 import { areas } from '../../fixtures/areas';
+import { places } from '../../fixtures/places';
+import { placePhotoUrl } from '../../lib/placePhoto';
 import { useAreaDoorCounts } from '../../data/areaCounts';
 
 // S7: two doors, CSS grid with a 280px minimum so desktop side-by-side and
@@ -24,10 +27,36 @@ const DOORS = [
   },
 ];
 
+/**
+ * "Gem of the town" — the prototype's own S7 carries this banner (not just
+ * S1's marketing page, where an earlier build had put it exclusively).
+ * Moved here, scoped to wherever the person actually is rather than shown
+ * to every anonymous visitor before they have picked anywhere: nearest
+ * gem-flagged place to the real selected origin, only surfaced within a
+ * radius that means something (there is currently exactly one seeded gem —
+ * Subhan Bakery, Nampally — so this returns null everywhere outside
+ * Hyderabad, honestly, rather than reaching for a distant one).
+ */
+const GEM_RADIUS_METERS = 40_000;
+
+function nearestGem(center: { lat: number; lng: number }) {
+  let best: (typeof places)[number] | null = null;
+  let bestDist = Infinity;
+  for (const p of places) {
+    if (!p.gem || p.lat == null || p.lng == null) continue;
+    const dist = haversineMeters(center, { lat: p.lat, lng: p.lng });
+    if (dist < bestDist) {
+      best = p;
+      bestDist = dist;
+    }
+  }
+  return best && bestDist <= GEM_RADIUS_METERS ? best : null;
+}
+
 export function HomeScreen() {
   const navigate = useNavigate();
   const { persona, displayName } = usePersona();
-  const { search, setSearch } = useSearch();
+  const { search, setSearch, effectiveCenter } = useSearch();
   const personalized = persona === 'user' || persona === 'owner';
   // First name only: "Welcome back, Madhu" is a greeting, "Welcome back,
   // Madhu Priya Reddy" is a form letter.
@@ -39,6 +68,7 @@ export function HomeScreen() {
   // Real counts, not the door's flavour copy — how many places and how many
   // logged rankings actually exist behind each door for this area.
   const { data: doorCounts } = useAreaDoorCounts(matchedArea?.id ?? null);
+  const gem = nearestGem(effectiveCenter);
 
   const openDoor = (door: Door) => {
     // Clear the other door's vibes so Eat chips don't bias an Explore search.
@@ -150,6 +180,59 @@ export function HomeScreen() {
             </Card>
           ))}
         </div>
+
+        {gem ? (
+          <button
+            onClick={() => navigate(`/places/${encodeURIComponent(gem.slug)}`)}
+            style={{
+              width: '100%',
+              marginTop: 'var(--space-6)',
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+              gap: 'var(--space-5)',
+              alignItems: 'center',
+              padding: 'var(--space-6)',
+              borderRadius: 'var(--radius-xl)',
+              background: 'var(--surface-inverse)',
+              color: 'var(--white)',
+              border: 'none',
+              cursor: 'pointer',
+              textAlign: 'left',
+              font: 'inherit',
+            }}
+          >
+            <span style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <span
+                style={{
+                  font: 'var(--type-eyebrow)',
+                  textTransform: 'uppercase',
+                  letterSpacing: 'var(--tracking-eyebrow)',
+                  color: 'rgba(255,255,255,0.6)',
+                }}
+              >
+                Gem of the town · this week
+              </span>
+              <span style={{ font: 'var(--type-h4)', color: '#fff' }}>{gem.name}</span>
+              <span
+                style={{
+                  font: 'var(--type-body)',
+                  color: 'var(--text-on-dark-muted)',
+                  maxWidth: 'var(--reason-max)',
+                }}
+              >
+                {gem.reason}
+              </span>
+            </span>
+            <span style={{ width: 132, justifySelf: 'end' }}>
+              <PhotoFrame
+                src={placePhotoUrl(gem.slug, 260, 260)}
+                alt={gem.name}
+                label={gem.name}
+                ratio="1 / 1"
+              />
+            </span>
+          </button>
+        ) : null}
       </div>
     </AppShell>
   );
