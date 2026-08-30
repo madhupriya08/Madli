@@ -36,6 +36,7 @@ vi.mock('../../dev/PersonaContext', () => ({
 const usePlansMock = vi.fn();
 const removePlanItemMutateAsyncMock = vi.fn();
 const useRemovePlanItemStateMock = vi.fn();
+const renamePlanMutateAsyncMock = vi.fn();
 vi.mock('../../data/hooks', () => ({
   usePlans: (...args: unknown[]) => usePlansMock(...args),
   useSharedPlan: () => ({ data: undefined, isLoading: false }),
@@ -44,14 +45,17 @@ vi.mock('../../data/hooks', () => ({
     ...useRemovePlanItemStateMock(),
     mutateAsync: removePlanItemMutateAsyncMock,
   }),
+  useRenamePlan: () => ({ isPending: false, mutateAsync: renamePlanMutateAsyncMock }),
 }));
 
 const getOutingMock = vi.fn();
 const removeOutingStopMock = vi.fn();
+const renameOutingMock = vi.fn();
 vi.mock('../../lib/outingPlans', () => ({
   getOuting: (...args: unknown[]) => getOutingMock(...args),
   removeOutingPlan: vi.fn(),
   removeOutingStop: (...args: unknown[]) => removeOutingStopMock(...args),
+  renameOuting: (...args: unknown[]) => renameOutingMock(...args),
 }));
 
 function Harness({ planId = 'plan-1' }: { planId?: string } = {}) {
@@ -120,6 +124,8 @@ describe('SavedPlanDetailScreen — Phase 8 §3: delete a stop from a saved plan
     getOutingMock.mockReturnValue(undefined);
     removePlanItemMutateAsyncMock.mockReset();
     removeOutingStopMock.mockReset();
+    renamePlanMutateAsyncMock.mockReset();
+    renameOutingMock.mockReset();
     useRemovePlanItemStateMock.mockReturnValue({ isPending: false, variables: undefined });
   });
 
@@ -195,5 +201,82 @@ describe('SavedPlanDetailScreen — Phase 8 §3: delete a stop from a saved plan
 
     expect(await screen.findByText('Plan removed.')).toBeInTheDocument();
     expect(await screen.findByRole('heading', { name: 'Bookmarks' })).toBeInTheDocument();
+  });
+});
+
+describe('SavedPlanDetailScreen — Phase 8 §4: name a plan', () => {
+  beforeEach(() => {
+    usePersonaMock.mockReturnValue({ userId: 'user-1' });
+    getOutingMock.mockReturnValue(undefined);
+    renamePlanMutateAsyncMock.mockReset();
+    renameOutingMock.mockReset();
+    useRemovePlanItemStateMock.mockReturnValue({ isPending: false, variables: undefined });
+  });
+
+  it('a real Plan with no name shows "Name this plan" and the anchor name as the title', async () => {
+    usePlansMock.mockReturnValue({ data: [ZIGZAG_PLAN], isLoading: false });
+    render(<Harness />);
+
+    expect(await screen.findByRole('button', { name: 'Name this plan' })).toBeInTheDocument();
+    expect(screen.getAllByText('Hotel Shadab').length).toBeGreaterThan(0);
+  });
+
+  it('a real Plan with a name shows it as the title and offers "Rename plan"', async () => {
+    const namedPlan: Plan = { ...ZIGZAG_PLAN, name: 'Weekend outing' };
+    usePlansMock.mockReturnValue({ data: [namedPlan], isLoading: false });
+    render(<Harness />);
+
+    expect(await screen.findByText('Weekend outing')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Rename plan' })).toBeInTheDocument();
+  });
+
+  it('a real Plan: typing a name and saving calls renamePlan with that name', async () => {
+    usePlansMock.mockReturnValue({ data: [ZIGZAG_PLAN], isLoading: false });
+    renamePlanMutateAsyncMock.mockResolvedValue(undefined);
+    const user = userEvent.setup();
+    render(<Harness />);
+
+    await user.click(await screen.findByRole('button', { name: 'Name this plan' }));
+    await user.type(screen.getByLabelText('Plan name'), 'Weekend outing');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() =>
+      expect(renamePlanMutateAsyncMock).toHaveBeenCalledWith({
+        planId: 'plan-1',
+        name: 'Weekend outing',
+      }),
+    );
+    expect(await screen.findByText('Plan renamed.')).toBeInTheDocument();
+  });
+
+  it('a Guest Outing: typing a name and saving calls renameOuting with that name', async () => {
+    const outing: OutingPlan = {
+      anchorPlaceId: 'anchor-1',
+      anchorName: 'Hotel Shadab',
+      stops: [{ placeId: 'c', name: 'C', address: '', addedAt: 1 }],
+    };
+    getOutingMock.mockReturnValue(outing);
+    const user = userEvent.setup();
+    render(<Harness />);
+
+    await user.click(await screen.findByRole('button', { name: 'Name this plan' }));
+    await user.type(screen.getByLabelText('Plan name'), 'Weekend outing');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(renameOutingMock).toHaveBeenCalledWith('anchor-1', 'Weekend outing');
+    expect(await screen.findByText('Plan renamed.')).toBeInTheDocument();
+  });
+
+  it('Cancel discards the draft without calling either rename function', async () => {
+    usePlansMock.mockReturnValue({ data: [ZIGZAG_PLAN], isLoading: false });
+    const user = userEvent.setup();
+    render(<Harness />);
+
+    await user.click(await screen.findByRole('button', { name: 'Name this plan' }));
+    await user.type(screen.getByLabelText('Plan name'), 'Weekend outing');
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    expect(screen.queryByLabelText('Plan name')).not.toBeInTheDocument();
+    expect(renamePlanMutateAsyncMock).not.toHaveBeenCalled();
   });
 });

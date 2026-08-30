@@ -49,7 +49,7 @@ export function BookmarksScreen() {
       key: `outing:${p.anchorPlaceId}`,
       id: p.anchorPlaceId,
       kind: 'outing' as const,
-      name: `${p.anchorName} · ${p.stops.length} stop${p.stops.length === 1 ? '' : 's'}`,
+      name: `${p.name ?? p.anchorName} · ${p.stops.length} stop${p.stops.length === 1 ? '' : 's'}`,
       subtitle: p.stops.map((s) => s.name).join(' · '),
     })),
     ...cataloguePlans.map((p) => ({

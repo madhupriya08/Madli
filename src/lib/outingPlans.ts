@@ -18,6 +18,8 @@ export interface OutingPlan {
   anchorName: string;
   anchorLat?: number;
   anchorLng?: number;
+  /** Phase 8 §4: optional, person-given name — null/absent shows the anchor name instead. */
+  name?: string | null;
   stops: OutingStop[];
 }
 
@@ -97,4 +99,13 @@ export function removeOutingStop(anchorPlaceId: string, placeId: string): boolea
 
 export function removeOutingPlan(anchorPlaceId: string): void {
   writeAll(readAll().filter((p) => p.anchorPlaceId !== anchorPlaceId));
+}
+
+/** Phase 8 §4: "let a user name their plan" — the local, Guest-only equivalent of renamePlan (src/data/plans.ts). */
+export function renameOuting(anchorPlaceId: string, name: string | null): void {
+  const all = readAll();
+  const plan = all.find((p) => p.anchorPlaceId === anchorPlaceId);
+  if (!plan) return;
+  plan.name = name;
+  writeAll(all);
 }

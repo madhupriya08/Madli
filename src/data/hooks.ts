@@ -146,6 +146,15 @@ export function useSharedPlan(token: string | undefined) {
   });
 }
 
+export function useRenamePlan(userId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { planId: string; name: string | null }) =>
+      plansApi.renamePlan(input.planId, input.name),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['plans', userId] }),
+  });
+}
+
 export function useRemovePlanItem(userId: string) {
   const qc = useQueryClient();
   return useMutation({

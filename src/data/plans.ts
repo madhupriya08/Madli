@@ -175,6 +175,12 @@ export async function addPlanItem(planId: string, stop: NewPlanStop): Promise<vo
   if (error) throw error;
 }
 
+/** Phase 8 §4: "let a user name their plan" — plans.name already existed (createPlan already accepted it), just nothing let anyone set or change it after the fact. RLS's plans_owner_all already covers UPDATE, so no new function is needed. */
+export async function renamePlan(planId: string, name: string | null): Promise<void> {
+  const { error } = await supabase.from('plans').update({ name }).eq('id', planId);
+  if (error) throw error;
+}
+
 /**
  * Phase 8 §3: removes one stop; if it was the last one, the whole plan goes
  * with it (fn_remove_plan_item does both atomically — see its own comment).

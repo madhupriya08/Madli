@@ -1,16 +1,29 @@
-import { useReducer } from 'react';
+import { useReducer, useState } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { AppShell } from '../layout/AppShell';
 import { Badge } from '../../components/core/Badge';
 import { Button } from '../../components/core/Button';
 import { Card } from '../../components/core/Card';
+import { Input } from '../../components/forms/Input';
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { useToast } from '../../components/feedback/ToastProvider';
 import { usePersona } from '../../dev/PersonaContext';
-import { usePlans, useSharedPlan, useCreatePlanShareToken, useRemovePlanItem } from '../../data/hooks';
+import {
+  usePlans,
+  useSharedPlan,
+  useCreatePlanShareToken,
+  useRemovePlanItem,
+  useRenamePlan,
+} from '../../data/hooks';
 import type { Plan } from '../../data/plans';
 import { GoogleMapView, type MapMarker } from '../../components/map/GoogleMapView';
-import { getOuting, removeOutingPlan, removeOutingStop, type OutingPlan } from '../../lib/outingPlans';
+import {
+  getOuting,
+  removeOutingPlan,
+  removeOutingStop,
+  renameOuting,
+  type OutingPlan,
+} from '../../lib/outingPlans';
 
 /** A real, backend plan rendered through the exact same view as a local Outing — same shape, same component, one fewer rendering path to keep honest. */
 function planToOutingView(plan: Plan): OutingPlan {
@@ -19,6 +32,7 @@ function planToOutingView(plan: Plan): OutingPlan {
     anchorName: plan.anchorName,
     anchorLat: plan.anchorLat ?? undefined,
     anchorLng: plan.anchorLng ?? undefined,
+    name: plan.name,
     stops: plan.stops.map((s) => ({
       placeId: s.googlePlaceId,
       name: s.placeName,
@@ -75,6 +89,8 @@ function OutingPlanDetail({
   shareBusy = false,
   onRemoveStop,
   removingStopId = null,
+  onRename,
+  renameBusy = false,
 }: {
   plan: OutingPlan;
   onBack: () => void;
@@ -89,9 +105,20 @@ function OutingPlanDetail({
   onRemoveStop?: (placeId: string) => void;
   /** The stop currently being removed, so its button reads busy instead of double-submitting. */
   removingStopId?: string | null;
+  /** Phase 8 §4: present for both a real Plan and a Guest Outing. */
+  onRename?: (name: string | null) => void;
+  renameBusy?: boolean;
 }) {
   const navigate = useNavigate();
   const { show } = useToast();
+  const [editingName, setEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState(plan.name ?? '');
+
+  const saveName = () => {
+    const trimmed = nameDraft.trim();
+    onRename?.(trimmed.length > 0 ? trimmed : null);
+    setEditingName(false);
+  };
 
   // Phase 8 §2: always the order stops were actually added in — a Phase 6 §9
   // shortest-route recompute used to run here on every render, which meant
@@ -111,7 +138,7 @@ function OutingPlanDetail({
     }));
 
   return (
-    <AppShell title={plan.anchorName} onBack={onBack}>
+    <AppShell title={plan.name ?? plan.anchorName} onBack={onBack}>
       <div
         style={{
           padding: 'var(--space-6) var(--gutter)',
@@ -130,6 +157,43 @@ function OutingPlanDetail({
           Outing from {plan.anchorName} · {plan.stops.length} stop
           {plan.stops.length === 1 ? '' : 's'}
         </p>
+
+        {onRename && !isSharedLink ? (
+          editingName ? (
+            <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', maxWidth: 360 }}>
+              <Input
+                label="Plan name"
+                value={nameDraft}
+                onChange={(e) => setNameDraft(e.target.value)}
+                placeholder={plan.anchorName}
+                style={{ flex: 1 }}
+              />
+              <Button size="sm" disabled={renameBusy} onClick={saveName}>
+                Save
+              </Button>
+              <Button
+                size="sm"
+                variant="quiet"
+                disabled={renameBusy}
+                onClick={() => {
+                  setNameDraft(plan.name ?? '');
+                  setEditingName(false);
+                }}
+              >
+                Cancel
+              </Button>
+            </div>
+          ) : (
+            <Button
+              size="sm"
+              variant="quiet"
+              style={{ alignSelf: 'flex-start' }}
+              onClick={() => setEditingName(true)}
+            >
+              {plan.name ? 'Rename plan' : 'Name this plan'}
+            </Button>
+          )
+        ) : null}
 
         <GoogleMapView
           height={220}
@@ -230,6 +294,7 @@ export function SavedPlanDetailScreen() {
   const { show } = useToast();
   const createShareToken = useCreatePlanShareToken();
   const removePlanItem = useRemovePlanItem(userId);
+  const renamePlan = useRenamePlan(userId);
   // Guest outings live in localStorage, not TanStack Query — getOuting()
   // below re-reads it fresh on every render, so this only needs to force
   // one after a stop is removed (Phase 8 §3), same idea as BridgeTapScreen's
@@ -261,6 +326,11 @@ export function SavedPlanDetailScreen() {
           } else {
             forceOutingRefresh();
           }
+        }}
+        onRename={(name) => {
+          renameOuting(outing.anchorPlaceId, name);
+          forceOutingRefresh();
+          show(name ? 'Plan renamed.' : 'Plan name cleared.');
         }}
       />
     );
@@ -308,6 +378,21 @@ export function SavedPlanDetailScreen() {
                 }
               } catch (err) {
                 show(err instanceof Error ? err.message : 'Could not remove that stop.', {
+                  tone: 'error',
+                });
+              }
+            }
+      }
+      renameBusy={renamePlan.isPending}
+      onRename={
+        isSharedLink
+          ? undefined
+          : async (name) => {
+              try {
+                await renamePlan.mutateAsync({ planId: plan.id, name });
+                show(name ? 'Plan renamed.' : 'Plan name cleared.');
+              } catch (err) {
+                show(err instanceof Error ? err.message : 'Could not rename that plan.', {
                   tone: 'error',
                 });
               }
