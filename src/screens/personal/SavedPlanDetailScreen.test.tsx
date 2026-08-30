@@ -6,12 +6,13 @@ import { SavedPlanDetailScreen } from './SavedPlanDetailScreen';
 import type { Plan } from '../../data/plans';
 
 /**
- * Phase 6 §9: the stop list, map markers and Google Maps route now show the
- * shortest visiting order for a 3+ stop plan, computed fresh on every
- * render — never written back to the plan's own stored order. A known,
- * hand-verifiable 4-stop configuration (nearest-first is obviously optimal
- * when every stop sits on the same line out from the anchor) proves the
- * screen actually reorders, not just that the underlying function does.
+ * Phase 8 §2: "plan stop positions rotate when adding places" — traced to
+ * Phase 6 §9's shortest-route display reorder, which recomputed fresh on
+ * every render, so adding one stop could reshuffle every other stop's
+ * displayed position too. Removed outright: the stop list, map markers and
+ * Google Maps route now always use the plan's actual stored order
+ * (plan_items.position, or insertion order for a local Guest Outing) and
+ * nothing here reorders it, regardless of stop count.
  */
 
 vi.mock('../../lib/googleMaps', () => ({
@@ -49,8 +50,9 @@ function Harness({ planId = 'plan-1' }: { planId?: string } = {}) {
 }
 
 // Every stop sits due north of the anchor at increasing latitude, stored in
-// a deliberately zigzagged order — nearest-first (A, B, C, D) is trivially
-// the shortest route, and is not the order they were stored in.
+// a deliberately zigzagged order. Nearest-first (A, B, C, D) would be the
+// "shortest route" order the old Phase 6 §9 feature computed — this proves
+// that no longer happens: the stored order (C, A, D, B) is what renders.
 const ZIGZAG_PLAN: Plan = {
   id: 'plan-1',
   userId: 'user-1',
@@ -68,32 +70,26 @@ const ZIGZAG_PLAN: Plan = {
   ],
 };
 
-describe('SavedPlanDetailScreen — Phase 6 §9: shortest-route display order', () => {
+describe('SavedPlanDetailScreen — Phase 8 §2: stop order never rotates', () => {
   beforeEach(() => {
     usePersonaMock.mockReturnValue({ userId: 'user-1' });
   });
 
-  it('shows a 4-stop plan nearest-first, not in its stored order, with a note that it was reordered', async () => {
+  it('a 4-stop plan renders in its stored order, not reordered by distance', async () => {
     usePlansMock.mockReturnValue({ data: [ZIGZAG_PLAN], isLoading: false });
     render(<Harness />);
 
     const stopNames = await screen.findAllByText(/^[ABCD]$/);
-    expect(stopNames.map((el) => el.textContent)).toEqual(['A', 'B', 'C', 'D']);
-    expect(
-      screen.getByText('Ordered for the shortest route from Hotel Shadab — not the order you added them.'),
-    ).toBeInTheDocument();
+    expect(stopNames.map((el) => el.textContent)).toEqual(['C', 'A', 'D', 'B']);
+    expect(screen.queryByText(/shortest route/i)).not.toBeInTheDocument();
   });
 
-  it('a 2-stop plan is shown exactly as stored — too few stops to reorder', async () => {
+  it('a 2-stop plan renders in its stored order too', async () => {
     const twoStopPlan: Plan = { ...ZIGZAG_PLAN, stops: ZIGZAG_PLAN.stops.slice(0, 2) };
     usePlansMock.mockReturnValue({ data: [twoStopPlan], isLoading: false });
     render(<Harness />);
 
     const stopNames = await screen.findAllByText(/^[CA]$/);
-    // Stored order is C then A — unchanged, since reordering only applies at 3+.
     expect(stopNames.map((el) => el.textContent)).toEqual(['C', 'A']);
-    expect(
-      screen.queryByText(/Ordered for the shortest route/),
-    ).not.toBeInTheDocument();
   });
 });
