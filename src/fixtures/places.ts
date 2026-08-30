@@ -355,8 +355,8 @@ export const places: Place[] = [
     visitors: 3,
     drive: '38 min · 19.1 km',
     outsideFameRank: null,
-    lat: null,
-    lng: null,
+    lat: 17.503,
+    lng: 78.508,
     googlePlaceId: null,
     isActive: true,
     address: '[fixture placeholder address], Alwal',
@@ -370,7 +370,11 @@ export const places: Place[] = [
   // Referenced by name in the prototype's admin mock tables (CAT_ROWS,
   // CLAIM_ROWS, REPORT_ROWS, AUDIT_ROWS) as a "0 ratings · Closed" catalogue
   // example — added here as a real place so the admin screens (S43/S48/S49)
-  // can link their mock rows to an actual fixture record.
+  // can link their mock rows to an actual fixture record. Deliberately left
+  // without lat/lng (Phase 6 §1): it's isActive:false and only ever
+  // surfaced via the admin mock rows, never through nearby-search, plan
+  // anchors, or bridge-tap distance features, so it doesn't need a
+  // coordinate the way the other 16 places do.
   {
     id: '00000000-0000-0000-0000-0000000000f10',
     slug: 'restaurants/deccan-grill-house',
@@ -613,8 +617,8 @@ export const places: Place[] = [
     visitors: 0,
     drive: null,
     outsideFameRank: null,
-    lat: null,
-    lng: null,
+    lat: 17.4174,
+    lng: 78.3416,
     googlePlaceId: null,
     isActive: true,
     address: 'Financial District, Gachibowli',
@@ -644,8 +648,8 @@ export const places: Place[] = [
     visitors: 0,
     drive: null,
     outsideFameRank: null,
-    lat: null,
-    lng: null,
+    lat: 17.4351,
+    lng: 78.3803,
     googlePlaceId: null,
     isActive: true,
     address: 'HITEC City, Madhapur',

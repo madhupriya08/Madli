@@ -16,9 +16,11 @@ import { PlaceDetailScreen } from './PlaceDetailScreen';
  * locked teaser for a Guest / the real mention count for anyone else.
  *
  * "Mehfil" (restaurants/mehfil) is used throughout: a real catalogue fixture
- * with no lat/lng (exercises the map placeholder) and a real `dishes` count
- * (exercises "What to order") that already has `drive` set, so the
- * route-fetch effect short-circuits instead of hitting the network.
+ * with a real `dishes` count (exercises "What to order") that already has
+ * `drive` set, so the route-fetch effect short-circuits instead of hitting
+ * the network. Mehfil has real lat/lng now (Phase 6 §1 backfill), so the map
+ * placeholder test below uses "Deccan Grill House" instead — the one
+ * remaining catalogue fixture with no coordinates at all.
  */
 
 vi.mock('../../lib/supabaseClient', () => ({
@@ -73,13 +75,13 @@ function SetPersona({ to }: { to: 'guest' | 'user' }) {
   return <button onClick={() => setPersona(to)}>set persona {to}</button>;
 }
 
-function Harness() {
+function Harness({ slug = 'restaurants%2Fmehfil' }: { slug?: string } = {}) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return (
     <QueryClientProvider client={queryClient}>
       <PersonaProvider>
         <SearchProvider>
-          <MemoryRouter initialEntries={['/places/restaurants%2Fmehfil']}>
+          <MemoryRouter initialEntries={[`/places/${slug}`]}>
             <SetPersona to="guest" />
             <SetPersona to="user" />
             <Routes>
@@ -118,7 +120,7 @@ describe('PlaceDetailScreen — S19 gaps closed against the prototype', () => {
   });
 
   it('falls back to a real map placeholder, matching the design copy, when a place has no coordinates', async () => {
-    render(<Harness />);
+    render(<Harness slug="restaurants%2Fdeccan-grill-house" />);
     expect(await screen.findByText('Map placeholder — open directions')).toBeInTheDocument();
     expect(screen.getByText('Real geography is deliberately not drawn')).toBeInTheDocument();
   });

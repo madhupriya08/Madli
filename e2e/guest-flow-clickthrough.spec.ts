@@ -66,11 +66,12 @@ test('a guest tapping the bridge card on a real place gets the signup prompt, no
   page,
 }) => {
   await mockBoot(page);
-  // Direct to a real catalogue place with no lat/lng, exercising the map
-  // placeholder and the "What to order" lock in the same pass.
+  // Mehfil has real lat/lng now (Phase 6 §1 backfill), so it exercises the
+  // "What to order" lock; the map placeholder is exercised separately below
+  // against "Deccan Grill House", the one remaining catalogue fixture with
+  // no coordinates at all.
   await page.goto('/places/restaurants%2Fmehfil');
 
-  await expect(page.getByText('Map placeholder — open directions')).toBeVisible();
   await expect(page.getByText('6 dishes mentioned — sign up to see them')).toBeVisible();
 
   await page.getByRole('button', { name: /closest places worth stopping at afterwards/ }).click();
