@@ -57,7 +57,9 @@ export function GoogleMapView({
   const markerObjectsRef = useRef<google.maps.Marker[]>([]);
   const polylineRef = useRef<google.maps.Polyline | null>(null);
   const onMapClickRef = useRef(onMapClick);
-  onMapClickRef.current = onMapClick;
+  useEffect(() => {
+    onMapClickRef.current = onMapClick;
+  });
   const [loadError, setLoadError] = useState<Error | null>(null);
   const [ready, setReady] = useState(false);
 

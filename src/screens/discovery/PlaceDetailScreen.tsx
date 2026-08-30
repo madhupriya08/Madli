@@ -143,21 +143,22 @@ export function PlaceDetailScreen() {
     place?.lat != null && place.lng != null
       ? { lat: place.lat, lng: place.lng }
       : googlePlace?.location;
-  const [driveLine, setDriveLine] = useState<string | null>(place?.drive ?? null);
+  // place.drive (a catalogue fixture's pre-written line) is available
+  // synchronously from render — only the Google-place fallback route needs
+  // a fetch, so only that half lives in state; the synchronous half is
+  // derived below rather than pushed through setState in the effect.
+  const [fetchedDriveLine, setFetchedDriveLine] = useState<string | null>(null);
+  const driveLine = place?.drive ?? fetchedDriveLine;
 
   useEffect(() => {
-    if (!dest) return;
-    if (place?.drive) {
-      setDriveLine(place.drive);
-      return;
-    }
+    if (!dest || place?.drive) return;
     let cancelled = false;
     fetchRoute(effectiveCenter, dest, distanceUnitForCountry(search.countryCode))
       .then((r) => {
-        if (!cancelled) setDriveLine(`${r.durationText} · ${r.distanceText}`);
+        if (!cancelled) setFetchedDriveLine(`${r.durationText} · ${r.distanceText}`);
       })
       .catch(() => {
-        if (!cancelled) setDriveLine(null);
+        if (!cancelled) setFetchedDriveLine(null);
       });
     return () => {
       cancelled = true;
