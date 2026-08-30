@@ -24,6 +24,10 @@
 // `fn_unrank_google_place` (20260830100000) was checked field-for-field
 // against a real generation taken after that migration was applied.
 //
+// `profiles.search_filters` (20260830110000) was likewise checked
+// field-for-field against a real generation taken after that migration was
+// applied.
+//
 // `areas.lat`/`areas.lng` (20260827090000) are included below — those were
 // verified against a real generation when added.
 
@@ -386,6 +390,7 @@ export type Database = {
           ranking_weight: number;
           resident_status: string | null;
           role: string;
+          search_filters: Json | null;
           updated_at: string;
         };
         Insert: {
@@ -404,6 +409,7 @@ export type Database = {
           ranking_weight?: number;
           resident_status?: string | null;
           role?: string;
+          search_filters?: Json | null;
           updated_at?: string;
         };
         Update: Partial<Database['public']['Tables']['profiles']['Insert']>;

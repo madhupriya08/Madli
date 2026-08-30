@@ -250,7 +250,7 @@ export interface SearchState {
   areaType: AreaType | null;
 }
 
-const DEFAULT_STATE: SearchState = {
+export const DEFAULT_STATE: SearchState = {
   door: 'eat',
   who: null,
   occasion: null,
@@ -421,6 +421,52 @@ const FILTER_DEFAULTS: Partial<SearchState> = {
   openNow: false,
   areaType: null,
 };
+
+/** The same S16 field set FILTER_DEFAULTS resets — the "filters" a signed-in User's account can remember. */
+export interface FilterSlice {
+  vibes: string[];
+  vibe: string | null;
+  budget: string | null;
+  kitchen: string | null;
+  distanceKm: string;
+  allowsPets: boolean;
+  servesPetFood: boolean;
+  familyFriendly: boolean;
+  coupleFriendly: boolean;
+  openLate: boolean;
+  waitCare: boolean;
+  openNow: boolean;
+  areaType: AreaType | null;
+}
+
+export function filterSliceOf(search: SearchState): FilterSlice {
+  return {
+    vibes: search.vibes,
+    vibe: search.vibe,
+    budget: search.budget,
+    kitchen: search.kitchen,
+    distanceKm: search.distanceKm,
+    allowsPets: search.allowsPets,
+    servesPetFood: search.servesPetFood,
+    familyFriendly: search.familyFriendly,
+    coupleFriendly: search.coupleFriendly,
+    openLate: search.openLate,
+    waitCare: search.waitCare,
+    openNow: search.openNow,
+    areaType: search.areaType,
+  };
+}
+
+/**
+ * Whether every S16 filter is still untouched — the signal for "safe to fill
+ * in from the account's saved filters" versus "the person already picked
+ * something this session, do not overwrite it".
+ */
+export function isFilterSliceAtDefaults(search: SearchState): boolean {
+  return (Object.keys(FILTER_DEFAULTS) as Array<keyof SearchState>).every(
+    (key) => JSON.stringify(search[key]) === JSON.stringify(FILTER_DEFAULTS[key]),
+  );
+}
 
 export function SearchProvider({ children }: { children: ReactNode }) {
   const [search, setState] = useState<SearchState>(readStored);

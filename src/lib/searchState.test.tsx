@@ -11,6 +11,9 @@ import {
   budgetOptionsFor,
   distancePresetsFor,
   formatDistanceKm,
+  filterSliceOf,
+  isFilterSliceAtDefaults,
+  DEFAULT_STATE,
 } from './searchState';
 
 const wrapper = ({ children }: { children: ReactNode }) => (
@@ -205,5 +208,43 @@ describe('locale-aware distance and budget labels', () => {
     expect(formatDistanceKm('8', 'US')).toBe(`${Math.round((8 / 1.60934) * 10) / 10} mi`);
     // Non-numeric input is returned unchanged rather than blowing up.
     expect(formatDistanceKm('', 'IN')).toBe('');
+  });
+});
+
+describe('filterSliceOf / isFilterSliceAtDefaults — P5 §5 account persistence', () => {
+  it('pulls out exactly the S16 filter fields, nothing from S15 or the origin', () => {
+    const slice = filterSliceOf({
+      ...DEFAULT_STATE,
+      who: 'Couple',
+      areaText: 'Jubilee Hills',
+      vibes: ['Diner'],
+      vibe: 'Diner',
+      budget: '₹300–600',
+    });
+    expect(slice).toEqual({
+      vibes: ['Diner'],
+      vibe: 'Diner',
+      budget: '₹300–600',
+      kitchen: null,
+      distanceKm: '',
+      allowsPets: false,
+      servesPetFood: false,
+      familyFriendly: false,
+      coupleFriendly: false,
+      openLate: false,
+      waitCare: false,
+      openNow: false,
+      areaType: null,
+    });
+    // who/areaText are not part of the slice at all.
+    expect(slice).not.toHaveProperty('who');
+    expect(slice).not.toHaveProperty('areaText');
+  });
+
+  it('is true only when every filter field is still at its default', () => {
+    expect(isFilterSliceAtDefaults(DEFAULT_STATE)).toBe(true);
+    expect(isFilterSliceAtDefaults({ ...DEFAULT_STATE, budget: '₹300–600' })).toBe(false);
+    // A non-filter field changing (who) does not count as "touched".
+    expect(isFilterSliceAtDefaults({ ...DEFAULT_STATE, who: 'Couple' })).toBe(true);
   });
 });
