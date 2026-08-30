@@ -667,3 +667,21 @@ export function placeById(id: string): Place | undefined {
 export function placeBySlug(slug: string): Place | undefined {
   return places.find((p) => p.slug === slug);
 }
+
+/**
+ * Direct name search (S52), against the full catalogue — not just the
+ * above-threshold set `published_picks` applies for general discovery.
+ * Phase 6 §2: a below-threshold place (Mehfil, seeded specifically to
+ * exercise the "not enough evidence" path) must still be findable by typing
+ * its actual name — that's a literal, navigational lookup, not a discovery
+ * recommendation, so the ranking threshold doesn't apply here. Inactive
+ * fixtures (Deccan Grill House) are excluded — they're admin-mock-only and
+ * were never meant to be reachable by a person searching.
+ *
+ * Case-insensitive partial match, same as every other real search box.
+ */
+export function searchPlacesByName(query: string): Place[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return [];
+  return places.filter((p) => p.isActive && p.name.toLowerCase().includes(q));
+}
