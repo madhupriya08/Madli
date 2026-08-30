@@ -20,6 +20,7 @@ import {
   type RankTier,
   type ResidentStatus,
 } from '../../data/googleRankings';
+import { getPersonalizedSuggestions } from '../../data/recommendations';
 import { track } from '../../lib/analytics';
 
 const TIERS: Array<{ tier: RankTier; label: string }> = [
@@ -54,7 +55,7 @@ const DOOR_SECTIONS: Array<{ door: Door; heading: string }> = [
 export function RankingOnboardingScreen() {
   const navigate = useNavigate();
   const { show } = useToast();
-  const { userId } = usePersona();
+  const { userId, hasSession } = usePersona();
   const { search, effectiveCenter } = useSearch();
   // The question this screen used to ask directly now runs earlier, right
   // after S8 (LocalOrVisitorScreen) — this reads whatever that answer was
@@ -77,7 +78,13 @@ export function RankingOnboardingScreen() {
   // Explore because this screen never asked about Explore places at all.
   function useNearbyCandidates(door: Door) {
     return useQuery({
-      queryKey: ['ranking-onboarding-nearby', door, effectiveCenter.lat, effectiveCenter.lng],
+      queryKey: [
+        'ranking-onboarding-nearby',
+        door,
+        effectiveCenter.lat,
+        effectiveCenter.lng,
+        hasSession ? userId : null,
+      ],
       queryFn: async (): Promise<GoogleCandidate[]> => {
         if (!hasMapsApiKey()) return [];
         // A wide radius and no vibe words on purpose: this is "places you
@@ -93,9 +100,14 @@ export function RankingOnboardingScreen() {
         });
         // Well-known first — you can only rank somewhere you have been, and
         // the busiest places are the ones most people have.
-        return [...candidates]
+        const top = [...candidates]
           .sort((a, b) => (b.reviewCount ?? 0) - (a.reviewCount ?? 0))
           .slice(0, 8);
+        // P5 §3: if this person has already ranked a few places (a return
+        // visit to this screen, or Eat feeding into Explore's ordering),
+        // offer ones closer to what they have already shown they like first.
+        if (!hasSession || !userId) return top;
+        return getPersonalizedSuggestions(userId, door, top);
       },
       retry: false,
       staleTime: 10 * 60 * 1000,
@@ -139,6 +151,7 @@ export function RankingOnboardingScreen() {
         tier,
         location: candidate.location,
         areaText: search.areaText.trim() || null,
+        types: candidate.types,
       });
       setRanked((prev) => ({ ...prev, [candidate.placeId]: tier }));
       track('google_place_ranked', { tier, rater_type: residency });

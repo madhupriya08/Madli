@@ -125,7 +125,12 @@ describe('RankingOnboardingScreen — deselect + Explore places', () => {
     await user.click(within(exploreCard).getByRole('button', { name: 'Loved it' }));
 
     expect(rankMock).toHaveBeenCalledWith(
-      expect.objectContaining({ googlePlaceId: 'explore-1', door: 'explore', tier: 'loved' }),
+      expect.objectContaining({
+        googlePlaceId: 'explore-1',
+        door: 'explore',
+        tier: 'loved',
+        types: ['tourist_attraction'],
+      }),
     );
   });
 

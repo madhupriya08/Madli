@@ -27,6 +27,8 @@ export interface RankGooglePlaceInput {
   tier: RankTier;
   location?: LatLng | null;
   areaText?: string | null;
+  /** Google's own place types — what P5 §3's content-based recommender compares candidates against. */
+  types?: string[];
 }
 
 /**
@@ -84,12 +86,14 @@ export interface RankedGooglePlace {
   raterType: ResidentStatus;
   position: number;
   areaText: string | null;
+  /** Google's own place types, as they were at the time this was ranked. */
+  types: string[];
 }
 
 export async function fetchMyGoogleRankings(door?: Door): Promise<RankedGooglePlace[]> {
   let q = supabase
     .from('google_place_rankings')
-    .select('id, google_place_id, place_name, door, tier, rater_type, position, area_text')
+    .select('id, google_place_id, place_name, door, tier, rater_type, position, area_text, types')
     .order('position', { ascending: true });
   if (door) q = q.eq('door', door);
 
@@ -107,6 +111,7 @@ export async function fetchMyGoogleRankings(door?: Door): Promise<RankedGooglePl
     raterType: row.rater_type as ResidentStatus,
     position: row.position,
     areaText: row.area_text,
+    types: row.types ?? [],
   }));
 }
 
@@ -178,6 +183,7 @@ export async function rankGooglePlace(input: RankGooglePlaceInput): Promise<Rank
     p_lat: input.location?.lat ?? null,
     p_lng: input.location?.lng ?? null,
     p_area_text: input.areaText ?? null,
+    p_types: input.types ?? [],
   });
   if (error) {
     // fn_rank_google_place raises 23514 when the profile has no

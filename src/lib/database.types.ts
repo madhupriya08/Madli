@@ -28,6 +28,10 @@
 // field-for-field against a real generation taken after that migration was
 // applied.
 //
+// `google_place_rankings.types` and `fn_rank_google_place`'s new `p_types`
+// argument (20260830120000) were likewise checked field-for-field against a
+// real generation taken after that migration was applied.
+//
 // `areas.lat`/`areas.lng` (20260827090000) are included below — those were
 // verified against a real generation when added.
 
@@ -352,6 +356,7 @@ export type Database = {
           position: number;
           rater_type: string;
           tier: string;
+          types: string[];
           updated_at: string;
           user_id: string;
         };
@@ -367,6 +372,7 @@ export type Database = {
           position: number;
           rater_type: string;
           tier: string;
+          types?: string[];
           updated_at?: string;
           user_id: string;
         };
@@ -571,6 +577,7 @@ export type Database = {
           p_lng?: number | null;
           p_place_name: string;
           p_tier: string;
+          p_types?: string[];
         };
         Returns: { entry_id: string; landed_position: number; total_in_door: number }[];
       };

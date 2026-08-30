@@ -2,7 +2,9 @@ import { useQuery } from '@tanstack/react-query';
 import { searchCandidates } from '../lib/placesSearch';
 import { hasMapsApiKey } from '../lib/googleMaps';
 import { useSearch } from '../lib/searchState';
+import { usePersona } from '../dev/PersonaContext';
 import { buildDiscovery, emptyDiscovery, type DiscoveryResult } from './hybridPicks';
+import { getPersonalizedSuggestions } from './recommendations';
 import type { Door } from '../lib/searchState';
 
 export interface DiscoveryQueryResult {
@@ -20,6 +22,7 @@ export function useDiscovery(
   rejectedGooglePlaceIds: Set<string>,
 ): DiscoveryQueryResult {
   const { search, effectiveCenter, radiusMeters } = useSearch();
+  const { hasSession, userId } = usePersona();
 
   const query = useQuery({
     queryKey: [
@@ -45,6 +48,7 @@ export function useDiscovery(
       search.openNow,
       search.centerSource,
       [...rejectedGooglePlaceIds].join(','),
+      hasSession ? userId : null,
     ],
     queryFn: async (): Promise<{ result: DiscoveryResult; error: Error | null }> => {
       if (!hasMapsApiKey()) {
@@ -78,12 +82,32 @@ export function useDiscovery(
           clipToRadius: search.centerSource === 'geolocation' || search.centerSource === 'area',
         });
 
+        const result = buildDiscovery({
+          candidates,
+          origin: effectiveCenter,
+          rejectedGooglePlaceIds,
+        });
+
+        // P5 §3: a signed-in User's own ranking history re-orders these
+        // same candidates toward what they tend to love — a Guest has no
+        // rankings to read (and none to write, by RLS), so this is skipped
+        // entirely rather than making a call known upfront to return nothing.
+        if (!hasSession || !userId || result.ranked.length === 0) {
+          return { result, error: null };
+        }
+        const personalized = await getPersonalizedSuggestions(
+          userId,
+          door,
+          result.ranked.map((pick) => pick.candidate),
+        );
         return {
-          result: buildDiscovery({
-            candidates,
-            origin: effectiveCenter,
-            rejectedGooglePlaceIds,
-          }),
+          result: {
+            ranked: personalized.map((candidate) => ({
+              kind: 'ranked' as const,
+              candidate,
+              location: candidate.location,
+            })),
+          },
           error: null,
         };
       } catch (err) {
