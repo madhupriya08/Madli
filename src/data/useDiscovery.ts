@@ -34,6 +34,7 @@ export function useDiscovery(door: Door): DiscoveryQueryResult {
       search.budgetCap,
       search.budget,
       search.kitchen,
+      search.countryCode,
       search.areaText,
       search.areaType,
       search.allowsPets,
@@ -64,6 +65,7 @@ export function useDiscovery(door: Door): DiscoveryQueryResult {
           occasion: search.occasion,
           budgetCap: search.budgetCap,
           budget: search.budget,
+          countryCode: search.countryCode,
           // Explore has no kitchen to describe, so it never reaches the query.
           kitchen: door === 'eat' ? search.kitchen : null,
           areaText: search.areaText,

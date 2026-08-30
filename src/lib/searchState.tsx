@@ -64,12 +64,8 @@ const KM_PER_MILE = 1.60934;
  * Whether real, locally-meaningful per-head amounts exist for this country.
  * Today that is exactly India — the ₹150/₹400/₹800 caps were chosen for the
  * Hyderabad catalogue this app actually has local pricing knowledge about.
- * Inventing equivalent-feeling dollar or euro thresholds would be a genuine
- * economic guess, not a units conversion, so everywhere else uses the
- * relative $/$$/$$$ notation the rest of the industry (Google Maps, Yelp)
- * already relies on for exactly this reason. `null` (nothing chosen yet)
- * defaults to the same absolute India labels, matching this app's only
- * real catalogue.
+ * `null` (nothing chosen yet) defaults to the same absolute India labels,
+ * matching this app's only real catalogue.
  */
 export function usesAbsoluteBudgetLabels(countryCode: string | null): boolean {
   return countryCode === 'IN' || countryCode === null;
@@ -78,14 +74,56 @@ export function usesAbsoluteBudgetLabels(countryCode: string | null): boolean {
 const RELATIVE_BUDGET_TIERS = ['$', '$$', '$$$', '$$$$'] as const;
 
 /**
+ * Phase 8 §6: "budget is coming with no numbers... add other currencies".
+ * Real, round per-head amounts in each country's own currency — reasonable
+ * typical-price estimates for a casual-to-mid outing, the same spirit as
+ * India's ₹150/400/800 (chosen numbers, not a formula), not a live
+ * exchange-rate conversion. A country not listed here still falls back to
+ * the relative $/$$/$$$/$$$$ notation (Google Maps/Yelp's own convention)
+ * rather than a guessed number with no basis at all.
+ */
+const CURRENCY_TIERS: Record<string, { symbol: string; amounts: readonly [number, number, number] }> = {
+  US: { symbol: '$', amounts: [10, 25, 50] },
+  CA: { symbol: '$', amounts: [12, 30, 60] },
+  AU: { symbol: '$', amounts: [15, 35, 70] },
+  NZ: { symbol: '$', amounts: [15, 35, 70] },
+  SG: { symbol: '$', amounts: [10, 25, 50] },
+  GB: { symbol: '£', amounts: [8, 20, 40] },
+  IE: { symbol: '€', amounts: [10, 25, 50] },
+  DE: { symbol: '€', amounts: [10, 25, 50] },
+  FR: { symbol: '€', amounts: [10, 25, 50] },
+  ES: { symbol: '€', amounts: [10, 25, 50] },
+  IT: { symbol: '€', amounts: [10, 25, 50] },
+  NL: { symbol: '€', amounts: [10, 25, 50] },
+  PT: { symbol: '€', amounts: [10, 25, 50] },
+  AT: { symbol: '€', amounts: [10, 25, 50] },
+  BE: { symbol: '€', amounts: [10, 25, 50] },
+  JP: { symbol: '¥', amounts: [1000, 3000, 6000] },
+};
+
+function currencyTiersFor(countryCode: string | null) {
+  return countryCode ? CURRENCY_TIERS[countryCode] : undefined;
+}
+
+/**
  * S15 step 3 — the budget cap, the third hard-constraint the prototype offers
- * alongside time and distance. Per-head rupee caps, exactly as written in the
- * prototype's `budgetCapChips`, for the one country this app has real local
- * pricing knowledge about; the relative $-tier notation everywhere else.
+ * alongside time and distance. Real amounts wherever this app has a chosen
+ * currency for the country (India's own rupee caps, or Phase 8 §6's other
+ * currencies); the relative $-tier notation for everywhere else.
  */
 export function budgetCapOptionsFor(countryCode: string | null): readonly string[] {
   if (usesAbsoluteBudgetLabels(countryCode)) {
     return ['Under ₹150 a head', 'Under ₹400 a head', 'Under ₹800 a head', 'Price is not the issue'];
+  }
+  const currency = currencyTiersFor(countryCode);
+  if (currency) {
+    const [a, b, c] = currency.amounts;
+    return [
+      `Under ${currency.symbol}${a} a head`,
+      `Under ${currency.symbol}${b} a head`,
+      `Under ${currency.symbol}${c} a head`,
+      'Price is not the issue',
+    ];
   }
   return [...RELATIVE_BUDGET_TIERS, 'Price is not the issue'];
 }
@@ -136,7 +174,52 @@ export function budgetOptionsFor(countryCode: string | null): readonly string[] 
   if (usesAbsoluteBudgetLabels(countryCode)) {
     return ['Under ₹150', '₹150–300', '₹300–600', '₹600+'];
   }
+  const currency = currencyTiersFor(countryCode);
+  if (currency) {
+    const [a, b, c] = currency.amounts;
+    return [
+      `Under ${currency.symbol}${a}`,
+      `${currency.symbol}${a}–${b}`,
+      `${currency.symbol}${b}–${c}`,
+      `${currency.symbol}${c}+`,
+    ];
+  }
   return RELATIVE_BUDGET_TIERS;
+}
+
+/**
+ * Google price-level tiers (1 = inexpensive .. 4 = very expensive) for a
+ * stored budget label. The relative $/$$/$$$/$$$$ notation always means the
+ * same fixed tiers wherever it appears, so that's a plain lookup — same as
+ * before Phase 8 §6. A real-currency label (India's rupee amounts, or one
+ * of Phase 8 §6's other currencies) is resolved by its *position* among
+ * that country's own options instead: the position's meaning (cheapest
+ * tier, up to the mid tier, up to the top tier, no limit) is identical in
+ * every currency, only the printed amount changes, so a new currency's
+ * labels never need a matching hardcoded entry here. Used by
+ * src/lib/placesSearch.ts's priceTiersFor.
+ */
+const RELATIVE_TIER_LOOKUP: Record<string, number[]> = {
+  $: [1],
+  $$: [1, 2],
+  $$$: [2, 3],
+  $$$$: [3, 4],
+  'Price is not the issue': [],
+};
+const CAP_TIER_POSITIONS: readonly number[][] = [[1], [1, 2], [1, 2, 3], []];
+const BAND_TIER_POSITIONS: readonly number[][] = [[1], [1, 2], [2, 3], [3, 4]];
+
+export function priceLevelsForBudgetLabel(
+  label: string | null,
+  countryCode: string | null,
+  kind: 'cap' | 'band',
+): number[] {
+  if (!label) return [];
+  if (label in RELATIVE_TIER_LOOKUP) return RELATIVE_TIER_LOOKUP[label];
+  const options = kind === 'cap' ? budgetCapOptionsFor(countryCode) : budgetOptionsFor(countryCode);
+  const positions = kind === 'cap' ? CAP_TIER_POSITIONS : BAND_TIER_POSITIONS;
+  const index = options.indexOf(label);
+  return index >= 0 && index < positions.length ? positions[index] : [];
 }
 
 /** S16 kitchen. Eat door only — Explore has no kitchen to describe. */

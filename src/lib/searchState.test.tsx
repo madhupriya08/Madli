@@ -9,6 +9,7 @@ import {
   usesAbsoluteBudgetLabels,
   budgetCapOptionsFor,
   budgetOptionsFor,
+  priceLevelsForBudgetLabel,
   distancePresetsFor,
   formatDistanceKm,
   filterSliceOf,
@@ -168,19 +169,52 @@ describe('locale-aware distance and budget labels', () => {
     expect(usesAbsoluteBudgetLabels('FR')).toBe(false);
   });
 
-  it('budget cap chips are real rupee amounts for India, relative $-tiers elsewhere', () => {
+  it('budget cap chips are real rupee amounts for India, real amounts in other currencies where chosen, relative $-tiers only where neither exists', () => {
     expect(budgetCapOptionsFor('IN')).toEqual([
       'Under ₹150 a head',
       'Under ₹400 a head',
       'Under ₹800 a head',
       'Price is not the issue',
     ]);
-    expect(budgetCapOptionsFor('US')).toEqual(['$', '$$', '$$$', '$$$$', 'Price is not the issue']);
+    // Phase 8 §6: US (and other curated currencies) now get real numbers too.
+    expect(budgetCapOptionsFor('US')).toEqual([
+      'Under $10 a head',
+      'Under $25 a head',
+      'Under $50 a head',
+      'Price is not the issue',
+    ]);
+    expect(budgetCapOptionsFor('GB')).toEqual([
+      'Under £8 a head',
+      'Under £20 a head',
+      'Under £40 a head',
+      'Price is not the issue',
+    ]);
+    // A country with no curated currency at all still falls back to the
+    // relative notation rather than an invented, unverifiable number.
+    expect(budgetCapOptionsFor('ZA')).toEqual(['$', '$$', '$$$', '$$$$', 'Price is not the issue']);
   });
 
-  it('the S16 budget band is the same India-vs-relative split', () => {
+  it('the S16 budget band is the same India/currency/relative split', () => {
     expect(budgetOptionsFor('IN')).toEqual(['Under ₹150', '₹150–300', '₹300–600', '₹600+']);
-    expect(budgetOptionsFor('US')).toEqual(['$', '$$', '$$$', '$$$$']);
+    expect(budgetOptionsFor('US')).toEqual(['Under $10', '$10–25', '$25–50', '$50+']);
+    expect(budgetOptionsFor('ZA')).toEqual(['$', '$$', '$$$', '$$$$']);
+  });
+
+  it('Phase 8 §6: a real-currency cap/band label resolves to the same Google price-level tiers regardless of currency', () => {
+    expect(priceLevelsForBudgetLabel('Under ₹150 a head', 'IN', 'cap')).toEqual([1]);
+    expect(priceLevelsForBudgetLabel('Under ₹800 a head', 'IN', 'cap')).toEqual([1, 2, 3]);
+    expect(priceLevelsForBudgetLabel('Price is not the issue', 'IN', 'cap')).toEqual([]);
+    expect(priceLevelsForBudgetLabel('Under $10 a head', 'US', 'cap')).toEqual([1]);
+    expect(priceLevelsForBudgetLabel('Under $50 a head', 'US', 'cap')).toEqual([1, 2, 3]);
+    expect(priceLevelsForBudgetLabel('₹300–600', 'IN', 'band')).toEqual([2, 3]);
+    expect(priceLevelsForBudgetLabel('$25–50', 'US', 'band')).toEqual([2, 3]);
+  });
+
+  it('Phase 8 §6: the relative $ notation resolves the same way it always did, for a country with no curated currency', () => {
+    expect(priceLevelsForBudgetLabel('$', 'ZA', 'cap')).toEqual([1]);
+    expect(priceLevelsForBudgetLabel('$$$$', 'ZA', 'band')).toEqual([3, 4]);
+    expect(priceLevelsForBudgetLabel('Price is not the issue', 'ZA', 'cap')).toEqual([]);
+    expect(priceLevelsForBudgetLabel(null, 'ZA', 'cap')).toEqual([]);
   });
 
   it('distance presets are round km numbers for most places, round mile numbers (stored as their km equivalent) for mile countries', () => {

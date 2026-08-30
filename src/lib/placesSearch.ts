@@ -1,6 +1,12 @@
 /// <reference types="google.maps" />
 import { loadGoogleMaps, asMapsError, getMapsApiKey } from './googleMaps';
-import { haversineMeters, type AreaType, type Door, type LatLng } from './searchState';
+import {
+  haversineMeters,
+  priceLevelsForBudgetLabel,
+  type AreaType,
+  type Door,
+  type LatLng,
+} from './searchState';
 
 /**
  * Google Places, reached through the Maps JavaScript `places` library rather
@@ -86,6 +92,8 @@ export interface SearchCandidatesInput {
   budgetCap?: string | null;
   /** S16 — price band. Also narrows price levels. */
   budget?: string | null;
+  /** Phase 8 §6: which currency budgetCap/budget's labels are printed in — needed to resolve them back to Google price levels. */
+  countryCode?: string | null;
   /** S16 — Eat door only. */
   kitchen?: string | null;
   areaText?: string;
@@ -230,32 +238,17 @@ function textQueryFor(input: SearchCandidatesInput): string {
  * narrower of the two wins rather than one silently overwriting the other.
  * Returns null when neither is set, or when the person said price is not the
  * issue — an empty `priceLevels` array would filter everything out.
+ *
+ * Phase 8 §6: resolved via priceLevelsForBudgetLabel (searchState.tsx) now,
+ * not a hardcoded label→tiers table here — that table only ever covered
+ * India's rupee labels plus the relative $ notation, so a new currency's
+ * labels would have silently stopped narrowing the search at all.
  */
-const PRICE_TIERS: Record<string, number[]> = {
-  // S15 caps — India, real per-head rupee amounts.
-  'Under ₹150 a head': [1],
-  'Under ₹400 a head': [1, 2],
-  'Under ₹800 a head': [1, 2, 3],
-  'Price is not the issue': [],
-  // S16 bands — India.
-  'Under ₹150': [1],
-  '₹150–300': [1, 2],
-  '₹300–600': [2, 3],
-  '₹600+': [3, 4],
-  // Everywhere else: the relative $-tier notation Google/Yelp already use
-  // worldwide, rather than invented absolute thresholds in a currency this
-  // app has no real local pricing knowledge for. Same four tiers, same
-  // meaning, both S15 and S16.
-  $: [1],
-  $$: [1, 2],
-  $$$: [2, 3],
-  $$$$: [3, 4],
-};
-
 function priceTiersFor(input: SearchCandidatesInput): number[] | null {
-  const sets = [input.budgetCap, input.budget]
-    .map((label) => (label ? PRICE_TIERS[label] : undefined))
-    .filter((tiers): tiers is number[] => Array.isArray(tiers) && tiers.length > 0);
+  const sets = [
+    priceLevelsForBudgetLabel(input.budgetCap ?? null, input.countryCode ?? null, 'cap'),
+    priceLevelsForBudgetLabel(input.budget ?? null, input.countryCode ?? null, 'band'),
+  ].filter((tiers) => tiers.length > 0);
   if (sets.length === 0) return null;
   // Intersect, so two answers narrow rather than fight. If they contradict
   // each other outright, fall back to the first — an empty set would return
