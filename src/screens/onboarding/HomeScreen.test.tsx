@@ -7,11 +7,11 @@ import { SearchProvider, useSearch } from '../../lib/searchState';
 import { HomeScreen } from './HomeScreen';
 
 /**
- * The Gem of the town banner used to live only on the marketing landing
- * page, shown to every anonymous visitor regardless of where they actually
- * are — the prototype's own S7 (Home) carries this banner instead, scoped
- * to the real selected area. These assert that scoping: near the one seeded
- * gem (Subhan Bakery, Nampally) it shows; far from it, it honestly doesn't.
+ * Phase 8 §9: the Gem of the town banner used to appear on Home, scoped to
+ * whichever area a person had picked — but it only ever had one seeded gem
+ * (Subhan Bakery, Nampally) to show, so in practice it was a hardcoded
+ * Hyderabad banner masquerading as a dynamic feature. Removed entirely;
+ * this pins that it is gone even right on top of that one seeded place.
  */
 
 vi.mock('../../lib/supabaseClient', () => ({
@@ -44,10 +44,7 @@ function Harness({ areaText, center }: { areaText: string; center: { lat: number
           <SeedArea areaText={areaText} center={center} />
           <Routes>
             <Route path="/app" element={<HomeScreen />} />
-            <Route
-              path="/places/:slug"
-              element={<h1>Place detail</h1>}
-            />
+            <Route path="/places/:slug" element={<h1>Place detail</h1>} />
           </Routes>
         </MemoryRouter>
       </SearchProvider>
@@ -55,32 +52,25 @@ function Harness({ areaText, center }: { areaText: string; center: { lat: number
   );
 }
 
-describe('HomeScreen — Gem of the town, scoped to the real selected area', () => {
+describe('HomeScreen — Phase 8 §9: no Gem of the town banner', () => {
   beforeEach(() => {
     sessionStorage.clear();
   });
 
-  it('shows the gem near a Hyderabad-adjacent area (Jubilee Hills, within range of Nampally)', async () => {
-    render(<Harness areaText="Jubilee Hills" center={{ lat: 17.4325, lng: 78.4074 }} />);
-    await userEvent.click(screen.getByRole('button', { name: 'seed Jubilee Hills' }));
-
-    expect(await screen.findByText('Gem of the town · this week')).toBeInTheDocument();
-    expect(screen.getByText('Subhan Bakery')).toBeInTheDocument();
-  });
-
-  it('does not show a gem for a location nowhere near the one seeded gem', async () => {
-    render(<Harness areaText="Bandra, Mumbai" center={{ lat: 19.0596, lng: 72.8295 }} />);
-    await userEvent.click(screen.getByRole('button', { name: 'seed Bandra, Mumbai' }));
+  it('never shows a gem banner, even right on top of the one seeded gem (Nampally)', async () => {
+    render(<Harness areaText="Nampally" center={{ lat: 17.3833, lng: 78.4757 }} />);
+    await userEvent.click(screen.getByRole('button', { name: 'seed Nampally' }));
 
     await screen.findByRole('heading', { name: 'Where to start?' });
     expect(screen.queryByText('Gem of the town · this week')).not.toBeInTheDocument();
+    expect(screen.queryByText('Subhan Bakery')).not.toBeInTheDocument();
   });
 
-  it('tapping the gem banner opens that place\'s own page', async () => {
-    render(<Harness areaText="Jubilee Hills" center={{ lat: 17.4325, lng: 78.4074 }} />);
-    await userEvent.click(screen.getByRole('button', { name: 'seed Jubilee Hills' }));
+  it('still shows the two doors and lets Eat navigate to intake', async () => {
+    render(<Harness areaText="Nampally" center={{ lat: 17.3833, lng: 78.4757 }} />);
+    await userEvent.click(screen.getByRole('button', { name: 'seed Nampally' }));
 
-    await userEvent.click(await screen.findByText('Subhan Bakery'));
-    expect(await screen.findByRole('heading', { name: 'Place detail' })).toBeInTheDocument();
+    expect(await screen.findByText('Eat')).toBeInTheDocument();
+    expect(screen.getByText('Explore')).toBeInTheDocument();
   });
 });

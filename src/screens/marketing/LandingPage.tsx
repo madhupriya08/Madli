@@ -11,18 +11,19 @@ import { logEvent } from '../../lib/analytics';
 // kit whose copy ("34 cities", Istanbul, Lisbon) describes a product Madli
 // isn't.
 //
-// Two things the prototype's own S1 has that this build deliberately does
+// One thing the prototype's own S1 has that this build deliberately does
 // NOT carry over, now that location is open to anywhere rather than one
 // city: the "Showing picks for {area} · change" + "Local or visiting?"
 // widget (the prototype hardcodes "Hyderabad · 8 neighbourhoods" here —
 // there is no honest universal default once the product isn't one city, and
 // the "local or visiting" toggle here was decorative, never persisted
 // anywhere, and duplicated the real ask S53 already does properly after a
-// real area is chosen), and the "Gem of the town" banner — moved to Home
-// (S7), which is where the prototype's own S7 block *also* independently
-// carries this exact banner, scoped to wherever the person actually is
-// rather than shown unconditionally to an anonymous visitor before they
-// have picked anywhere.
+// real area is chosen).
+//
+// Phase 8 §9: the "Gem of the town" banner, once moved here to Home (S7),
+// was removed from Home entirely — with exactly one seeded gem in the whole
+// catalogue (Subhan Bakery, Nampally), it was a hardcoded Hyderabad banner
+// wearing a "dynamic feature" costume, not something that generalised.
 const HOW_STEPS = [
   {
     n: '1',
