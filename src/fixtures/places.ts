@@ -668,6 +668,11 @@ export function placeBySlug(slug: string): Place | undefined {
   return places.find((p) => p.slug === slug);
 }
 
+/** Phase 8 §5: lets a live Google search result resolve back to its curated catalogue entry, when it has one. */
+export function placeByGooglePlaceId(googlePlaceId: string): Place | undefined {
+  return places.find((p) => p.googlePlaceId === googlePlaceId);
+}
+
 /**
  * Direct name search (S52), against the full catalogue — not just the
  * above-threshold set `published_picks` applies for general discovery.

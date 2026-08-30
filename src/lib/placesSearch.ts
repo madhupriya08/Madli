@@ -437,6 +437,37 @@ export async function searchCandidates(input: SearchCandidatesInput): Promise<Go
   }
 }
 
+/**
+ * Phase 8 §5: S52's direct name search, against live Google Places rather
+ * than only the 17-place seeded catalogue — a search for any real place
+ * used to come back "No matches" the moment it wasn't one of those 17.
+ * Deliberately not door-restricted like searchCandidates: a name search
+ * should find a place whether it happens to be an Eat or Explore door
+ * pick, or neither. Biased toward the person's area but not clipped to a
+ * radius — someone searching a name may mean a place well outside it.
+ */
+export async function searchPlacesByQuery(
+  query: string,
+  near: LatLng,
+  maxResults = 10,
+): Promise<GoogleCandidate[]> {
+  const trimmed = query.trim();
+  if (!trimmed) return [];
+  const maps = await loadGoogleMaps();
+  try {
+    const { Place } = (await maps.importLibrary('places')) as google.maps.PlacesLibrary;
+    const { places } = await Place.searchByText({
+      textQuery: trimmed,
+      fields: SEARCH_FIELDS,
+      locationBias: { center: new maps.LatLng(near.lat, near.lng), radius: 50_000 },
+      maxResultCount: maxResults,
+    });
+    return (places ?? []).map(toCandidate).filter((c): c is GoogleCandidate => c !== null);
+  } catch (err) {
+    throw asMapsError(err, 'Places API (New)');
+  }
+}
+
 export async function fetchPlaceDetails(placeId: string): Promise<GooglePlaceDetails> {
   const maps = await loadGoogleMaps();
   try {

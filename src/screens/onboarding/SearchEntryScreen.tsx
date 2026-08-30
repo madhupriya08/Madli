@@ -1,11 +1,15 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { AppShell } from '../layout/AppShell';
 import { SearchField } from '../../components/forms/SearchField';
 import { Button } from '../../components/core/Button';
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { usePersona } from '../../dev/PersonaContext';
-import { searchPlacesByName } from '../../fixtures/places';
+import { searchPlacesByName, placeByGooglePlaceId } from '../../fixtures/places';
+import { searchPlacesByQuery, type GoogleCandidate } from '../../lib/placesSearch';
+import { hasMapsApiKey } from '../../lib/googleMaps';
+import { useSearch } from '../../lib/searchState';
 
 // S52: what the bottom-nav Search tab opens — not part of the linear intake
 // flow. The escape hatch at the bottom goes to guided intake, so the two
@@ -17,13 +21,45 @@ import { searchPlacesByName } from '../../fixtures/places';
 // state — so a query for a real, seeded place name returned unrelated
 // results (or nothing, on a fresh session with no filters set at all). A
 // real name search against the catalogue now drives submit directly.
+//
+// Phase 8 §5: catalogue-only meant a search for any real place outside the
+// 17 seeded ones came back "No matches" — this now also searches live
+// Google Places, unrestricted by door (a name search should find a place
+// whether it's an Eat or Explore door pick, or neither). Catalogue matches
+// still surface first and instantly (no network round trip, and they carry
+// real ranking/reason data a bare Google result doesn't) — Google results
+// that resolve back to one of those catalogue entries are de-duplicated
+// rather than shown twice.
 export function SearchEntryScreen() {
   const [query, setQuery] = useState('');
   const [submittedQuery, setSubmittedQuery] = useState<string | null>(null);
   const navigate = useNavigate();
   const { persona } = usePersona();
+  const { effectiveCenter } = useSearch();
 
-  const matches = submittedQuery ? searchPlacesByName(submittedQuery) : [];
+  const localMatches = submittedQuery ? searchPlacesByName(submittedQuery) : [];
+  const localGooglePlaceIds = new Set(
+    localMatches.map((p) => p.googlePlaceId).filter((id): id is string => id !== null),
+  );
+
+  const googleSearch = useQuery({
+    queryKey: ['placeSearch', submittedQuery, effectiveCenter.lat, effectiveCenter.lng],
+    queryFn: () => searchPlacesByQuery(submittedQuery!, effectiveCenter),
+    enabled: Boolean(submittedQuery) && hasMapsApiKey(),
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+  const googleMatches = (googleSearch.data ?? []).filter(
+    (c) => !localGooglePlaceIds.has(c.placeId),
+  );
+
+  const totalMatches = localMatches.length + googleMatches.length;
+  const stillSearching = Boolean(submittedQuery) && googleSearch.isLoading;
+
+  function openCandidate(candidate: GoogleCandidate) {
+    const catalogue = placeByGooglePlaceId(candidate.placeId);
+    navigate(`/places/${encodeURIComponent(catalogue ? catalogue.slug : candidate.placeId)}`);
+  }
 
   return (
     <AppShell title="Search">
@@ -50,7 +86,7 @@ export function SearchEntryScreen() {
         />
 
         {submittedQuery ? (
-          matches.length > 0 ? (
+          totalMatches > 0 ? (
             <div>
               <h2
                 style={{
@@ -59,7 +95,7 @@ export function SearchEntryScreen() {
                   marginBottom: 'var(--space-2)',
                 }}
               >
-                {matches.length} {matches.length === 1 ? 'match' : 'matches'}
+                {totalMatches} {totalMatches === 1 ? 'match' : 'matches'}
               </h2>
               <ul
                 style={{
@@ -70,7 +106,7 @@ export function SearchEntryScreen() {
                   gap: 'var(--space-2)',
                 }}
               >
-                {matches.map((place) => (
+                {localMatches.map((place) => (
                   <li key={place.id}>
                     <button
                       onClick={() => navigate(`/places/${encodeURIComponent(place.slug)}`)}
@@ -90,13 +126,36 @@ export function SearchEntryScreen() {
                     </button>
                   </li>
                 ))}
+                {googleMatches.map((candidate) => (
+                  <li key={candidate.placeId}>
+                    <button
+                      onClick={() => openCandidate(candidate)}
+                      style={{
+                        width: '100%',
+                        background: 'none',
+                        border: '1px solid var(--border-hairline)',
+                        borderRadius: 'var(--radius-md)',
+                        padding: 'var(--space-4)',
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                        font: 'var(--type-body)',
+                        color: 'var(--text-heading)',
+                      }}
+                    >
+                      {candidate.name}
+                      {candidate.address ? ` · ${candidate.address}` : ''}
+                    </button>
+                  </li>
+                ))}
               </ul>
             </div>
+          ) : stillSearching ? (
+            <p style={{ font: 'var(--type-body-sm)', color: 'var(--text-muted)' }}>Searching…</p>
           ) : (
             <EmptyState
               icon="search-x"
               title="No matches"
-              body={`Nothing in the catalogue matched "${submittedQuery}". Try a shorter word or a different spelling.`}
+              body={`Nothing found for "${submittedQuery}". Try a shorter word or a different spelling.`}
             />
           )
         ) : persona === 'guest' ? (
