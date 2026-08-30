@@ -191,6 +191,26 @@ describe('BridgeTapScreen — Add to plan', () => {
     expect(createPlanMutateAsyncMock).not.toHaveBeenCalled();
   });
 
+  it('P8 §1: shows at most 3 nearby places even when more are available', async () => {
+    const manyCandidates: GoogleCandidate[] = Array.from({ length: 6 }, (_, i) => ({
+      placeId: `nearby-stop-${i + 1}`,
+      name: `Place ${i + 1}`,
+      address: 'Somewhere, Hyderabad',
+      // Increasing distance from the anchor so the sort/slice order is deterministic.
+      location: { lat: 17.368888 + (i + 1) * 0.01, lng: 78.4755104 + (i + 1) * 0.01 },
+      types: ['park'],
+    }));
+    searchCandidatesMock.mockResolvedValue(manyCandidates);
+    usePersonaMock.mockReturnValue({ breakpoint: 'desktop', hasSession: false, userId: '' });
+    render(<Harness />);
+
+    await screen.findByText('Place 1');
+    expect(screen.getAllByRole('button', { name: 'Add to plan' })).toHaveLength(3);
+    expect(screen.queryByText('Place 4')).not.toBeInTheDocument();
+    expect(screen.queryByText('Place 5')).not.toBeInTheDocument();
+    expect(screen.queryByText('Place 6')).not.toBeInTheDocument();
+  });
+
   it('a stop already on the existing plan shows Added and does not call either mutation again', async () => {
     const existingPlan: Plan = {
       id: 'plan-1',
