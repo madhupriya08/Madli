@@ -47,15 +47,8 @@ import { OwnerProfileScreen } from './owner/OwnerProfileScreen';
 
 import { AdminLoginScreen } from './admin/AdminLoginScreen';
 import { AnalyticsDashboardScreen } from './admin/AnalyticsDashboardScreen';
-import { CatalogueListScreen } from './admin/CatalogueListScreen';
-import { CatalogueEditScreen } from './admin/CatalogueEditScreen';
-import { BulkImportScreen } from './admin/BulkImportScreen';
-import { RankingAndTrustScreen } from './admin/RankingAndTrustScreen';
 import { GemSelectionScreen } from './admin/GemSelectionScreen';
-import { BusinessClaimsQueueScreen } from './admin/BusinessClaimsQueueScreen';
-import { ReportsAndModerationScreen } from './admin/ReportsAndModerationScreen';
 import { RolesAccountsAuditScreen } from './admin/RolesAccountsAuditScreen';
-import { LocationHistoryAccessScreen } from './admin/LocationHistoryAccessScreen';
 
 import { PlaceholderScreen } from './PlaceholderScreen';
 import { RootRoute } from './RootRoute';
@@ -108,15 +101,8 @@ const elementById: Record<string, ReactNode> = {
 
   S41: <AdminLoginScreen />,
   S42: <AnalyticsDashboardScreen />,
-  S43: <CatalogueListScreen />,
-  S44: <CatalogueEditScreen />,
-  S45: <BulkImportScreen />,
-  S46: <RankingAndTrustScreen />,
   S47: <GemSelectionScreen />,
-  S48: <BusinessClaimsQueueScreen />,
-  S49: <ReportsAndModerationScreen />,
   S50: <RolesAccountsAuditScreen />,
-  S51: <LocationHistoryAccessScreen />,
 };
 
 export const screenRoutes = [

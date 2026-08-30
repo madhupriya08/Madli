@@ -3,15 +3,13 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Logo } from '../../components/core/Logo';
 import { usePersona } from '../../dev/PersonaContext';
 
+// Phase 7: Catalogue, Ranking and trust, Claims, Reports and Location
+// history were removed on explicit request — their screens, routes, and
+// this nav row all went together, not just the entries here.
 const NAV = [
   { label: 'Analytics', path: '/admin' },
-  { label: 'Catalogue', path: '/admin/catalogue' },
-  { label: 'Ranking and trust', path: '/admin/ranking' },
   { label: 'Gems', path: '/admin/gems' },
-  { label: 'Claims', path: '/admin/claims' },
-  { label: 'Reports', path: '/admin/reports' },
   { label: 'Roles and audit', path: '/admin/roles' },
-  { label: 'Location history', path: '/admin/location-history' },
 ];
 
 // S41 note: dark teal, no consumer nav, no logo lockup — switching into Admin

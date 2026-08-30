@@ -57,24 +57,3 @@ export async function submitBusinessClaim(input: {
   if (error) throw error;
   return rowToClaim(data);
 }
-
-/** Admin-only: mark the verification phone call as done — separate from approval (S48). */
-export async function adminMarkClaimCalled(claimId: string, adminId: string): Promise<void> {
-  const { error } = await supabase
-    .from('business_claims')
-    .update({ called_at: new Date().toISOString(), called_by: adminId })
-    .eq('id', claimId);
-  if (error) throw error;
-}
-
-export async function adminResolveClaim(
-  claimId: string,
-  status: Extract<ClaimStatus, 'verified' | 'rejected'>,
-  adminId: string,
-): Promise<void> {
-  const { error } = await supabase
-    .from('business_claims')
-    .update({ status, resolved_at: new Date().toISOString(), resolved_by: adminId })
-    .eq('id', claimId);
-  if (error) throw error;
-}

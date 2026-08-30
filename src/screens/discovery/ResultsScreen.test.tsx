@@ -27,6 +27,9 @@ vi.mock('../../lib/supabaseClient', () => ({
       getSession: () => Promise.resolve({ data: { session: null } }),
       onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
     },
+    // Phase 7 §4: ResultsScreen fires logEvent() (results_shown/pick_opened/
+    // show_two_more_clicked), which calls supabase.from(...).insert(...).
+    from: () => ({ insert: () => Promise.resolve({ error: null }) }),
   },
 }));
 

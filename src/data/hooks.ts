@@ -182,28 +182,6 @@ export function useSubmitBusinessClaim() {
   });
 }
 
-export function useAdminMarkClaimCalled() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (input: { claimId: string; adminId: string }) =>
-      businessClaimsApi.adminMarkClaimCalled(input.claimId, input.adminId),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ['businessClaims'] }),
-  });
-}
-
-export function useAdminResolveClaim() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (input: { claimId: string; status: 'verified' | 'rejected'; adminId: string }) =>
-      businessClaimsApi.adminResolveClaim(input.claimId, input.status, input.adminId),
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ['businessClaims'] });
-      // A newly-verified claim changes owns_verified_claim() for that user/place.
-      void qc.invalidateQueries({ queryKey: ['place'] });
-    },
-  });
-}
-
 // --- Owner mode ---
 
 export function useOwnsVerifiedClaim(placeId: string | undefined) {
@@ -219,25 +197,6 @@ export function useOwnsVerifiedClaim(placeId: string | undefined) {
 }
 
 // --- Admin ---
-
-export function useAdminOverrideRanking() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (input: {
-      placeId: string;
-      gapTone: 'clear' | 'close' | 'thin';
-      gapPoints: number | null;
-      reason: string;
-    }) =>
-      adminApi.adminOverrideRanking(input.placeId, input.gapTone, input.gapPoints, input.reason),
-    onSuccess: (_data, input) => {
-      void qc.invalidateQueries({ queryKey: ['publishedPicks'] });
-      void qc.invalidateQueries({ queryKey: ['allPlaces'] });
-      void qc.invalidateQueries({ queryKey: ['place', 'id', input.placeId] });
-      void qc.invalidateQueries({ queryKey: ['auditLog'] });
-    },
-  });
-}
 
 export function useGemCandidates() {
   return useQuery({ queryKey: ['gemCandidates'], queryFn: adminApi.listGemCandidates });
@@ -258,32 +217,12 @@ export function useFunnelStats(days = 30) {
   return useQuery({ queryKey: ['funnelStats', days], queryFn: () => adminApi.getFunnelStats(days) });
 }
 
-export function useAdminReadLocationHistory() {
-  return useMutation({
-    mutationFn: (input: { targetUserId: string; reason: string }) =>
-      adminApi.adminReadLocationHistory(input.targetUserId, input.reason),
-  });
-}
-
 export function useDeleteOwnAccount() {
   return useMutation({ mutationFn: () => adminApi.deleteOwnAccount(true) });
 }
 
 export function useReports() {
   return useQuery({ queryKey: ['reports'], queryFn: adminApi.getReports });
-}
-
-export function useResolveReport() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (input: {
-      reportId: string;
-      status: 'resolved' | 'dismissed';
-      outcome: string;
-      adminId: string;
-    }) => adminApi.adminResolveReport(input.reportId, input.status, input.outcome, input.adminId),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ['reports'] }),
-  });
 }
 
 export function useAuditLog() {

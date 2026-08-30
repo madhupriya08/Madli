@@ -1,6 +1,11 @@
 // The screen catalogue, per design_handoff_madli/README.md. S12 (OTP
 // verification) is deliberately absent: Madli has no second factor, so the
 // screen and its route were removed rather than left reachable-but-unused.
+// Phase 7: S43/S44/S45 (Catalogue list/edit/bulk-import), S46 (Ranking and
+// trust), S48 (Business claims queue), S49 (Reports and moderation), and S51
+// (Location history access) were removed the same way, on explicit request
+// — the screens, their routes, and their AdminShell nav entries are gone,
+// not just hidden.
 // The handoff's own numbering is kept for every other screen. Drives the dev
 // harness's persona/state switcher and "All screens" tray (§7 of the Phase 2
 // prompt) and the router in routes.tsx. `states` lists the variants that
@@ -391,58 +396,9 @@ export const screenRegistry: ScreenMeta[] = [
     realDivergence: true,
   },
   {
-    id: 'S43',
-    name: 'Catalogue — list',
-    path: '/admin/catalogue',
-    group: 'Admin',
-    states: ['default'],
-    roles: 'Admin',
-    realDivergence: true,
-  },
-  {
-    id: 'S44',
-    name: 'Catalogue — add / edit',
-    path: '/admin/catalogue/:id/edit',
-    group: 'Admin',
-    states: ['create', 'edit'],
-    roles: 'Admin',
-  },
-  {
-    id: 'S45',
-    name: 'Catalogue — bulk import',
-    path: '/admin/catalogue/bulk-import',
-    group: 'Admin',
-    states: ['upload', 'preview/validate', 'success/error summary'],
-    roles: 'Admin',
-  },
-  {
-    id: 'S46',
-    name: 'Ranking and trust',
-    path: '/admin/ranking',
-    group: 'Admin',
-    states: ['default', 'override confirm'],
-    roles: 'Admin',
-  },
-  {
     id: 'S47',
     name: 'Gem selection',
     path: '/admin/gems',
-    group: 'Admin',
-    states: ['default'],
-    roles: 'Admin',
-  },
-  {
-    id: 'S48',
-    name: 'Business claims queue',
-    path: '/admin/claims',
-    group: 'Admin',
-    states: ['default'],
-    roles: 'Admin',
-  },
-  {
-    id: 'S49',
-    name: 'Reports and moderation',
-    path: '/admin/reports',
     group: 'Admin',
     states: ['default'],
     roles: 'Admin',
@@ -455,14 +411,6 @@ export const screenRegistry: ScreenMeta[] = [
     states: ['default'],
     roles: 'Admin',
     realDivergence: true,
-  },
-  {
-    id: 'S51',
-    name: 'Location history access',
-    path: '/admin/location-history',
-    group: 'Admin',
-    states: ['access-gate', 'granted view'],
-    roles: 'Admin',
   },
 ];
 
