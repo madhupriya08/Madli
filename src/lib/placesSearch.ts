@@ -99,7 +99,6 @@ export interface SearchCandidatesInput {
   areaText?: string;
   areaType?: AreaType | null;
   allowsPets?: boolean;
-  servesPetFood?: boolean;
   familyFriendly?: boolean;
   coupleFriendly?: boolean;
   openLate?: boolean;
@@ -211,7 +210,6 @@ function textQueryFor(input: SearchCandidatesInput): string {
   if (input.occasion) parts.push(OCCASION_QUERY[input.occasion] ?? input.occasion);
   if (input.kitchen) parts.push(KITCHEN_QUERY[input.kitchen] ?? input.kitchen);
   if (input.allowsPets) parts.push('pet friendly');
-  if (input.servesPetFood) parts.push('serves pet food');
   if (input.familyFriendly) parts.push('family friendly');
   if (input.coupleFriendly) parts.push('good for couples');
   if (input.openLate) parts.push('open late');

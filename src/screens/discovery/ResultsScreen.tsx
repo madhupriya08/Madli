@@ -88,7 +88,6 @@ export function ResultsScreen({ door }: { door: 'eat' | 'explore' }) {
       kitchen: search.kitchen,
       area_type: search.areaType,
       allows_pets: search.allowsPets,
-      serves_pet_food: search.servesPetFood,
       open_now: search.openNow,
     });
     logEvent('results_shown', hasSession ? userId : null, { ranked_count: ranked.length });

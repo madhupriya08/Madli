@@ -132,7 +132,6 @@ function chipsFor(search: SearchState, currentPath: string): ChipSpec[] {
     [search.openNow, 'Open now', { openNow: false }],
     [search.openLate, 'Open late', { openLate: false }],
     [search.allowsPets, 'Allows pets', { allowsPets: false }],
-    [search.servesPetFood, 'Serves pet food', { servesPetFood: false }],
     [search.familyFriendly, 'Family friendly', { familyFriendly: false }],
     [search.coupleFriendly, 'Couple friendly', { coupleFriendly: false }],
     [

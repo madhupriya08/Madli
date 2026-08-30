@@ -30,7 +30,6 @@ const SAVED: FilterSlice = {
   kitchen: null,
   distanceKm: '5',
   allowsPets: false,
-  servesPetFood: false,
   familyFriendly: false,
   coupleFriendly: false,
   openLate: false,

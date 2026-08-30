@@ -29,10 +29,9 @@ const CONSTRAINT_TABS: Array<{ mode: ConstraintMode; label: string }> = [
 ];
 
 // S16: side drawer on desktop, full-screen sheet on mobile (approximated here
-// via Dialog's modal/sheet variants). Pets is deliberately two separate
-// switches — allows pets and serves pet food are different questions. Area
-// type and kitchen are each door-specific: absent behind the wrong door,
-// never present-but-disabled. "Save this set" is User only.
+// via Dialog's modal/sheet variants). Area type and kitchen are each
+// door-specific: absent behind the wrong door, never present-but-disabled.
+// "Save this set" is User only.
 //
 // The vibe chips, budget band, kitchen and distance presets are the design's
 // own filter groups. They were missing entirely — the panel held two pet
@@ -223,11 +222,6 @@ export function FiltersScreen() {
             label="Allows pets"
             checked={search.allowsPets}
             onChange={(v) => setSearch({ allowsPets: v })}
-          />
-          <Switch
-            label="Serves pet food"
-            checked={search.servesPetFood}
-            onChange={(v) => setSearch({ servesPetFood: v })}
           />
           <Switch
             label="Family friendly"
