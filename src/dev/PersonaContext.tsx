@@ -10,22 +10,22 @@ import { identify, resetAnalytics } from '../lib/analytics';
  * `usePersona()` always had — no screen needed to change for this swap.
  *
  * The dev-only persona quick-switch (`DevHarness`, stripped from production
- * builds) still works exactly as in Phase 2: clicking Guest/User/Owner/Admin
- * there calls `setPersona()` directly against the fixed
- * MOCK_USER_ID/MOCK_OWNER_ID/MOCK_ADMIN_ID test-account ids, without going
- * through a real login — a deliberate, disclosed dev convenience, not
- * something this phase was asked to remove. A *real* login
- * (LoginScreen/AdminLoginScreen) creates a real session first and then calls
- * `setPersona()`, so both paths converge on the same state shape.
+ * builds) still works exactly as in Phase 2: clicking Guest/User/Admin there
+ * calls `setPersona()` directly against the fixed MOCK_USER_ID/MOCK_ADMIN_ID
+ * test-account ids, without going through a real login — a deliberate,
+ * disclosed dev convenience. A *real* login (LoginScreen/AdminLoginScreen)
+ * creates a real session first and then calls `setPersona()`, so both paths
+ * converge on the same state shape.
  *
- * "Owner" here is a coarse, dev-harness-only persona value — the real,
- * per-place Owner-mode check screens must use is `useOwnsVerifiedClaim(placeId)`
- * (src/data/hooks.ts), which calls the real `owns_verified_claim()` RPC
- * scoped to the actual signed-in user, not this global persona field. See
- * PHASE_3_COMPLETION_REPORT.md §4 for why: a real user can hold zero, one, or
- * several verified claims, so "Owner" can't be a single global identity.
+ * Phase 7 §8: 'owner' was retired as a persona value — the whole
+ * claim-a-business feature (submitting a claim, and the owner-only edit/
+ * profile screens a verified one unlocked) was removed on explicit request,
+ * so nobody can become an Owner through the app any more, and nothing left
+ * in the app treated 'owner' differently from 'user' anyway. The
+ * `business_claims` table and its RLS/triggers are untouched — this is a
+ * client-side retirement, not a schema change.
  */
-export type Persona = 'guest' | 'user' | 'owner' | 'admin';
+export type Persona = 'guest' | 'user' | 'admin';
 export type AdminTier = 'superadmin' | 'catalogue' | 'moderation';
 export type Breakpoint = 'mobile' | 'desktop';
 
@@ -79,11 +79,9 @@ const PersonaContext = createContext<PersonaContextValue | null>(null);
 // used only by the dev-harness quick-switch below — a real session's own
 // user id is used instead whenever one exists.
 export const MOCK_USER_ID = '10000000-0000-0000-0000-000000000002';
-export const MOCK_OWNER_ID = '10000000-0000-0000-0000-000000000003';
 export const MOCK_ADMIN_ID = '10000000-0000-0000-0000-000000000001';
 
 function userIdForPersona(persona: Persona): string {
-  if (persona === 'owner') return MOCK_OWNER_ID;
   if (persona === 'admin') return MOCK_ADMIN_ID;
   if (persona === 'user') return MOCK_USER_ID;
   return '';

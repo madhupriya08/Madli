@@ -36,14 +36,8 @@ import { PostVisitNudgeScreen } from './personal/PostVisitNudgeScreen';
 import { MyRankedListScreen } from './personal/MyRankedListScreen';
 import { ProfileScreen } from './personal/ProfileScreen';
 import { SettingsScreen } from './personal/SettingsScreen';
-import { ClaimBusinessLinkScreen } from './personal/ClaimBusinessLinkScreen';
 import { NotificationSettingsScreen } from './personal/NotificationSettingsScreen';
 import { PrivacySettingsScreen } from './personal/PrivacySettingsScreen';
-
-import { ClaimRequestFormScreen } from './owner/ClaimRequestFormScreen';
-import { ClaimStatusScreen } from './owner/ClaimStatusScreen';
-import { OwnerEditListingScreen } from './owner/OwnerEditListingScreen';
-import { OwnerProfileScreen } from './owner/OwnerProfileScreen';
 
 import { AdminLoginScreen } from './admin/AdminLoginScreen';
 import { AnalyticsDashboardScreen } from './admin/AnalyticsDashboardScreen';
@@ -90,14 +84,8 @@ const elementById: Record<string, ReactNode> = {
   S31: <MyRankedListScreen />,
   S32: <ProfileScreen />,
   S33: <SettingsScreen />,
-  S34: <ClaimBusinessLinkScreen />,
   S35: <NotificationSettingsScreen />,
   S36: <PrivacySettingsScreen />,
-
-  S37: <ClaimRequestFormScreen />,
-  S38: <ClaimStatusScreen />,
-  S39: <OwnerEditListingScreen />,
-  S40: <OwnerProfileScreen />,
 
   S41: <AdminLoginScreen />,
   S42: <AnalyticsDashboardScreen />,

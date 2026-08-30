@@ -67,7 +67,6 @@ vi.mock('../../data/hooks', () => ({
       notifyBookmarkListeners();
     },
   }),
-  useOwnsVerifiedClaim: () => ({ data: false }),
 }));
 
 function SetPersona({ to }: { to: 'guest' | 'user' }) {
@@ -183,13 +182,5 @@ describe('PlaceDetailScreen — S19 gaps closed against the prototype', () => {
     );
 
     expect(await screen.findByRole('heading', { name: 'Bridge tap' })).toBeInTheDocument();
-  });
-
-  it('shows "Is this your business? Claim it" for a signed-in User who does not own a verified claim', async () => {
-    render(<Harness />);
-    await userEvent.click(screen.getByRole('button', { name: 'set persona user' }));
-
-    expect(await screen.findByText('Is this your business?')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Claim it' })).toBeInTheDocument();
   });
 });

@@ -27,7 +27,7 @@ import {
   removeSavedGooglePlace,
   saveGooglePlace,
 } from '../../lib/savedGooglePlaces';
-import { useAddBookmark, useBookmarks, useOwnsVerifiedClaim, useRemoveBookmark } from '../../data/hooks';
+import { useAddBookmark, useBookmarks, useRemoveBookmark } from '../../data/hooks';
 
 /**
  * The prototype gates this exact modal behind three separate guest actions —
@@ -284,9 +284,6 @@ function CatalogueDetail({
 }) {
   const navigate = useNavigate();
   const [showSignupGate, setShowSignupGate] = useState(false);
-  // Guests can never hold a verified claim (no account), so skip the RPC
-  // outright rather than run it against an anonymous session.
-  const ownsClaim = useOwnsVerifiedClaim(persona !== 'guest' ? place.id : undefined);
   const cat = categoryName(place.categoryId);
   const rankLabel = `#2 in ${place.neighborhood} — ${cat}`;
   const handleBridge = () => {
@@ -608,68 +605,6 @@ function CatalogueDetail({
               </Button>
             ) : null}
           </div>
-
-          {persona !== 'admin' ? (
-            ownsClaim.data ? (
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: 12,
-                  padding: 'var(--space-4) var(--space-5)',
-                  border: '1px solid var(--teal-200)',
-                  borderRadius: 'var(--radius-lg)',
-                  background: 'var(--teal-50)',
-                }}
-              >
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  <span style={{ font: 'var(--type-label)', color: 'var(--text-heading)' }}>
-                    You manage this listing
-                  </span>
-                  <span style={{ font: 'var(--type-evidence)', color: 'var(--evidence-text)' }}>
-                    Editing details never affects your ranking
-                  </span>
-                </div>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => navigate(`/owner/${encodeURIComponent(place.slug)}/edit`)}
-                >
-                  Edit listing
-                </Button>
-              </div>
-            ) : (
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: 12,
-                  padding: 'var(--space-4) var(--space-5)',
-                  border: '1px solid var(--border-hairline)',
-                  borderRadius: 'var(--radius-lg)',
-                  background: 'var(--slate-50)',
-                }}
-              >
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  <span style={{ font: 'var(--type-label)', color: 'var(--text-heading)' }}>
-                    Is this your business?
-                  </span>
-                  <span style={{ font: 'var(--type-evidence)', color: 'var(--evidence-text)' }}>
-                    Claiming lets you fix the details. It never affects ranking.
-                  </span>
-                </div>
-                <Button
-                  variant="quiet"
-                  size="sm"
-                  onClick={() => navigate(`/claim/${encodeURIComponent(place.slug)}`)}
-                >
-                  Claim it
-                </Button>
-              </div>
-            )
-          ) : null}
         </div>
       </div>
 

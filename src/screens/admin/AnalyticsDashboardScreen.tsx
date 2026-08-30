@@ -3,7 +3,6 @@ import { Card } from '../../components/core/Card';
 import { usePersona } from '../../dev/PersonaContext';
 import { places } from '../../fixtures/places';
 import {
-  useBusinessClaims,
   useReports,
   useRankedEntriesCount,
   useActiveUserCount,
@@ -26,7 +25,6 @@ const METRICS_DESKTOP = [
   'Two-more rate',
   'Shares sent',
   'Plans saved',
-  'Claims pending',
   'Reports open',
   'Comparison-1 abandonment',
   'Comparison-2 abandonment',
@@ -67,7 +65,6 @@ export function AnalyticsDashboardScreen() {
   // claims/reports didn't: business_claims/reports RLS already lets an
   // admin see every row, ranked_entries' RLS is strictly owner-only).
   const { data: rankedEntriesCount } = useRankedEntriesCount();
-  const { data: allClaims = [] } = useBusinessClaims();
   const { data: allReports = [] } = useReports();
   // Phase 7 §2/§5: the rest of this dashboard used to be a wall of '—'
   // placeholders — see PHASE_7 notes / the admin_analytics_metrics
@@ -101,7 +98,6 @@ export function AnalyticsDashboardScreen() {
       : '…',
     'Shares sent': planStats ? String(planStats.sharedPlans) : '…',
     'Plans saved': planStats ? String(planStats.totalPlans) : '…',
-    'Claims pending': String(allClaims.filter((c) => c.status === 'pending').length),
     'Reports open': String(allReports.filter((r) => r.status === 'open').length),
     'Comparison-1 abandonment': funnel
       ? ratePercent(funnel.comparison1Started - funnel.comparison1Completed, funnel.comparison1Started)

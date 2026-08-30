@@ -8,7 +8,6 @@ import { Badge } from '../components/core/Badge';
 const PERSONAS: { value: Persona; label: string }[] = [
   { value: 'guest', label: 'Guest' },
   { value: 'user', label: 'User' },
-  { value: 'owner', label: 'Owner' },
   { value: 'admin', label: 'Admin' },
 ];
 

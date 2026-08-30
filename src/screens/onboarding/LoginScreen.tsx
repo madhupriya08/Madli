@@ -23,17 +23,16 @@ export function LoginScreen() {
     setSubmitting(true);
     setError(null);
     try {
-      const result = await login(email, password);
+      await login(email, password);
       // Consumer login never grants admin, even for a real admin account —
-      // S41 is a separate surface. Owner is derived from a verified claim,
-      // not the profiles.role column.
-      setPersona(result.hasVerifiedClaim ? 'owner' : 'user');
-      // Through '/area' rather than straight to '/app' or '/owner/profile':
-      // routing there directly (instead of through '/', which reads
-      // hasSession) avoids depending on whether onAuthStateChange has
-      // propagated by the time this line runs — and '/area' is now the
-      // required stop before either destination anyway.
-      navigate('/area', { state: { next: result.hasVerifiedClaim ? '/owner/profile' : '/app' } });
+      // S41 is a separate surface.
+      setPersona('user');
+      // Through '/area' rather than straight to '/app': routing there
+      // directly (instead of through '/', which reads hasSession) avoids
+      // depending on whether onAuthStateChange has propagated by the time
+      // this line runs — and '/area' is now the required stop before Home
+      // anyway.
+      navigate('/area', { state: { next: '/app' } });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Invalid email or password.');
     } finally {

@@ -36,85 +36,12 @@ export interface AdminAccountRow {
 // above remain: they're the shape contract `src/data/admin.ts` maps the real
 // rows into.
 
-export type ClaimStatus = 'pending' | 'verified' | 'rejected';
-
-export interface BusinessClaimFixture {
-  id: string;
-  placeId: string;
-  businessName: string;
-  contactName: string;
-  claimedRole: string;
-  contactPhone: string;
-  mapsLink: string;
-  ageLabel: string;
-  status: ClaimStatus;
-  calledAt: string | null;
-}
-
-// CLAIM_ROWS — Cafe Bahar / Imran A. / Verified is the exact example the
-// Phase 1 owner test account mirrors (see supabase/README.md test accounts).
-export const businessClaimsSeed: BusinessClaimFixture[] = [
-  {
-    id: 'claim-1',
-    placeId: PLACE_IDS.hotelShadab,
-    businessName: 'Hotel Shadab',
-    contactName: 'Ravi Kumar',
-    claimedRole: 'Owner',
-    contactPhone: '+91 98490 12345',
-    mapsLink: 'https://maps.google.com/?q=Hotel+Shadab+Hyderabad',
-    ageLabel: '2 days',
-    status: 'pending',
-    calledAt: null,
-  },
-  {
-    id: 'claim-2',
-    placeId: PLACE_IDS.roastery,
-    businessName: 'Roastery Coffee House',
-    contactName: 'Meera S.',
-    claimedRole: 'Manager',
-    contactPhone: '+91 91234 56780',
-    mapsLink: 'https://maps.google.com/?q=Roastery+Coffee+House+Hyderabad',
-    ageLabel: '4 days',
-    status: 'pending',
-    calledAt: null,
-  },
-  {
-    id: 'claim-3',
-    placeId: PLACE_IDS.cafeBahar,
-    businessName: 'Cafe Bahar',
-    contactName: 'Imran A.',
-    claimedRole: 'Owner',
-    contactPhone: '+91 99887 66554',
-    mapsLink: 'https://maps.google.com/?q=Cafe+Bahar+Hyderabad',
-    ageLabel: '12 days',
-    status: 'verified',
-    calledAt: '2026-08-08T10:00:00.000Z',
-  },
-  {
-    id: 'claim-4',
-    placeId: PLACE_IDS.deccanGrillHouse,
-    businessName: 'Deccan Grill House',
-    contactName: 'N. Prasad',
-    claimedRole: 'Family',
-    contactPhone: '+91 90000 11122',
-    mapsLink: 'https://maps.google.com/?q=Deccan+Grill+House+Hyderabad',
-    ageLabel: '19 days',
-    status: 'rejected',
-    calledAt: null,
-  },
-  {
-    id: 'claim-5',
-    placeId: PLACE_IDS.chutneys,
-    businessName: 'Chutneys',
-    contactName: 'Lakshmi D.',
-    claimedRole: 'Owner',
-    contactPhone: '+91 98765 43210',
-    mapsLink: 'https://maps.google.com/?q=Chutneys+Hyderabad',
-    ageLabel: '26 days',
-    status: 'verified',
-    calledAt: '2026-07-26T10:00:00.000Z',
-  },
-];
+// Phase 7 §8: the CLAIM_ROWS fixture (BusinessClaimFixture/ClaimStatus/
+// businessClaimsSeed) that used to live here was removed along with the
+// whole claim-a-business feature — nobody can become an Owner through the
+// app any more (see registry.ts). The business_claims table itself, and its
+// RLS/triggers, are untouched; only the client code that read/wrote it and
+// the fixture data that mirrored it are gone.
 
 export type ReportType =
   | 'duplicate_listing'

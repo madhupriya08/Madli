@@ -6,14 +6,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as placesApi from './places';
 import * as plansApi from './plans';
 import * as rankedEntriesApi from './rankedEntries';
-import * as businessClaimsApi from './businessClaims';
 import * as adminApi from './admin';
-import { supabase } from '../lib/supabaseClient';
 import type { Tier } from '../fixtures/mockDb';
 import type { PlaceFilters } from './places';
-import type { Place } from '../fixtures/places';
-
-export { ProtectedFieldError } from './places';
 
 // --- Places / picks ---
 
@@ -36,20 +31,6 @@ export function usePlaceBySlug(slug: string | undefined) {
     queryKey: ['place', 'slug', slug],
     queryFn: () => placesApi.getPlaceBySlug(slug!),
     enabled: !!slug,
-  });
-}
-
-export function useUpdateOwnerListing() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (input: { placeId: string; fields: Partial<Place> }) =>
-      placesApi.updateOwnerListing(input.placeId, input.fields),
-    onSuccess: (_data, input) => {
-      void qc.invalidateQueries({ queryKey: ['allPlaces'] });
-      void qc.invalidateQueries({ queryKey: ['publishedPicks'] });
-      void qc.invalidateQueries({ queryKey: ['place', 'slug'] });
-      void qc.invalidateQueries({ queryKey: ['place', 'id', input.placeId] });
-    },
   });
 }
 
@@ -162,37 +143,6 @@ export function useSharedPlan(token: string | undefined) {
     queryKey: ['sharedPlan', token],
     queryFn: () => plansApi.getSharedPlan(token!),
     enabled: !!token,
-  });
-}
-
-// --- Business claims ---
-
-export function useBusinessClaims(filter: { placeId?: string; userId?: string } = {}) {
-  return useQuery({
-    queryKey: ['businessClaims', filter.placeId, filter.userId],
-    queryFn: () => businessClaimsApi.getBusinessClaims(filter),
-  });
-}
-
-export function useSubmitBusinessClaim() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: businessClaimsApi.submitBusinessClaim,
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ['businessClaims'] }),
-  });
-}
-
-// --- Owner mode ---
-
-export function useOwnsVerifiedClaim(placeId: string | undefined) {
-  return useQuery({
-    queryKey: ['ownsVerifiedClaim', placeId],
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc('owns_verified_claim', { p_place_id: placeId! });
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!placeId,
   });
 }
 

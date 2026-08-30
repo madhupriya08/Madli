@@ -20,7 +20,9 @@ export function LogVisitLandedScreen() {
   const state = location.state as LandedState | null;
 
   // Phase 4 §9: navigate() moved into an effect, not called during render —
-  // see ClaimStatusScreen for why (PHASE_4_QA_REPORT.md §9).
+  // calling it directly during render is a real React anti-pattern that can
+  // leave the whole tree unmounted with no ErrorBoundary to catch it
+  // (PHASE_4_QA_REPORT.md §9).
   useEffect(() => {
     if (!state) navigate('/app');
   }, [state, navigate]);

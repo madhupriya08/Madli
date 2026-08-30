@@ -117,7 +117,7 @@ function Harness({ initialEntry = '/area' }: { initialEntry?: InitialEntry }) {
                 />
                 <Route path="/local-or-visitor" element={<ForwardToNext />} />
                 <Route path="/app" element={<h1>Where to start?</h1>} />
-                <Route path="/owner/profile" element={<h1>Owner profile</h1>} />
+                <Route path="/bookmarks" element={<h1>Bookmarks</h1>} />
               </Routes>
             </MemoryRouter>
           </ToastProvider>
@@ -190,10 +190,10 @@ describe('PickAreaScreen — S8, merged', () => {
     expect(state.center).not.toBeNull();
   });
 
-  it('honours a next destination carried in navigation state (e.g. an Owner login)', async () => {
-    render(<Harness initialEntry={{ pathname: '/area', state: { next: '/owner/profile' } }} />);
+  it('honours a next destination carried in navigation state (e.g. a deep link)', async () => {
+    render(<Harness initialEntry={{ pathname: '/area', state: { next: '/bookmarks' } }} />);
     await userEvent.click(await screen.findByText('Banjara Hills'));
-    expect(await screen.findByRole('heading', { name: 'Owner profile' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Bookmarks' })).toBeInTheDocument();
   });
 
   it('resolving GPS success routes through the nearest seeded neighbourhood', async () => {

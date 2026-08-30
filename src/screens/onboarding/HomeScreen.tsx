@@ -57,7 +57,7 @@ export function HomeScreen() {
   const navigate = useNavigate();
   const { persona, displayName } = usePersona();
   const { search, setSearch, effectiveCenter } = useSearch();
-  const personalized = persona === 'user' || persona === 'owner';
+  const personalized = persona === 'user';
   // First name only: "Welcome back, Madhu" is a greeting, "Welcome back,
   // Madhu Priya Reddy" is a form letter.
   const firstName = displayName?.trim().split(/\s+/)[0];

@@ -72,8 +72,6 @@ export async function signUp(input: SignupInput): Promise<void> {
 export interface LoginResult {
   userId: string;
   role: 'user' | 'admin';
-  /** Derived from a verified business_claims row — Owner is not a stored auth role. */
-  hasVerifiedClaim: boolean;
 }
 
 export async function login(email: string, password: string): Promise<LoginResult> {
@@ -88,18 +86,9 @@ export async function login(email: string, password: string): Promise<LoginResul
     .single();
   if (profileError) throw profileError;
 
-  const { data: claims, error: claimsError } = await supabase
-    .from('business_claims')
-    .select('id')
-    .eq('user_id', userId)
-    .eq('status', 'verified')
-    .limit(1);
-  if (claimsError) throw claimsError;
-
   return {
     userId,
     role: profile.role as 'user' | 'admin',
-    hasVerifiedClaim: (claims?.length ?? 0) > 0,
   };
 }
 

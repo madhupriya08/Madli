@@ -5,7 +5,12 @@
 // trust), S48 (Business claims queue), S49 (Reports and moderation), and S51
 // (Location history access) were removed the same way, on explicit request
 // — the screens, their routes, and their AdminShell nav entries are gone,
-// not just hidden.
+// not just hidden. S34 (Settings — claim a business) and the whole Owner
+// group (S37-S40: claim request, claim status, edit listing, owner profile)
+// were removed for the same reason — nobody can become an Owner through the
+// app any more, so there's nothing left for that group to hold. The 'owner'
+// persona itself was retired alongside it (src/dev/PersonaContext.tsx) since
+// nothing in the app treats it differently from 'user' any more.
 // The handoff's own numbering is kept for every other screen. Drives the dev
 // harness's persona/state switcher and "All screens" tray (§7 of the Phase 2
 // prompt) and the router in routes.tsx. `states` lists the variants that
@@ -16,7 +21,6 @@ export type ScreenGroup =
   | 'App shell & onboarding'
   | 'Discovery core loop'
   | 'Personal state'
-  | 'Owner'
   | 'Admin';
 
 export interface ScreenMeta {
@@ -197,7 +201,7 @@ export const screenRegistry: ScreenMeta[] = [
     name: 'Place detail',
     path: '/places/:slug',
     group: 'Discovery core loop',
-    states: ['guest', 'shared link', 'user', 'owner', 'admin'],
+    states: ['guest', 'shared link', 'user', 'admin'],
     roles: 'All',
     realDivergence: true,
   },
@@ -319,14 +323,6 @@ export const screenRegistry: ScreenMeta[] = [
     roles: 'User',
   },
   {
-    id: 'S34',
-    name: 'Settings — claim a business',
-    path: '/settings/claim',
-    group: 'Personal state',
-    states: ['default'],
-    roles: 'User → Owner',
-  },
-  {
     id: 'S35',
     name: 'Notification settings',
     path: '/settings/notifications',
@@ -341,40 +337,6 @@ export const screenRegistry: ScreenMeta[] = [
     group: 'Personal state',
     states: ['default', 'delete confirm'],
     roles: 'User',
-  },
-
-  // Owner
-  {
-    id: 'S37',
-    name: 'Claim request form',
-    path: '/claim/:slug',
-    group: 'Owner',
-    states: ['default', 'validation error'],
-    roles: 'User → Owner',
-  },
-  {
-    id: 'S38',
-    name: 'Claim status',
-    path: '/claim/:slug/status',
-    group: 'Owner',
-    states: ['pending', 'verified', 'rejected'],
-    roles: 'Owner',
-  },
-  {
-    id: 'S39',
-    name: 'Owner — edit listing',
-    path: '/owner/:slug/edit',
-    group: 'Owner',
-    states: ['default'],
-    roles: 'Owner',
-  },
-  {
-    id: 'S40',
-    name: 'Owner profile',
-    path: '/owner/profile',
-    group: 'Owner',
-    states: ['default'],
-    roles: 'Owner',
   },
 
   // Admin

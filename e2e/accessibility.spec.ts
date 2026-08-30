@@ -18,9 +18,8 @@ import { screenRegistry } from '../src/screens/registry';
 // react-router's navigate(), which preserves React state) rather than
 // page.goto() a second time, which would trigger a full reload and reset
 // persona back to Guest.
-function personaFor(roles: string): 'guest' | 'user' | 'owner' | 'admin' {
+function personaFor(roles: string): 'guest' | 'user' | 'admin' {
   if (roles.includes('Admin')) return 'admin';
-  if (roles.includes('Owner')) return 'owner';
   if (roles.includes('User')) return 'user';
   return 'guest';
 }
