@@ -3,6 +3,7 @@ import { Dialog } from '../../components/feedback/Dialog';
 import { Switch } from '../../components/forms/Switch';
 import { Tag } from '../../components/core/Tag';
 import { Button } from '../../components/core/Button';
+import { Tabs } from '../../components/navigation/Tabs';
 import { usePersona } from '../../dev/PersonaContext';
 import {
   useSearch,
@@ -10,10 +11,22 @@ import {
   budgetOptionsFor,
   KITCHEN_OPTIONS,
   distancePresetsFor,
+  WHO_OPTIONS,
+  OCCASION_OPTIONS,
+  budgetCapOptionsFor,
+  TIME_WINDOW_OPTIONS,
+  DRIVE_TIME_OPTIONS,
   type AreaType,
+  type ConstraintMode,
 } from '../../lib/searchState';
 
 const AREA_TYPES: AreaType[] = ['Indoor', 'Outdoor', 'Mixed'];
+
+const CONSTRAINT_TABS: Array<{ mode: ConstraintMode; label: string }> = [
+  { mode: 'time', label: 'Time window' },
+  { mode: 'drive', label: 'Drive time' },
+  { mode: 'budget', label: 'Budget' },
+];
 
 // S16: side drawer on desktop, full-screen sheet on mobile (approximated here
 // via Dialog's modal/sheet variants). Pets is deliberately two separate
@@ -25,15 +38,38 @@ const AREA_TYPES: AreaType[] = ['Indoor', 'Outdoor', 'Mixed'];
 // own filter groups. They were missing entirely — the panel held two pet
 // switches and an area type, so most of what someone told S15 and S16 never
 // reached the search.
+//
+// Phase 6 §4: "Edit filters" on results used to open only this screen, so it
+// showed S16's own answers (vibe/budget/kitchen/distance/etc.) but not S15's
+// intake answers (who/occasion/hard constraint) — a person had no way back to
+// those except clicking the one already-applied chip for that exact field,
+// and no way in at all if that field had never been set. Who/Occasion/Hard
+// constraint are now included here too, so "Edit filters" is the one place
+// that surfaces and lets you change everything — S15 itself is untouched and
+// still the first-time onboarding step.
 export function FiltersScreen() {
   const { breakpoint, persona } = usePersona();
   const navigate = useNavigate();
   const { search, setSearch, resetFilters } = useSearch();
   const door = search.door;
-  const { vibes, budget, kitchen, distanceKm, areaType, countryCode } = search;
+  const {
+    vibes,
+    budget,
+    kitchen,
+    distanceKm,
+    areaType,
+    countryCode,
+    who,
+    occasion,
+    constraintMode,
+    timeWindow,
+    driveTimePreset,
+    budgetCap,
+  } = search;
   const vibeOptions = vibeOptionsFor(door);
   const budgetOptions = budgetOptionsFor(countryCode);
   const distancePresets = distancePresetsFor(countryCode);
+  const budgetCapOptions = budgetCapOptionsFor(countryCode);
 
   const toggleVibe = (v: string) =>
     setSearch({ vibes: vibes.includes(v) ? vibes.filter((x) => x !== v) : [...vibes, v] });
@@ -80,6 +116,44 @@ export function FiltersScreen() {
       }
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
+        {group(
+          'Who is it for?',
+          oneOf(WHO_OPTIONS, who, (v) => setSearch({ who: v })),
+        )}
+
+        {group(
+          "What's the occasion?",
+          oneOf(OCCASION_OPTIONS, occasion, (v) => setSearch({ occasion: v })),
+        )}
+
+        <div>
+          <h4 style={{ font: 'var(--type-label)', marginBottom: 'var(--space-2)' }}>
+            Your one hard constraint
+          </h4>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+            <Tabs
+              size="sm"
+              style={{ width: 'fit-content' }}
+              items={CONSTRAINT_TABS.map((tab) => ({ value: tab.mode, label: tab.label }))}
+              value={constraintMode}
+              onChange={(v) => setSearch({ constraintMode: v as ConstraintMode })}
+            />
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
+              {constraintMode === 'time'
+                ? oneOf(TIME_WINDOW_OPTIONS, timeWindow, (v) => setSearch({ timeWindow: v }))
+                : null}
+              {constraintMode === 'drive'
+                ? oneOf(DRIVE_TIME_OPTIONS, driveTimePreset, (v) =>
+                    setSearch({ driveTimePreset: v }),
+                  )
+                : null}
+              {constraintMode === 'budget'
+                ? oneOf(budgetCapOptions, budgetCap, (v) => setSearch({ budgetCap: v }))
+                : null}
+            </div>
+          </div>
+        </div>
+
         {group(
           'Vibe',
           vibeOptions.map((v) => (

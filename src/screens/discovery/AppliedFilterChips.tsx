@@ -15,6 +15,12 @@ import { formatDistanceKm, useSearch, type SearchState } from '../../lib/searchS
  * screen that owns that answer, and the × clears just that one answer in
  * place. Clearing re-runs the search immediately — the chips write to the
  * same search state `useDiscovery` keys its query on.
+ *
+ * Phase 6 §4: every chip's body now opens `/filters`, not a mix of `/intake`
+ * and `/filters` — FiltersScreen now also surfaces the S15 intake answers
+ * (who/occasion/hard constraint), so `/filters` is the one combined editable
+ * entry point for everything shown here, matching the catch-all "Edit
+ * filters" tag below rather than disagreeing with it.
  */
 
 interface ChipSpec {
@@ -30,17 +36,16 @@ interface ChipSpec {
 
 function chipsFor(search: SearchState, currentPath: string): ChipSpec[] {
   const chips: ChipSpec[] = [];
-  const intake = '/intake';
   const filters = '/filters';
 
   if (search.who) {
-    chips.push({ key: 'who', label: search.who, to: intake, clear: { who: null } });
+    chips.push({ key: 'who', label: search.who, to: filters, clear: { who: null } });
   }
   if (search.occasion) {
     chips.push({
       key: 'occasion',
       label: search.occasion,
-      to: intake,
+      to: filters,
       clear: { occasion: null },
     });
   }
@@ -54,14 +59,14 @@ function chipsFor(search: SearchState, currentPath: string): ChipSpec[] {
     chips.push({
       key: 'time-window',
       label: search.timeWindow,
-      to: intake,
+      to: filters,
       clear: { timeWindow: null },
     });
   } else if (search.constraintMode === 'drive' && search.driveTimePreset) {
     chips.push({
       key: 'drive-preset',
       label: `${search.driveTimePreset} drive`,
-      to: intake,
+      to: filters,
       clear: { driveTimePreset: null },
     });
   }
@@ -69,7 +74,7 @@ function chipsFor(search: SearchState, currentPath: string): ChipSpec[] {
     chips.push({
       key: 'budgetCap',
       label: search.budgetCap,
-      to: intake,
+      to: filters,
       clear: { budgetCap: null },
     });
   }
