@@ -142,6 +142,30 @@ function singleIncludedTypeFor(input: SearchCandidatesInput): string | undefined
 }
 
 /**
+ * Explore has no single structural `includedType` to send Google (see
+ * above), so it relies on the free-text query and Google's own relevance
+ * ranking — which is loose enough to hand back a genuinely food-typed
+ * place (a well-known restaurant matches "places to visit in X" too).
+ * Dropped after the fact, on the real `types` Google returned for that
+ * specific place, rather than a structural request that would risk
+ * emptying Explore out again the way a single includedType already did
+ * once (P5 §2).
+ */
+const EAT_ONLY_TYPES = new Set([
+  'restaurant',
+  'cafe',
+  'bakery',
+  'meal_takeaway',
+  'meal_delivery',
+  'food',
+]);
+
+function belongsOnDoor(door: Door, types: string[]): boolean {
+  if (door !== 'explore') return true;
+  return !types.some((t) => EAT_ONLY_TYPES.has(t));
+}
+
+/**
  * Chip label → the words Google actually understands.
  *
  * Anything absent falls back to the label itself, so adding a chip to the UI
@@ -419,7 +443,8 @@ export async function searchCandidates(input: SearchCandidatesInput): Promise<Go
 
     const candidates = (places ?? [])
       .map(toCandidate)
-      .filter((c): c is GoogleCandidate => c !== null);
+      .filter((c): c is GoogleCandidate => c !== null)
+      .filter((c) => belongsOnDoor(input.door, c.types));
 
     if (input.clipToRadius === false) return candidates;
     return withinRadius(candidates, input.center, input.radiusMeters);

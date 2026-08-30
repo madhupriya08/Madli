@@ -86,3 +86,73 @@ describe('searchCandidates — includedType', () => {
     expect(request.includedType).toBeUndefined();
   });
 });
+
+/**
+ * P8 §8: with no single structural includedType sent for Explore (the P5
+ * §2 fix above), Google's free-text relevance ranking for "places to visit
+ * in X" can still hand back a genuinely food-typed place — a well-known
+ * restaurant matches that text too. These pin the client-side backstop:
+ * dropped by its real `types`, after the fact, rather than risk emptying
+ * Explore out again with a structural request.
+ */
+function place(overrides: { id: string; types: string[] }) {
+  return {
+    id: overrides.id,
+    displayName: overrides.id,
+    formattedAddress: '',
+    location: { lat: () => 40.735, lng: () => -74.002 },
+    types: overrides.types,
+  };
+}
+
+describe('searchCandidates — drops the other door\'s places (P8 §8)', () => {
+  beforeEach(() => {
+    searchByTextMock.mockReset();
+  });
+
+  it('drops a restaurant from Explore results even though Google returned it', async () => {
+    searchByTextMock.mockResolvedValue({
+      places: [
+        place({ id: 'landmark-1', types: ['tourist_attraction', 'point_of_interest'] }),
+        place({ id: 'restaurant-1', types: ['restaurant', 'food', 'point_of_interest'] }),
+      ],
+    });
+    const results = await searchCandidates({
+      door: 'explore',
+      center: { lat: 40.735, lng: -74.002 },
+      radiusMeters: 5000,
+      clipToRadius: false,
+    });
+    expect(results.map((c) => c.placeId)).toEqual(['landmark-1']);
+  });
+
+  it('keeps a cafe/bakery-typed place out of Explore too', async () => {
+    searchByTextMock.mockResolvedValue({
+      places: [
+        place({ id: 'museum-1', types: ['museum'] }),
+        place({ id: 'cafe-1', types: ['cafe'] }),
+        place({ id: 'bakery-1', types: ['bakery'] }),
+      ],
+    });
+    const results = await searchCandidates({
+      door: 'explore',
+      center: { lat: 40.735, lng: -74.002 },
+      radiusMeters: 5000,
+      clipToRadius: false,
+    });
+    expect(results.map((c) => c.placeId)).toEqual(['museum-1']);
+  });
+
+  it('never drops a restaurant from Eat results (this filter is Explore-only)', async () => {
+    searchByTextMock.mockResolvedValue({
+      places: [place({ id: 'restaurant-1', types: ['restaurant', 'food'] })],
+    });
+    const results = await searchCandidates({
+      door: 'eat',
+      center: { lat: 40.735, lng: -74.002 },
+      radiusMeters: 5000,
+      clipToRadius: false,
+    });
+    expect(results.map((c) => c.placeId)).toEqual(['restaurant-1']);
+  });
+});
