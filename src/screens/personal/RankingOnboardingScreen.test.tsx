@@ -165,3 +165,57 @@ describe('RankingOnboardingScreen — deselect + Explore places', () => {
     expect(rankMock).toHaveBeenLastCalledWith(expect.objectContaining({ tier: 'fine' }));
   });
 });
+
+describe('RankingOnboardingScreen — Phase 6 §5: Skip for now moved to the top', () => {
+  beforeEach(() => {
+    searchCandidatesMock.mockReset();
+    rankMock.mockReset();
+    unrankMock.mockReset();
+    searchCandidatesMock.mockImplementation((input: { door: 'eat' | 'explore' }) =>
+      Promise.resolve(input.door === 'eat' ? [EAT_CANDIDATE] : [EXPLORE_CANDIDATE]),
+    );
+  });
+
+  it('renders before the nearby-places lists, reachable without scrolling past them', async () => {
+    const user = userEvent.setup();
+    render(<Harness />);
+    await user.click(screen.getByRole('button', { name: 'set persona user' }));
+
+    const skipButton = await screen.findByRole('button', {
+      name: 'Skip for now — you can rank any place from its own page later',
+    });
+    const eatHeading = await screen.findByRole('heading', { name: 'Places to eat' });
+
+    // DOCUMENT_POSITION_FOLLOWING means eatHeading comes *after* skipButton
+    // in the DOM — i.e. skip is above the places list, not below it.
+    expect(
+      skipButton.compareDocumentPosition(eatHeading) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it('appears only once — not duplicated at the bottom too', async () => {
+    const user = userEvent.setup();
+    render(<Harness />);
+    await user.click(screen.getByRole('button', { name: 'set persona user' }));
+    await screen.findByRole('heading', { name: 'Places to eat' });
+
+    expect(
+      screen.getAllByText('Skip for now — you can rank any place from its own page later'),
+    ).toHaveLength(1);
+  });
+
+  it('clicking it leaves immediately, without needing to answer residency or rate anything', async () => {
+    const user = userEvent.setup();
+    render(<Harness />);
+    await user.click(screen.getByRole('button', { name: 'set persona user' }));
+
+    await user.click(
+      screen.getByRole('button', {
+        name: 'Skip for now — you can rank any place from its own page later',
+      }),
+    );
+
+    expect(await screen.findByRole('heading', { name: 'Home' })).toBeInTheDocument();
+    expect(rankMock).not.toHaveBeenCalled();
+  });
+});

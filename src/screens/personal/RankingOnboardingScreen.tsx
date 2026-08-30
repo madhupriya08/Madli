@@ -50,7 +50,11 @@ const DOOR_SECTIONS: Array<{ door: Door; heading: string }> = [
  *     something, and it cannot be guessed from coordinates.
  *
  * Nothing on this screen is required. Skip is a first-class exit, stated
- * plainly, and it is reachable before answering anything at all.
+ * plainly, and it is reachable before answering anything at all — Phase 6
+ * §5 moved it from the very bottom (below the whole nearby-places list, on
+ * both breakpoints, since this screen has one reflowing layout rather than
+ * separate mobile/desktop ones) to right under the intro copy, so it no
+ * longer takes a full scroll past everything else to find it.
  */
 export function RankingOnboardingScreen() {
   const navigate = useNavigate();
@@ -207,6 +211,20 @@ export function RankingOnboardingScreen() {
           >
             Entirely optional, and there is no minimum. Skip it and everything still works.
           </p>
+          <button
+            onClick={done}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--text-link)',
+              cursor: 'pointer',
+              font: 'var(--type-body-sm)',
+              padding: 0,
+              marginTop: 'var(--space-3)',
+            }}
+          >
+            Skip for now — you can rank any place from its own page later
+          </button>
         </div>
 
         {residency ? (
@@ -327,18 +345,6 @@ export function RankingOnboardingScreen() {
           <Button onClick={done}>
             {rankedCount > 0 ? `Done — ${rankedCount} ranked` : 'Continue'}
           </Button>
-          <button
-            onClick={done}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: 'var(--text-link)',
-              cursor: 'pointer',
-              font: 'var(--type-body-sm)',
-            }}
-          >
-            Skip for now — you can rank any place from its own page later
-          </button>
         </div>
       </div>
     </AppShell>
