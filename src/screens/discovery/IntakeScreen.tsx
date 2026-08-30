@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { AppShell } from '../layout/AppShell';
 import { Tag } from '../../components/core/Tag';
 import { Button } from '../../components/core/Button';
+import { Tabs } from '../../components/navigation/Tabs';
 import { usePersona } from '../../dev/PersonaContext';
 import {
   useSearch,
@@ -83,35 +84,13 @@ export function IntakeScreen() {
           <p style={{ font: 'var(--type-body-sm)', color: 'var(--text-muted)' }}>
             Pick the one that actually decides it. The others we will work around.
           </p>
-          <div
-            style={{
-              display: 'inline-flex',
-              gap: 2,
-              padding: 3,
-              borderRadius: 'var(--radius-sm)',
-              background: 'var(--surface-sunken)',
-              width: 'fit-content',
-            }}
-          >
-            {CONSTRAINT_TABS.map((tab) => (
-              <button
-                key={tab.mode}
-                onClick={() => setSearch({ constraintMode: tab.mode })}
-                style={{
-                  padding: '6px 14px',
-                  borderRadius: 4,
-                  border: 'none',
-                  cursor: 'pointer',
-                  font: 'var(--type-label)',
-                  color: 'var(--text-heading)',
-                  background: constraintMode === tab.mode ? 'var(--white)' : 'transparent',
-                  boxShadow: constraintMode === tab.mode ? 'var(--shadow-xs)' : 'none',
-                }}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
+          <Tabs
+            size="sm"
+            style={{ width: 'fit-content' }}
+            items={CONSTRAINT_TABS.map((tab) => ({ value: tab.mode, label: tab.label }))}
+            value={constraintMode}
+            onChange={(v) => setSearch({ constraintMode: v as ConstraintMode })}
+          />
           {constraintMode === 'time'
             ? chipRow(TIME_WINDOW_OPTIONS, timeWindow, (v) => setSearch({ timeWindow: v }))
             : null}

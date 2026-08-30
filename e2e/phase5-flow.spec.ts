@@ -30,11 +30,12 @@ test('intake shows all three groups at once on desktop', async ({ page }) => {
   await expect(page.getByText('Work lunch', { exact: true })).toBeVisible();
   // The hard constraint is a real three-way toggle, not two freeform number
   // fields — "Time window" is selected by default and shows its own chips.
-  await expect(page.getByRole('button', { name: 'Time window' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Drive time' })).toBeVisible();
+  // A real Tabs control (role="tab"), not a hand-rolled button.
+  await expect(page.getByRole('tab', { name: 'Time window' })).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'Drive time' })).toBeVisible();
   await expect(page.getByText('Right now', { exact: true })).toBeVisible();
 
-  await page.getByRole('button', { name: 'Budget' }).click();
+  await page.getByRole('tab', { name: 'Budget' }).click();
   // The budget cap — the design's third hard constraint, previously absent.
   await expect(page.getByText('Under ₹400 a head', { exact: true })).toBeVisible();
 });
@@ -56,8 +57,8 @@ test('intake walks who → occasion → hard constraint on mobile', async ({ pag
   // AppShell's title is not a semantic heading (a plain styled span in
   // TopBar), so the step transition is checked via the step's own content
   // instead — the three-way toggle only exists on this step.
-  await expect(page.getByRole('button', { name: 'Time window' })).toBeVisible();
-  await page.getByRole('button', { name: 'Budget' }).click();
+  await expect(page.getByRole('tab', { name: 'Time window' })).toBeVisible();
+  await page.getByRole('tab', { name: 'Budget' }).click();
   await page.getByText('Under ₹400 a head', { exact: true }).click();
 
   await expect(page.getByRole('button', { name: 'See picks' })).toBeVisible();

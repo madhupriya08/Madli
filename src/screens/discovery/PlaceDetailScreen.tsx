@@ -349,13 +349,13 @@ function CatalogueDetail({
               style={{
                 margin: 0,
                 font: 'var(--type-h2)',
-                color: '#fff',
+                color: 'var(--text-on-dark)',
                 letterSpacing: 'var(--tracking-display)',
               }}
             >
               {place.name}
             </h1>
-            <div style={{ font: 'var(--type-body)', color: 'rgba(255,255,255,0.86)' }}>
+            <div style={{ font: 'var(--type-body)', color: 'var(--text-on-dark-muted)' }}>
               {[place.neighborhood, place.priceLevel, driveLine].filter(Boolean).join(' · ')}
             </div>
           </div>
@@ -569,14 +569,14 @@ function CatalogueDetail({
               padding: 'var(--space-5)',
               borderRadius: 'var(--radius-lg)',
               background: 'var(--surface-inverse)',
-              color: '#fff',
+              color: 'var(--text-on-dark)',
               border: 'none',
               textAlign: 'left',
               font: 'inherit',
             }}
           >
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <span style={{ font: 'var(--type-label)', color: '#fff' }}>
+              <span style={{ font: 'var(--type-label)', color: 'var(--text-on-dark)' }}>
                 {place.type === 'explore'
                   ? 'The three closest places to eat afterwards'
                   : 'The three closest places worth stopping at afterwards'}
@@ -778,13 +778,13 @@ function GoogleDetail({
               style={{
                 margin: 0,
                 font: 'var(--type-h2)',
-                color: '#fff',
+                color: 'var(--text-on-dark)',
                 letterSpacing: 'var(--tracking-display)',
               }}
             >
               {place.name}
             </h1>
-            <div style={{ font: 'var(--type-body)', color: 'rgba(255,255,255,0.86)' }}>
+            <div style={{ font: 'var(--type-body)', color: 'var(--text-on-dark-muted)' }}>
               {[typeLabel, driveLine, ratingLine].filter(Boolean).join(' · ')}
             </div>
           </div>
@@ -917,14 +917,14 @@ function GoogleDetail({
               padding: 'var(--space-5)',
               borderRadius: 'var(--radius-lg)',
               background: 'var(--surface-inverse)',
-              color: '#fff',
+              color: 'var(--text-on-dark)',
               border: 'none',
               textAlign: 'left',
               font: 'inherit',
             }}
           >
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <span style={{ font: 'var(--type-label)', color: '#fff' }}>
+              <span style={{ font: 'var(--type-label)', color: 'var(--text-on-dark)' }}>
                 {isEatPlace
                   ? 'The three closest places worth stopping at afterwards'
                   : 'The three closest places to eat afterwards'}

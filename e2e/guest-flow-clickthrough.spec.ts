@@ -43,7 +43,7 @@ test('a first-time guest can click all the way from landing to results', async (
   await expect(page).toHaveURL(/\/intake$/);
   await page.getByText('Solo', { exact: true }).click();
   await page.getByText('Casual', { exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Time window' })).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'Time window' })).toBeVisible();
   await page.getByText('Right now', { exact: true }).click();
   await page.getByRole('button', { name: 'See picks' }).click();
 
