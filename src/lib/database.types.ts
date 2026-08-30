@@ -21,6 +21,9 @@
 // re-verified against a fresh generation — same reasoning as above, this
 // file stays curated rather than a raw dump.
 //
+// `fn_unrank_google_place` (20260830100000) was checked field-for-field
+// against a real generation taken after that migration was applied.
+//
 // `areas.lat`/`areas.lng` (20260827090000) are included below — those were
 // verified against a real generation when added.
 
@@ -564,6 +567,10 @@ export type Database = {
           p_tier: string;
         };
         Returns: { entry_id: string; landed_position: number; total_in_door: number }[];
+      };
+      fn_unrank_google_place: {
+        Args: { p_google_place_id: string };
+        Returns: undefined;
       };
       is_admin: { Args: Record<string, never>; Returns: boolean };
       is_admin_tier: { Args: { p_tier: string }; Returns: boolean };

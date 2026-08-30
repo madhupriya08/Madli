@@ -209,3 +209,29 @@ export function useRankGooglePlace() {
     },
   });
 }
+
+/**
+ * Undoes a ranking outright — tapping the already-selected tier again on the
+ * onboarding screen, rather than silently re-submitting the same answer.
+ * Backed by supabase/migrations/20260830100000_unrank_google_place.sql.
+ */
+export async function unrankGooglePlace(googlePlaceId: string): Promise<void> {
+  const { error } = await supabase.rpc('fn_unrank_google_place', {
+    p_google_place_id: googlePlaceId,
+  });
+  if (error) {
+    if (isMissingSchema(error)) return;
+    throw error;
+  }
+}
+
+export function useUnrankGooglePlace() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: unrankGooglePlace,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['my-google-rankings'] });
+      void qc.invalidateQueries({ queryKey: ['google-ranking-counts'] });
+    },
+  });
+}

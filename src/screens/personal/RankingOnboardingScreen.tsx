@@ -10,11 +10,12 @@ import { PickSkeleton } from '../../components/feedback/Skeleton';
 import { useToast } from '../../components/feedback/ToastProvider';
 import { searchCandidates, type GoogleCandidate } from '../../lib/placesSearch';
 import { hasMapsApiKey } from '../../lib/googleMaps';
-import { useSearch } from '../../lib/searchState';
+import { useSearch, type Door } from '../../lib/searchState';
 import { usePersona } from '../../dev/PersonaContext';
 import {
   setResidentStatus,
   useRankGooglePlace,
+  useUnrankGooglePlace,
   useResidentStatus,
   type RankTier,
   type ResidentStatus,
@@ -25,6 +26,11 @@ const TIERS: Array<{ tier: RankTier; label: string }> = [
   { tier: 'loved', label: 'Loved it' },
   { tier: 'fine', label: 'It was fine' },
   { tier: 'disliked', label: 'Not for me' },
+];
+
+const DOOR_SECTIONS: Array<{ door: Door; heading: string }> = [
+  { door: 'eat', heading: 'Places to eat' },
+  { door: 'explore', heading: 'Places to explore' },
 ];
 
 /**
@@ -63,31 +69,45 @@ export function RankingOnboardingScreen() {
     residencyOverride !== undefined ? residencyOverride : (existingResidency.data ?? null);
   const [ranked, setRanked] = useState<Record<string, RankTier>>({});
   const rank = useRankGooglePlace();
+  const unrank = useUnrankGooglePlace();
 
-  const nearby = useQuery({
-    queryKey: ['ranking-onboarding-nearby', effectiveCenter.lat, effectiveCenter.lng],
-    queryFn: async (): Promise<GoogleCandidate[]> => {
-      if (!hasMapsApiKey()) return [];
-      // A wide radius and no vibe words on purpose: this is "places you might
-      // already know", not a search. Narrowing it to their filters would
-      // offer back the same places discovery is about to show them.
-      const candidates = await searchCandidates({
-        door: 'eat',
-        center: effectiveCenter,
-        radiusMeters: 8000,
-        areaText: search.areaText,
-        maxResults: 12,
-        clipToRadius: false,
-      });
-      // Well-known first — you can only rank somewhere you have been, and the
-      // busiest places are the ones most people have.
-      return [...candidates]
-        .sort((a, b) => (b.reviewCount ?? 0) - (a.reviewCount ?? 0))
-        .slice(0, 8);
-    },
-    retry: false,
-    staleTime: 10 * 60 * 1000,
-  });
+  // Both doors feed the ranked list this screen is meant to seed — Eat only
+  // was a real, specific gap: the recommendation logic downstream reads
+  // whichever door someone is browsing, and it had nothing to go on for
+  // Explore because this screen never asked about Explore places at all.
+  function useNearbyCandidates(door: Door) {
+    return useQuery({
+      queryKey: ['ranking-onboarding-nearby', door, effectiveCenter.lat, effectiveCenter.lng],
+      queryFn: async (): Promise<GoogleCandidate[]> => {
+        if (!hasMapsApiKey()) return [];
+        // A wide radius and no vibe words on purpose: this is "places you
+        // might already know", not a search. Narrowing it to their filters
+        // would offer back the same places discovery is about to show them.
+        const candidates = await searchCandidates({
+          door,
+          center: effectiveCenter,
+          radiusMeters: 8000,
+          areaText: search.areaText,
+          maxResults: 12,
+          clipToRadius: false,
+        });
+        // Well-known first — you can only rank somewhere you have been, and
+        // the busiest places are the ones most people have.
+        return [...candidates]
+          .sort((a, b) => (b.reviewCount ?? 0) - (a.reviewCount ?? 0))
+          .slice(0, 8);
+      },
+      retry: false,
+      staleTime: 10 * 60 * 1000,
+    });
+  }
+
+  const nearbyEat = useNearbyCandidates('eat');
+  const nearbyExplore = useNearbyCandidates('explore');
+  const nearbyByDoor: Record<Door, ReturnType<typeof useNearbyCandidates>> = {
+    eat: nearbyEat,
+    explore: nearbyExplore,
+  };
 
   const chooseResidency = async (status: ResidentStatus) => {
     try {
@@ -106,7 +126,7 @@ export function RankingOnboardingScreen() {
     }
   };
 
-  const rate = async (candidate: GoogleCandidate, tier: RankTier) => {
+  const rate = async (candidate: GoogleCandidate, door: Door, tier: RankTier) => {
     if (!residency) {
       show('First, tell us if you live here or are visiting.');
       return;
@@ -115,7 +135,7 @@ export function RankingOnboardingScreen() {
       await rank.mutateAsync({
         googlePlaceId: candidate.placeId,
         placeName: candidate.name,
-        door: 'eat',
+        door,
         tier,
         location: candidate.location,
         areaText: search.areaText.trim() || null,
@@ -125,6 +145,26 @@ export function RankingOnboardingScreen() {
     } catch (err) {
       show(err instanceof Error ? err.message : 'Could not save that ranking.');
     }
+  };
+
+  // Tapping the tier that is already selected undoes it, rather than
+  // silently re-submitting the same answer with no way back — the concrete
+  // bug this screen had: a mis-tap permanently polluted the ranked list.
+  const toggleRate = async (candidate: GoogleCandidate, door: Door, tier: RankTier) => {
+    if (ranked[candidate.placeId] === tier) {
+      try {
+        await unrank.mutateAsync(candidate.placeId);
+        setRanked((prev) => {
+          const next = { ...prev };
+          delete next[candidate.placeId];
+          return next;
+        });
+      } catch (err) {
+        show(err instanceof Error ? err.message : 'Could not undo that ranking.');
+      }
+      return;
+    }
+    await rate(candidate, door, tier);
   };
 
   const done = () => navigate('/app');
@@ -189,76 +229,84 @@ export function RankingOnboardingScreen() {
           </div>
         )}
 
-        {nearby.isLoading ? (
-          <div style={{ display: 'grid', gap: 'var(--space-4)' }}>
-            <PickSkeleton />
-            <PickSkeleton />
-          </div>
-        ) : (nearby.data?.length ?? 0) === 0 ? (
-          <EmptyState
-            icon="map-pin-off"
-            title="Nothing to rank yet"
-            body={
-              hasMapsApiKey()
-                ? 'We could not load places near you right now. You can rank anything later, straight from its page.'
-                : 'Live place search is not configured, so there is nothing to list here yet.'
-            }
-          />
-        ) : (
-          <ul
-            style={{
-              listStyle: 'none',
-              padding: 0,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 'var(--space-3)',
-            }}
-          >
-            {nearby.data?.map((candidate) => {
-              const chosen = ranked[candidate.placeId];
-              return (
-                <li key={candidate.placeId}>
-                  <Card style={{ padding: 'var(--space-4)' }}>
-                    <div style={{ font: 'var(--type-body)', color: 'var(--text-heading)' }}>
-                      {candidate.name}
-                    </div>
-                    <div
-                      style={{
-                        font: 'var(--type-evidence)',
-                        color: 'var(--evidence-text)',
-                        marginBottom: 'var(--space-3)',
-                      }}
-                    >
-                      {candidate.address}
-                    </div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
-                      {TIERS.map((t) => (
-                        <Tag
-                          key={t.tier}
-                          selected={chosen === t.tier}
-                          onClick={() => void rate(candidate, t.tier)}
-                        >
-                          {t.label}
-                        </Tag>
-                      ))}
-                      {chosen ? (
-                        <span
-                          style={{
-                            font: 'var(--type-caption)',
-                            color: 'var(--text-muted)',
-                            alignSelf: 'center',
-                          }}
-                        >
-                          Saved
-                        </span>
-                      ) : null}
-                    </div>
-                  </Card>
-                </li>
-              );
-            })}
-          </ul>
-        )}
+        {DOOR_SECTIONS.map(({ door, heading }) => {
+          const nearby = nearbyByDoor[door];
+          return (
+            <div key={door} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+              <h3 style={{ font: 'var(--type-label)', margin: 0 }}>{heading}</h3>
+              {nearby.isLoading ? (
+                <div style={{ display: 'grid', gap: 'var(--space-4)' }}>
+                  <PickSkeleton />
+                  <PickSkeleton />
+                </div>
+              ) : (nearby.data?.length ?? 0) === 0 ? (
+                <EmptyState
+                  icon="map-pin-off"
+                  title="Nothing to rank yet"
+                  body={
+                    hasMapsApiKey()
+                      ? 'We could not load places near you right now. You can rank anything later, straight from its page.'
+                      : 'Live place search is not configured, so there is nothing to list here yet.'
+                  }
+                />
+              ) : (
+                <ul
+                  style={{
+                    listStyle: 'none',
+                    padding: 0,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 'var(--space-3)',
+                  }}
+                >
+                  {nearby.data?.map((candidate) => {
+                    const chosen = ranked[candidate.placeId];
+                    return (
+                      <li key={candidate.placeId}>
+                        <Card style={{ padding: 'var(--space-4)' }}>
+                          <div style={{ font: 'var(--type-body)', color: 'var(--text-heading)' }}>
+                            {candidate.name}
+                          </div>
+                          <div
+                            style={{
+                              font: 'var(--type-evidence)',
+                              color: 'var(--evidence-text)',
+                              marginBottom: 'var(--space-3)',
+                            }}
+                          >
+                            {candidate.address}
+                          </div>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
+                            {TIERS.map((t) => (
+                              <Tag
+                                key={t.tier}
+                                selected={chosen === t.tier}
+                                onClick={() => void toggleRate(candidate, door, t.tier)}
+                              >
+                                {t.label}
+                              </Tag>
+                            ))}
+                            {chosen ? (
+                              <span
+                                style={{
+                                  font: 'var(--type-caption)',
+                                  color: 'var(--text-muted)',
+                                  alignSelf: 'center',
+                                }}
+                              >
+                                Saved — tap again to undo
+                              </span>
+                            ) : null}
+                          </div>
+                        </Card>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          );
+        })}
 
         <div
           style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', maxWidth: 320 }}
