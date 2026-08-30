@@ -66,7 +66,7 @@ describe('useDiscovery — personalization wiring', () => {
 
   it('never calls the recommender for a Guest — candidates keep their review/distance order', async () => {
     usePersonaMock.mockReturnValue({ hasSession: false, userId: '' });
-    const { result } = renderHook(() => useDiscovery('eat', new Set()), { wrapper });
+    const { result } = renderHook(() => useDiscovery('eat'), { wrapper });
 
     await waitFor(() => expect(result.current.data).toBeDefined());
     expect(getPersonalizedSuggestionsMock).not.toHaveBeenCalled();
@@ -77,7 +77,7 @@ describe('useDiscovery — personalization wiring', () => {
     usePersonaMock.mockReturnValue({ hasSession: true, userId: 'user-1' });
     getPersonalizedSuggestionsMock.mockResolvedValue([B, A]);
 
-    const { result } = renderHook(() => useDiscovery('eat', new Set()), { wrapper });
+    const { result } = renderHook(() => useDiscovery('eat'), { wrapper });
 
     await waitFor(() => expect(result.current.data!.ranked.map((p) => p.candidate.placeId)).toEqual(['b', 'a']));
     expect(getPersonalizedSuggestionsMock).toHaveBeenCalledWith('user-1', 'eat', [A, B]);

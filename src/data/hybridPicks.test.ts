@@ -46,14 +46,4 @@ describe('buildDiscovery — Google candidates only', () => {
       reviewDistanceScore(result.ranked[1].candidate, origin),
     );
   });
-
-  it('omits Google places the person already dismissed', () => {
-    const result = buildDiscovery({
-      origin,
-      candidates: [candidate('a'), candidate('b'), candidate('c')],
-      rejectedGooglePlaceIds: new Set(['g-a']),
-    });
-
-    expect(result.ranked.map((r) => r.candidate.name)).toEqual(['b', 'c']);
-  });
 });

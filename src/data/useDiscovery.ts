@@ -17,10 +17,7 @@ export interface DiscoveryQueryResult {
  * Google finds places for the current door + filters. Nothing is read from
  * the Madli catalogue for this list.
  */
-export function useDiscovery(
-  door: Door,
-  rejectedGooglePlaceIds: Set<string>,
-): DiscoveryQueryResult {
+export function useDiscovery(door: Door): DiscoveryQueryResult {
   const { search, effectiveCenter, radiusMeters } = useSearch();
   const { hasSession, userId } = usePersona();
 
@@ -47,7 +44,6 @@ export function useDiscovery(
       search.waitCare,
       search.openNow,
       search.centerSource,
-      [...rejectedGooglePlaceIds].join(','),
       hasSession ? userId : null,
     ],
     queryFn: async (): Promise<{ result: DiscoveryResult; error: Error | null }> => {
@@ -85,7 +81,6 @@ export function useDiscovery(
         const result = buildDiscovery({
           candidates,
           origin: effectiveCenter,
-          rejectedGooglePlaceIds,
         });
 
         // P5 §3: a signed-in User's own ranking history re-orders these

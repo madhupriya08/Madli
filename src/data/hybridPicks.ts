@@ -29,7 +29,6 @@ export function emptyDiscovery(): DiscoveryResult {
 export interface BuildDiscoveryInput {
   candidates: GoogleCandidate[];
   origin: LatLng;
-  rejectedGooglePlaceIds?: Set<string>;
 }
 
 /** Higher is better: rating weighted by log(reviews), minus km. */
@@ -41,15 +40,11 @@ export function reviewDistanceScore(candidate: GoogleCandidate, origin: LatLng):
 }
 
 export function buildDiscovery(input: BuildDiscoveryInput): DiscoveryResult {
-  const rejectedGoogle = input.rejectedGooglePlaceIds ?? new Set<string>();
-
-  const picks: RankedPick[] = input.candidates
-    .filter((candidate) => !rejectedGoogle.has(candidate.placeId))
-    .map((candidate) => ({
-      kind: 'ranked' as const,
-      candidate,
-      location: candidate.location,
-    }));
+  const picks: RankedPick[] = input.candidates.map((candidate) => ({
+    kind: 'ranked' as const,
+    candidate,
+    location: candidate.location,
+  }));
 
   picks.sort(
     (a, b) =>

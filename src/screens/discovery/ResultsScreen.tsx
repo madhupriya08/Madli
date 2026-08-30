@@ -32,14 +32,13 @@ export function ResultsScreen({ door }: { door: 'eat' | 'explore' }) {
   const [showLoading, setShowLoading] = useState(true);
   const [mapView, setMapView] = useState(false);
   const [showGate, setShowGate] = useState<'none' | 'paywall' | 'signup-needed'>('none');
-  const [rejectedGoogleIds, setRejectedGoogleIds] = useState<Set<string>>(new Set());
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_PICKS);
 
   useEffect(() => {
     if (search.door !== door) setSearch({ door });
   }, [door, search.door, setSearch]);
 
-  const { data: discovery, isLoading, googleError } = useDiscovery(door, rejectedGoogleIds);
+  const { data: discovery, isLoading, googleError } = useDiscovery(door);
 
   useEffect(() => {
     if (persona === 'guest') {
@@ -54,7 +53,10 @@ export function ResultsScreen({ door }: { door: 'eat' | 'explore' }) {
 
   const pool = discovery?.ranked ?? [];
   const ranked = pool.slice(0, Math.min(visibleCount, MAX_VISIBLE_PICKS));
-  const canShowTwoMore = ranked.length < MAX_VISIBLE_PICKS && pool.length > ranked.length;
+  // Disabled once there is nothing left to reveal — either the 5-pick cap is
+  // reached, or the pool itself has fewer than that. "Show me two more"
+  // stays visible either way; Phase 6 §6 turned hiding it into disabling it.
+  const atPickCap = ranked.length >= MAX_VISIBLE_PICKS || pool.length <= ranked.length;
 
   // Madli's own local/visitor counts for whatever is on screen. Google supplies
   // the candidates; this is the only number here that came from Madli users.
@@ -104,24 +106,14 @@ export function ResultsScreen({ door }: { door: 'eat' | 'explore' }) {
     [ranked],
   );
 
-  // Both actions below used to look at guestSession.useFreeNoneOfThese() —
-  // one free "None of these" per session, then an intercept. That quota is
-  // gone: a Guest tapping either action now sees the signup prompt every
-  // time. useFreeNoneOfThese/noneOfTheseUsedOnce stay in guestSession.tsx
-  // (marked deprecated there) but nothing here calls them anymore — the
+  // Phase 6 §6 removed "None of these" entirely — this is the one remaining
+  // action, and it keeps the exact guest-gating behaviour "None of these"
+  // used to share with it: a Guest's first tap always shows the signup
+  // prompt rather than actually revealing more, every time, not just once.
+  // useFreeNoneOfThese/noneOfTheseUsedOnce stay in guestSession.tsx (marked
+  // deprecated there) but nothing here calls them — the
   // guestPaywallAtSearch-driven 'paywall' gate above is a separate trigger
   // and is untouched by this.
-  const handleNoneOfThese = () => {
-    if (persona === 'guest') {
-      setShowGate('signup-needed');
-      return;
-    }
-    const next = new Set(rejectedGoogleIds);
-    for (const r of ranked) next.add(r.candidate.placeId);
-    setRejectedGoogleIds(next);
-    setVisibleCount(INITIAL_VISIBLE_PICKS);
-  };
-
   const handleShowTwoMore = () => {
     if (persona === 'guest') {
       setShowGate('signup-needed');
@@ -233,14 +225,9 @@ export function ResultsScreen({ door }: { door: 'eat' | 'explore' }) {
             </div>
 
             <div style={{ display: 'flex', gap: 'var(--space-3)', marginBottom: 'var(--space-7)' }}>
-              <Button variant="secondary" onClick={handleNoneOfThese}>
-                None of these
+              <Button variant="secondary" onClick={handleShowTwoMore} disabled={atPickCap}>
+                Show me two more
               </Button>
-              {canShowTwoMore ? (
-                <Button variant="secondary" onClick={handleShowTwoMore}>
-                  Show me two more
-                </Button>
-              ) : null}
             </div>
           </>
         )}
