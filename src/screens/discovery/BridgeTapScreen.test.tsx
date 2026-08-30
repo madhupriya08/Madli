@@ -37,9 +37,10 @@ vi.mock('../../lib/googleMaps', () => ({
 }));
 
 const searchCandidatesMock = vi.fn();
+const fetchPlaceDetailsMock = vi.fn();
 vi.mock('../../lib/placesSearch', () => ({
   searchCandidates: (...args: unknown[]) => searchCandidatesMock(...args),
-  fetchPlaceDetails: vi.fn(),
+  fetchPlaceDetails: (...args: unknown[]) => fetchPlaceDetailsMock(...args),
 }));
 
 const addOutingStopMock = vi.fn();
@@ -68,13 +69,15 @@ const NEARBY_STOP: GoogleCandidate = {
   types: ['park'],
 };
 
-function Harness() {
+function Harness({
+  slug = 'restaurants%2Fhotel-shadab',
+}: { slug?: string } = {}) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return (
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
         <SearchProvider>
-          <MemoryRouter initialEntries={['/places/restaurants%2Fhotel-shadab/bridge']}>
+          <MemoryRouter initialEntries={[`/places/${slug}/bridge`]}>
             <Routes>
               <Route path="/places/:slug/bridge" element={<BridgeTapScreen />} />
             </Routes>
@@ -221,6 +224,115 @@ describe('BridgeTapScreen — Add to plan', () => {
 
     expect(createPlanMutateAsyncMock).not.toHaveBeenCalled();
     expect(addPlanItemMutateAsyncMock).not.toHaveBeenCalled();
+  });
+});
+
+// Phase 6 §8 repro: SavedPlanDetailScreen's "Add another stop" button
+// navigates to `/places/${plan.anchorPlaceId}/bridge` — the plan's raw
+// anchorKey (a Google place id, or a catalogue place's own id-as-string),
+// never a catalogue slug. This reproduces exactly that: BridgeTapScreen
+// reached with a slug that placeBySlug cannot match (because it isn't a
+// slug at all), for both kinds of anchorKey a real plan can have.
+describe('BridgeTapScreen — Phase 6 §8: "Add another stop" from a saved plan', () => {
+  beforeEach(() => {
+    searchCandidatesMock.mockReset();
+    fetchPlaceDetailsMock.mockReset();
+    addOutingStopMock.mockReset();
+    isStopInOutingMock.mockReset();
+    getOutingMock.mockReset();
+    usePlansMock.mockReset();
+    createPlanMutateAsyncMock.mockReset();
+    addPlanItemMutateAsyncMock.mockReset();
+    searchCandidatesMock.mockResolvedValue([NEARBY_STOP]);
+    isStopInOutingMock.mockReturnValue(false);
+    getOutingMock.mockReturnValue(undefined);
+    usePersonaMock.mockReturnValue({ breakpoint: 'desktop', hasSession: true, userId: 'user-1' });
+  });
+
+  it('re-anchored via a real Google place id (SavedPlanDetailScreen\'s "Add another stop") appends to the existing plan, not a new one', async () => {
+    const GOOGLE_ANCHOR_ID = 'ChIJKyxGIoiXyzsRPY8PASGdTW0';
+    const existingPlan: Plan = {
+      id: 'plan-1',
+      userId: 'user-1',
+      anchorKey: GOOGLE_ANCHOR_ID,
+      anchorName: 'Hotel Shadab',
+      anchorLat: 17.368888,
+      anchorLng: 78.4755104,
+      name: null,
+      shareToken: null,
+      stops: [
+        {
+          googlePlaceId: 'already-there',
+          placeName: 'Somewhere Else',
+          address: null,
+          lat: 17.4,
+          lng: 78.4,
+          position: 1,
+        },
+      ],
+    };
+    usePlansMock.mockReturnValue({ data: [existingPlan] });
+    fetchPlaceDetailsMock.mockResolvedValue({
+      placeId: GOOGLE_ANCHOR_ID,
+      name: 'Hotel Shadab',
+      address: 'Somewhere, Hyderabad',
+      location: { lat: 17.368888, lng: 78.4755104 },
+      types: ['restaurant'],
+    });
+
+    const user = userEvent.setup();
+    render(<Harness slug={encodeURIComponent(GOOGLE_ANCHOR_ID)} />);
+
+    await user.click(await screen.findByRole('button', { name: 'Add to plan' }));
+
+    expect(addPlanItemMutateAsyncMock).toHaveBeenCalledWith({
+      planId: 'plan-1',
+      stop: expect.objectContaining({ googlePlaceId: 'nearby-stop-1' }),
+    });
+    expect(createPlanMutateAsyncMock).not.toHaveBeenCalled();
+  });
+
+  it('re-anchored via a catalogue place\'s own id (no googlePlaceId on that place) still finds the existing plan, not a dead end', async () => {
+    // Mehfil (restaurants/mehfil): has real lat/lng (Phase 6 §1) but
+    // deliberately no googlePlaceId, so its plan anchor_key is its own
+    // catalogue UUID, not a Google id — placeBySlug can't match that UUID
+    // against any slug, and it isn't a valid Google place id either, so a
+    // raw re-fetch by "id" would fail. The fix must resolve this some other
+    // way, e.g. by checking the person's own plans directly by anchorKey.
+    const CATALOGUE_ANCHOR_ID = '00000000-0000-0000-0000-0000000000f9';
+    const existingPlan: Plan = {
+      id: 'plan-2',
+      userId: 'user-1',
+      anchorKey: CATALOGUE_ANCHOR_ID,
+      anchorName: 'Mehfil',
+      anchorLat: 17.503,
+      anchorLng: 78.508,
+      name: null,
+      shareToken: null,
+      stops: [
+        {
+          googlePlaceId: 'already-there-2',
+          placeName: 'Somewhere Else',
+          address: null,
+          lat: 17.4,
+          lng: 78.4,
+          position: 1,
+        },
+      ],
+    };
+    usePlansMock.mockReturnValue({ data: [existingPlan] });
+    fetchPlaceDetailsMock.mockRejectedValue(new Error('not a real Google place id'));
+
+    const user = userEvent.setup();
+    render(<Harness slug={encodeURIComponent(CATALOGUE_ANCHOR_ID)} />);
+
+    await user.click(await screen.findByRole('button', { name: 'Add to plan' }));
+
+    expect(addPlanItemMutateAsyncMock).toHaveBeenCalledWith({
+      planId: 'plan-2',
+      stop: expect.objectContaining({ googlePlaceId: 'nearby-stop-1' }),
+    });
+    expect(createPlanMutateAsyncMock).not.toHaveBeenCalled();
   });
 });
 

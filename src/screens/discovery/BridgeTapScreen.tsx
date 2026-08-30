@@ -12,7 +12,7 @@ import { PickSkeleton } from '../../components/feedback/Skeleton';
 import { GoogleMapView, type MapMarker } from '../../components/map/GoogleMapView';
 import { usePersona } from '../../dev/PersonaContext';
 import { useToast } from '../../components/feedback/ToastProvider';
-import { placeBySlug } from '../../fixtures/places';
+import { placeById, placeBySlug } from '../../fixtures/places';
 import { fetchPlaceDetails, searchCandidates, type GoogleCandidate } from '../../lib/placesSearch';
 import { haversineMeters, useSearch, type Door, type LatLng } from '../../lib/searchState';
 import { hasMapsApiKey } from '../../lib/googleMaps';
@@ -125,7 +125,18 @@ export function BridgeTapScreen() {
   const createPlan = useCreatePlan(userId);
   const addPlanItem = useAddPlanItem(userId);
 
-  const catalogue = decoded ? placeBySlug(decoded) : undefined;
+  // Phase 6 §8 fix: `decoded` is a real catalogue slug (e.g.
+  // "restaurants/hotel-shadab") the first time someone reaches this screen
+  // from a place's own detail page, via place.slug — but SavedPlanDetailScreen's
+  // "Add another stop" navigates using the plan's raw anchorKey instead
+  // (a real Google place id when the plan has one, else the catalogue
+  // place's own id-as-string; see plans.anchor_key's own comment). A bare id
+  // never matches a slug, so placeBySlug alone left a plan anchored to a
+  // catalogue place with no Google id (Mehfil, AutoLounge Rooftop, HICC
+  // Novotel Lawns) with no way to resolve its anchor at all — landing on
+  // "Can't place this spot yet" instead of Google's real Place ID path,
+  // which already resolves correctly by re-fetching that id directly.
+  const catalogue = decoded ? (placeBySlug(decoded) ?? placeById(decoded)) : undefined;
 
   const googleAnchorQuery = useQuery({
     queryKey: ['googlePlace', decoded, 'bridge-anchor'],
