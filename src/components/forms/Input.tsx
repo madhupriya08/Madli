@@ -38,6 +38,11 @@ export function Input({
   style,
 }: InputProps) {
   const [focus, setFocus] = useState(false);
+  // Every password field gets a show/hide toggle from here, rather than each
+  // screen wiring its own — "add it everywhere" is trivially true this way,
+  // and there is nothing left to miss the next time a password field is added.
+  const [revealed, setRevealed] = useState(false);
+  const isPassword = type === 'password';
   const generatedId = useId();
   const inputId = id ?? generatedId;
   const errorId = error ? `${inputId}-error` : undefined;
@@ -71,7 +76,7 @@ export function Input({
         <input
           id={inputId}
           name={name}
-          type={type}
+          type={isPassword ? (revealed ? 'text' : 'password') : type}
           value={value}
           onChange={onChange}
           placeholder={placeholder}
@@ -92,6 +97,24 @@ export function Input({
             color: 'var(--text-heading)',
           }}
         />
+        {isPassword ? (
+          <button
+            type="button"
+            onClick={() => setRevealed((r) => !r)}
+            aria-label={revealed ? 'Hide password' : 'Show password'}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              flex: '0 0 auto',
+              background: 'none',
+              border: 'none',
+              padding: 0,
+              cursor: 'pointer',
+            }}
+          >
+            <Icon name={revealed ? 'eye-off' : 'eye'} size={17} color="var(--text-faint)" />
+          </button>
+        ) : null}
         {suffix ? (
           <span style={{ font: 'var(--type-caption)', color: 'var(--text-faint)' }}>{suffix}</span>
         ) : null}
