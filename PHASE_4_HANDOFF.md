@@ -7,7 +7,7 @@ condensed operating brief plus everything still open.
 
 ## 0. Before doing anything else: get this branch actually pushed
 
-This phase's work is fully committed locally (branch `claude/phase-1-completion-amma9f`, in
+This phase's work is fully committed locally (branch `phase-1-completion`, in
 `/home/user/Madli`) but **could not be pushed to GitHub from this session** — this needs a human to
 resolve before anyone else can see this work:
 
@@ -24,11 +24,11 @@ resolve before anyone else can see this work:
   A human needs to either: reconnect this session's GitHub integration under the `madhupriya08`
   account (claude.ai Settings → Connectors), or grant whichever account/App is installed access to
   this repo (an org owner does this at claude.ai/admin-settings/claude-tag), or manually pull the
-  `claude/phase-1-completion-amma9f` branch from wherever this container's local clone ends up
+  `phase-1-completion` branch from wherever this container's local clone ends up
   preserved, or ask the next session (once access is fixed) to push it.
 - **Nothing is lost**: the local commit exists (`git log` on that branch shows it), it's just not on
   GitHub yet. Do not re-do this phase's work — once access is fixed, a plain `git push -u origin
-  claude/phase-1-completion-amma9f` from that same checkout is all that's needed.
+  phase-1-completion` from that same checkout is all that's needed.
 
 ## 1. What exists today
 

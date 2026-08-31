@@ -20,7 +20,7 @@ screens plus a genuine keyboard-only pass.
 
 ## §0 — Branch push status
 
-Phase 3 ended with the branch (`claude/phase-1-completion-amma9f`) committed locally but blocked
+Phase 3 ended with the branch (`phase-1-completion`) committed locally but blocked
 from pushing by a GitHub access problem. Reconfirmed at the start of this phase: `git log` showed
 the commit intact; a fresh `git push` **succeeded** this session — access had been fixed between
 sessions. Confirmed landed via `git ls-remote`. Nothing else to do here; this phase's own commits
