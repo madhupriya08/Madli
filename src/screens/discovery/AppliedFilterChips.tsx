@@ -111,6 +111,9 @@ function chipsFor(search: SearchState, currentPath: string): ChipSpec[] {
   if (search.kitchen && search.door === 'eat') {
     chips.push({ key: 'kitchen', label: search.kitchen, to: filters, clear: { kitchen: null } });
   }
+  if (search.cuisine && search.door === 'eat') {
+    chips.push({ key: 'cuisine', label: search.cuisine, to: filters, clear: { cuisine: null } });
+  }
   if (search.distanceKm.trim()) {
     chips.push({
       key: 'distance',
@@ -127,8 +130,17 @@ function chipsFor(search: SearchState, currentPath: string): ChipSpec[] {
       clear: { areaType: null },
     });
   }
+  if (search.placeType && search.door === 'explore') {
+    chips.push({
+      key: 'placeType',
+      label: search.placeType,
+      to: filters,
+      clear: { placeType: null },
+    });
+  }
 
   const switches: Array<[boolean, string, Partial<SearchState>]> = [
+    [search.mostFamous, 'Most famous', { mostFamous: false }],
     [search.openNow, 'Open now', { openNow: false }],
     [search.openLate, 'Open late', { openLate: false }],
     [search.allowsPets, 'Allows pets', { allowsPets: false }],

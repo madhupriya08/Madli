@@ -9,6 +9,8 @@ import {
   useSearch,
   vibeOptionsFor,
   KITCHEN_OPTIONS,
+  CUISINE_OPTIONS,
+  PLACE_TYPE_OPTIONS,
   distancePresetsFor,
   WHO_OPTIONS,
   OCCASION_OPTIONS,
@@ -56,6 +58,12 @@ const CONSTRAINT_TABS: Array<{ mode: ConstraintMode; label: string }> = [
 // Phase 9 §1: "Serves pet food" — deleted from both doors in Phase 8 §7 —
 // is back, Explore only. The user clarified afterward it belongs there, not
 // on Eat.
+//
+// Phase 9 §3: Cuisine (Eat) and Place type (Explore) are new single-select
+// tag groups, door-gated the same way Kitchen/Area type already are.
+// "Most famous" is a switch on both doors — see buildDiscovery's own
+// comment (src/data/hybridPicks.ts) for what it actually changes about
+// ranking, not just the query text.
 export function FiltersScreen() {
   const { breakpoint, persona } = usePersona();
   const navigate = useNavigate();
@@ -64,6 +72,8 @@ export function FiltersScreen() {
   const {
     vibes,
     kitchen,
+    cuisine,
+    placeType,
     distanceKm,
     areaType,
     countryCode,
@@ -177,6 +187,13 @@ export function FiltersScreen() {
             )
           : null}
 
+        {door === 'eat'
+          ? group(
+              'Cuisine',
+              oneOf(CUISINE_OPTIONS, cuisine, (v) => setSearch({ cuisine: v })),
+            )
+          : null}
+
         {group(
           'Distance',
           // Its own field (distanceKm), independent of S15's hard-constraint
@@ -210,7 +227,19 @@ export function FiltersScreen() {
             )
           : null}
 
+        {door === 'explore'
+          ? group(
+              'Place type',
+              oneOf(PLACE_TYPE_OPTIONS, placeType, (v) => setSearch({ placeType: v })),
+            )
+          : null}
+
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+          <Switch
+            label="Most famous"
+            checked={search.mostFamous}
+            onChange={(v) => setSearch({ mostFamous: v })}
+          />
           <Switch
             label="Open now"
             checked={search.openNow}

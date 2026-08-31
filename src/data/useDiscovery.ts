@@ -34,6 +34,9 @@ export function useDiscovery(door: Door): DiscoveryQueryResult {
       search.budgetCap,
       search.budget,
       search.kitchen,
+      search.cuisine,
+      search.placeType,
+      search.mostFamous,
       search.countryCode,
       search.areaText,
       search.areaType,
@@ -68,6 +71,11 @@ export function useDiscovery(door: Door): DiscoveryQueryResult {
           countryCode: search.countryCode,
           // Explore has no kitchen to describe, so it never reaches the query.
           kitchen: door === 'eat' ? search.kitchen : null,
+          // Phase 9 §3: cuisine is Eat-only, placeType is Explore-only —
+          // same door-gating as kitchen/areaType above.
+          cuisine: door === 'eat' ? search.cuisine : null,
+          placeType: door === 'explore' ? search.placeType : null,
+          mostFamous: search.mostFamous,
           areaText: search.areaText,
           areaType: search.areaType,
           allowsPets: search.allowsPets,
@@ -83,6 +91,7 @@ export function useDiscovery(door: Door): DiscoveryQueryResult {
         const result = buildDiscovery({
           candidates,
           origin: effectiveCenter,
+          mostFamous: search.mostFamous,
         });
 
         // P5 §3: a signed-in User's own ranking history re-orders these

@@ -90,6 +90,28 @@ describe('FiltersScreen — S16 door-specific groups', () => {
     await screen.findByRole('heading', { name: 'Kitchen' });
     expect(screen.queryByText('Serves pet food')).not.toBeInTheDocument();
   });
+
+  it('Phase 9 §3: Eat door shows Cuisine, hides Place type', async () => {
+    seed({ door: 'eat' });
+    render(<Harness />);
+    expect(await screen.findByRole('heading', { name: 'Cuisine' })).toBeInTheDocument();
+    expect(screen.getByText('South Indian', { exact: true })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Place type' })).not.toBeInTheDocument();
+  });
+
+  it('Phase 9 §3: Explore door shows Place type, hides Cuisine', async () => {
+    seed({ door: 'explore' });
+    render(<Harness />);
+    expect(await screen.findByRole('heading', { name: 'Place type' })).toBeInTheDocument();
+    expect(screen.getByText('Touristic landmark', { exact: true })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Cuisine' })).not.toBeInTheDocument();
+  });
+
+  it('Phase 9 §3: "Most famous" shows on both doors', async () => {
+    seed({ door: 'eat' });
+    render(<Harness />);
+    expect(await screen.findByText('Most famous')).toBeInTheDocument();
+  });
 });
 
 describe('FiltersScreen — Phase 6 §4: one combined edit surface for intake + filter answers', () => {

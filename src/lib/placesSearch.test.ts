@@ -185,3 +185,43 @@ describe('searchCandidates — drops the other door\'s places (P8 §8)', () => {
     expect(request.textQuery).toContain('serves pet food');
   });
 });
+
+describe('searchCandidates — Phase 9 §3: cuisine, place type, most famous', () => {
+  beforeEach(() => {
+    searchByTextMock.mockReset();
+    searchByTextMock.mockResolvedValue({ places: [] });
+  });
+
+  it('cuisine reaches the text query sent to Google', async () => {
+    await searchCandidates({
+      door: 'eat',
+      center: { lat: 40.735, lng: -74.002 },
+      radiusMeters: 5000,
+      cuisine: 'South Indian',
+    });
+    const request = searchByTextMock.mock.calls[0][0];
+    expect(request.textQuery).toContain('south indian');
+  });
+
+  it('place type reaches the text query sent to Google', async () => {
+    await searchCandidates({
+      door: 'explore',
+      center: { lat: 40.735, lng: -74.002 },
+      radiusMeters: 5000,
+      placeType: 'Museum or gallery',
+    });
+    const request = searchByTextMock.mock.calls[0][0];
+    expect(request.textQuery).toContain('museum art gallery');
+  });
+
+  it('most famous reaches the text query sent to Google', async () => {
+    await searchCandidates({
+      door: 'eat',
+      center: { lat: 40.735, lng: -74.002 },
+      radiusMeters: 5000,
+      mostFamous: true,
+    });
+    const request = searchByTextMock.mock.calls[0][0];
+    expect(request.textQuery).toContain('famous');
+  });
+});

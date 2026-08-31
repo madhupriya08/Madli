@@ -96,6 +96,12 @@ export interface SearchCandidatesInput {
   countryCode?: string | null;
   /** S16 — Eat door only. */
   kitchen?: string | null;
+  /** Phase 9 §3 — Eat door only. One of CUISINE_OPTIONS. */
+  cuisine?: string | null;
+  /** Phase 9 §3 — Explore door only. One of PLACE_TYPE_OPTIONS. */
+  placeType?: string | null;
+  /** Phase 9 §3 — both doors. See SearchState.mostFamous's own comment. */
+  mostFamous?: boolean;
   areaText?: string;
   areaType?: AreaType | null;
   allowsPets?: boolean;
@@ -226,8 +232,31 @@ const KITCHEN_QUERY: Record<string, string> = {
   'Non-veg': 'non vegetarian',
 };
 
+/** Phase 9 §3 — CUISINE_OPTIONS' own words, Eat door only. */
+const CUISINE_QUERY: Record<string, string> = {
+  'South Indian': 'south indian',
+  'North Indian': 'north indian',
+  Chinese: 'chinese',
+  Continental: 'continental',
+  Italian: 'italian',
+  'Street food': 'street food stall',
+  Cafe: 'cafe',
+  'Fine dining': 'fine dining upscale',
+  Bakery: 'bakery',
+};
+
+/** Phase 9 §3 — PLACE_TYPE_OPTIONS' own words, Explore door only. */
+const PLACE_TYPE_QUERY: Record<string, string> = {
+  'Touristic landmark': 'tourist attraction landmark',
+  'Museum or gallery': 'museum art gallery',
+  Nightlife: 'nightlife clubs bars',
+  'Local favorite': 'local favorite hidden gem',
+  Scenic: 'scenic viewpoint',
+};
+
 /**
- * Free-text query that carries who, occasion, vibe, kitchen, pets and area.
+ * Free-text query that carries who, occasion, vibe, kitchen, cuisine, place
+ * type, most-famous, pets and area.
  *
  * Google has no structured field for any of these, so they are folded into
  * words rather than dropped. Budget is the exception — it maps to a real
@@ -239,6 +268,9 @@ function textQueryFor(input: SearchCandidatesInput): string {
   if (input.who) parts.push(WHO_QUERY[input.who] ?? input.who);
   if (input.occasion) parts.push(OCCASION_QUERY[input.occasion] ?? input.occasion);
   if (input.kitchen) parts.push(KITCHEN_QUERY[input.kitchen] ?? input.kitchen);
+  if (input.cuisine) parts.push(CUISINE_QUERY[input.cuisine] ?? input.cuisine);
+  if (input.placeType) parts.push(PLACE_TYPE_QUERY[input.placeType] ?? input.placeType);
+  if (input.mostFamous) parts.push('famous popular well known trending');
   if (input.allowsPets) parts.push('pet friendly');
   if (input.servesPetFood) parts.push('serves pet food');
   if (input.familyFriendly) parts.push('family friendly');

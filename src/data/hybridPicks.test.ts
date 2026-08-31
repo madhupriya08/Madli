@@ -47,3 +47,37 @@ describe('buildDiscovery — Google candidates only', () => {
     );
   });
 });
+
+describe('buildDiscovery — Phase 9 §3: "Most famous"', () => {
+  it('drops the usual distance penalty — a far but genuinely famous place beats a merely-closer one', () => {
+    const far = { lat: origin.lat + 2, lng: origin.lng };
+    const famous = candidate('famous', { location: far, googleRating: 4.9, reviewCount: 5000 });
+    const nearby = candidate('nearby', { location: origin, googleRating: 4.0, reviewCount: 60 });
+
+    const withoutMostFamous = buildDiscovery({ origin, candidates: [famous, nearby] });
+    expect(withoutMostFamous.ranked.map((r) => r.candidate.name)).toEqual(['nearby', 'famous']);
+
+    const withMostFamous = buildDiscovery({
+      origin,
+      candidates: [famous, nearby],
+      mostFamous: true,
+    });
+    expect(withMostFamous.ranked.map((r) => r.candidate.name)).toEqual(['famous', 'nearby']);
+  });
+
+  it('drops a thin-review place entirely once a genuinely well-reviewed one exists', () => {
+    const thin = candidate('thin', { googleRating: 5.0, reviewCount: 5 });
+    const real = candidate('real', { googleRating: 4.2, reviewCount: 200 });
+
+    const result = buildDiscovery({ origin, candidates: [thin, real], mostFamous: true });
+    expect(result.ranked.map((r) => r.candidate.name)).toEqual(['real']);
+  });
+
+  it('falls back to the full pool rather than returning nothing when no candidate clears the review floor', () => {
+    const a = candidate('a', { googleRating: 4.5, reviewCount: 10 });
+    const b = candidate('b', { googleRating: 4.0, reviewCount: 20 });
+
+    const result = buildDiscovery({ origin, candidates: [a, b], mostFamous: true });
+    expect(result.ranked).toHaveLength(2);
+  });
+});

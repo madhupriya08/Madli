@@ -225,6 +225,28 @@ export function priceLevelsForBudgetLabel(
 /** S16 kitchen. Eat door only — Explore has no kitchen to describe. */
 export const KITCHEN_OPTIONS = ['Veg-only kitchen', 'Veg available', 'Non-veg'] as const;
 
+/** Phase 9 §3 — S16 cuisine/dining-style. Eat door only. */
+export const CUISINE_OPTIONS = [
+  'South Indian',
+  'North Indian',
+  'Chinese',
+  'Continental',
+  'Italian',
+  'Street food',
+  'Cafe',
+  'Fine dining',
+  'Bakery',
+] as const;
+
+/** Phase 9 §3 — S16 place type. Explore door only. */
+export const PLACE_TYPE_OPTIONS = [
+  'Touristic landmark',
+  'Museum or gallery',
+  'Nightlife',
+  'Local favorite',
+  'Scenic',
+] as const;
+
 /**
  * S16's own Distance filter — independent of S15's hard constraint below.
  * The prototype keeps these as two separate pieces of state (`st.dist` vs
@@ -323,6 +345,17 @@ export interface SearchState {
   budget: string | null;
   /** S16 kitchen. Eat door only. */
   kitchen: string | null;
+  /** Phase 9 §3: S16 cuisine/dining-style. Eat door only. One of CUISINE_OPTIONS. */
+  cuisine: string | null;
+  /** Phase 9 §3: S16 place type. Explore door only. One of PLACE_TYPE_OPTIONS. */
+  placeType: string | null;
+  /**
+   * Phase 9 §3: "most famous / trending" — both doors. Biases the free-text
+   * query toward well-known places, and (buildDiscovery) drops the usual
+   * distance penalty and requires a real review count, so a place actually
+   * has to be popular, not just closer than its neighbours.
+   */
+  mostFamous: boolean;
   /** S16 switches that Google has no structured field for — folded into the query text. */
   familyFriendly: boolean;
   coupleFriendly: boolean;
@@ -355,6 +388,9 @@ export const DEFAULT_STATE: SearchState = {
   servesPetFood: false,
   budget: null,
   kitchen: null,
+  cuisine: null,
+  placeType: null,
+  mostFamous: false,
   familyFriendly: false,
   coupleFriendly: false,
   openLate: false,
@@ -496,6 +532,9 @@ const FILTER_DEFAULTS: Partial<SearchState> = {
   vibe: null,
   budget: null,
   kitchen: null,
+  cuisine: null,
+  placeType: null,
+  mostFamous: false,
   distanceKm: '',
   allowsPets: false,
   servesPetFood: false,
@@ -513,6 +552,9 @@ export interface FilterSlice {
   vibe: string | null;
   budget: string | null;
   kitchen: string | null;
+  cuisine: string | null;
+  placeType: string | null;
+  mostFamous: boolean;
   distanceKm: string;
   allowsPets: boolean;
   servesPetFood: boolean;
@@ -530,6 +572,9 @@ export function filterSliceOf(search: SearchState): FilterSlice {
     vibe: search.vibe,
     budget: search.budget,
     kitchen: search.kitchen,
+    cuisine: search.cuisine,
+    placeType: search.placeType,
+    mostFamous: search.mostFamous,
     distanceKm: search.distanceKm,
     allowsPets: search.allowsPets,
     servesPetFood: search.servesPetFood,
