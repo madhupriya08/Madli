@@ -88,6 +88,8 @@ export interface SearchCandidatesInput {
   who?: string | null;
   /** S15 — the occasion. */
   occasion?: string | null;
+  /** Phase 9 §4 — S15 hard-constraint's own time window. One of EAT_TIME_WINDOW_OPTIONS/EXPLORE_TIME_WINDOW_OPTIONS. */
+  timeWindow?: string | null;
   /** S15 — per-head budget cap. Narrows Google's price levels. */
   budgetCap?: string | null;
   /** S16 — price band. Also narrows price levels. */
@@ -226,6 +228,17 @@ const OCCASION_QUERY: Record<string, string> = {
   'Late-night': 'open late night',
 };
 
+/** Phase 9 §4 — EAT_TIME_WINDOW_OPTIONS/EXPLORE_TIME_WINDOW_OPTIONS' own words. */
+const TIME_WINDOW_QUERY: Record<string, string> = {
+  Morning: 'breakfast morning',
+  Brunch: 'brunch',
+  Lunch: 'lunch',
+  Afternoon: 'afternoon',
+  Evening: 'evening',
+  Night: 'dinner night',
+  'Late night': 'open late night',
+};
+
 const KITCHEN_QUERY: Record<string, string> = {
   'Veg-only kitchen': 'pure vegetarian',
   'Veg available': 'vegetarian options',
@@ -267,6 +280,7 @@ function textQueryFor(input: SearchCandidatesInput): string {
   for (const vibe of input.vibes ?? []) parts.push(VIBE_QUERY[vibe] ?? vibe);
   if (input.who) parts.push(WHO_QUERY[input.who] ?? input.who);
   if (input.occasion) parts.push(OCCASION_QUERY[input.occasion] ?? input.occasion);
+  if (input.timeWindow) parts.push(TIME_WINDOW_QUERY[input.timeWindow] ?? input.timeWindow);
   if (input.kitchen) parts.push(KITCHEN_QUERY[input.kitchen] ?? input.kitchen);
   if (input.cuisine) parts.push(CUISINE_QUERY[input.cuisine] ?? input.cuisine);
   if (input.placeType) parts.push(PLACE_TYPE_QUERY[input.placeType] ?? input.placeType);

@@ -15,7 +15,7 @@ import {
   WHO_OPTIONS,
   OCCASION_OPTIONS,
   budgetCapOptionsFor,
-  TIME_WINDOW_OPTIONS,
+  timeWindowOptionsFor,
   DRIVE_TIME_OPTIONS,
   type AreaType,
   type ConstraintMode,
@@ -64,6 +64,10 @@ const CONSTRAINT_TABS: Array<{ mode: ConstraintMode; label: string }> = [
 // "Most famous" is a switch on both doors — see buildDiscovery's own
 // comment (src/data/hybridPicks.ts) for what it actually changes about
 // ranking, not just the query text.
+//
+// Phase 9 §4: Time window's own chip set is now door-specific real
+// day-part buckets (timeWindowOptionsFor) — see searchState.tsx's own
+// comment for why.
 export function FiltersScreen() {
   const { breakpoint, persona } = usePersona();
   const navigate = useNavigate();
@@ -87,6 +91,7 @@ export function FiltersScreen() {
   const vibeOptions = vibeOptionsFor(door);
   const distancePresets = distancePresetsFor(countryCode);
   const budgetCapOptions = budgetCapOptionsFor(countryCode);
+  const timeWindowOptions = timeWindowOptionsFor(door);
 
   const toggleVibe = (v: string) =>
     setSearch({ vibes: vibes.includes(v) ? vibes.filter((x) => x !== v) : [...vibes, v] });
@@ -157,7 +162,7 @@ export function FiltersScreen() {
             />
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
               {constraintMode === 'time'
-                ? oneOf(TIME_WINDOW_OPTIONS, timeWindow, (v) => setSearch({ timeWindow: v }))
+                ? oneOf(timeWindowOptions, timeWindow, (v) => setSearch({ timeWindow: v }))
                 : null}
               {constraintMode === 'drive'
                 ? oneOf(DRIVE_TIME_OPTIONS, driveTimePreset, (v) =>

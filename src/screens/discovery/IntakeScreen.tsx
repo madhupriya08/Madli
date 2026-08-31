@@ -10,7 +10,7 @@ import {
   WHO_OPTIONS,
   OCCASION_OPTIONS,
   budgetCapOptionsFor,
-  TIME_WINDOW_OPTIONS,
+  timeWindowOptionsFor,
   DRIVE_TIME_OPTIONS,
   type ConstraintMode,
 } from '../../lib/searchState';
@@ -39,6 +39,10 @@ const CONSTRAINT_TABS: Array<{ mode: ConstraintMode; label: string }> = [
 // questions (when are you going / how far will you drive / what can you
 // spend) and only one applies at a time, each with fixed preset chips
 // rather than free text.
+//
+// Phase 9 §4: "Time window"'s own chips are now door-specific real day-part
+// buckets (timeWindowOptionsFor) rather than one shared list of scheduling
+// phrases — see searchState.tsx's own comment for why.
 export function IntakeScreen() {
   const { breakpoint } = usePersona();
   const navigate = useNavigate();
@@ -50,6 +54,7 @@ export function IntakeScreen() {
   const { who, occasion, budgetCap, constraintMode, timeWindow, driveTimePreset, door, countryCode } =
     search;
   const budgetCapOptions = budgetCapOptionsFor(countryCode);
+  const timeWindowOptions = timeWindowOptionsFor(door);
 
   const toggle = <T extends string>(current: T | null, value: T) =>
     current === value ? null : value;
@@ -92,7 +97,7 @@ export function IntakeScreen() {
             onChange={(v) => setSearch({ constraintMode: v as ConstraintMode })}
           />
           {constraintMode === 'time'
-            ? chipRow(TIME_WINDOW_OPTIONS, timeWindow, (v) => setSearch({ timeWindow: v }))
+            ? chipRow(timeWindowOptions, timeWindow, (v) => setSearch({ timeWindow: v }))
             : null}
           {constraintMode === 'drive'
             ? chipRow(DRIVE_TIME_OPTIONS, driveTimePreset, (v) =>

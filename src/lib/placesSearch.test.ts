@@ -225,3 +225,32 @@ describe('searchCandidates — Phase 9 §3: cuisine, place type, most famous', (
     expect(request.textQuery).toContain('famous');
   });
 });
+
+describe('searchCandidates — Phase 9 §4: door-specific time window', () => {
+  beforeEach(() => {
+    searchByTextMock.mockReset();
+    searchByTextMock.mockResolvedValue({ places: [] });
+  });
+
+  it('an Eat meal-shaped bucket (Brunch) reaches the text query', async () => {
+    await searchCandidates({
+      door: 'eat',
+      center: { lat: 40.735, lng: -74.002 },
+      radiusMeters: 5000,
+      timeWindow: 'Brunch',
+    });
+    const request = searchByTextMock.mock.calls[0][0];
+    expect(request.textQuery).toContain('brunch');
+  });
+
+  it('an Explore day-part bucket (Afternoon) reaches the text query', async () => {
+    await searchCandidates({
+      door: 'explore',
+      center: { lat: 40.735, lng: -74.002 },
+      radiusMeters: 5000,
+      timeWindow: 'Afternoon',
+    });
+    const request = searchByTextMock.mock.calls[0][0];
+    expect(request.textQuery).toContain('afternoon');
+  });
+});

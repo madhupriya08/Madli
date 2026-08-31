@@ -14,6 +14,7 @@ import {
   formatDistanceKm,
   filterSliceOf,
   isFilterSliceAtDefaults,
+  timeWindowOptionsFor,
   DEFAULT_STATE,
 } from './searchState';
 
@@ -283,5 +284,29 @@ describe('filterSliceOf / isFilterSliceAtDefaults — P5 §5 account persistence
     expect(isFilterSliceAtDefaults({ ...DEFAULT_STATE, budget: '₹300–600' })).toBe(false);
     // A non-filter field changing (who) does not count as "touched".
     expect(isFilterSliceAtDefaults({ ...DEFAULT_STATE, who: 'Couple' })).toBe(true);
+  });
+});
+
+describe('timeWindowOptionsFor — Phase 9 §4: door-specific day-part buckets', () => {
+  it('gives Eat meal-shaped buckets, Brunch and Lunch included', () => {
+    const options = timeWindowOptionsFor('eat');
+    expect(options).toContain('Brunch');
+    expect(options).toContain('Lunch');
+    expect(options).not.toContain('Afternoon');
+  });
+
+  it('gives Explore an Afternoon bucket instead of meal-shaped ones', () => {
+    const options = timeWindowOptionsFor('explore');
+    expect(options).toContain('Afternoon');
+    expect(options).not.toContain('Brunch');
+    expect(options).not.toContain('Lunch');
+  });
+
+  it('shares the same Morning/Evening/Night/Late night buckets across both doors', () => {
+    const shared = ['Morning', 'Evening', 'Night', 'Late night'];
+    for (const label of shared) {
+      expect(timeWindowOptionsFor('eat')).toContain(label);
+      expect(timeWindowOptionsFor('explore')).toContain(label);
+    }
   });
 });

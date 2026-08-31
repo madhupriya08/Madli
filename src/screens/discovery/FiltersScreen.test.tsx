@@ -112,6 +112,24 @@ describe('FiltersScreen — S16 door-specific groups', () => {
     render(<Harness />);
     expect(await screen.findByText('Most famous')).toBeInTheDocument();
   });
+
+  it('Phase 9 §4: Eat door offers meal-shaped Time window buckets (Brunch, Lunch), not Afternoon', async () => {
+    seed({ door: 'eat' });
+    render(<Harness />);
+    await screen.findByRole('heading', { name: 'Your one hard constraint' });
+    expect(screen.getByText('Brunch', { exact: true })).toBeInTheDocument();
+    expect(screen.getByText('Lunch', { exact: true })).toBeInTheDocument();
+    expect(screen.queryByText('Afternoon', { exact: true })).not.toBeInTheDocument();
+  });
+
+  it('Phase 9 §4: Explore door offers Afternoon, not the meal-shaped Eat buckets', async () => {
+    seed({ door: 'explore' });
+    render(<Harness />);
+    await screen.findByRole('heading', { name: 'Your one hard constraint' });
+    expect(screen.getByText('Afternoon', { exact: true })).toBeInTheDocument();
+    expect(screen.queryByText('Brunch', { exact: true })).not.toBeInTheDocument();
+    expect(screen.queryByText('Lunch', { exact: true })).not.toBeInTheDocument();
+  });
 });
 
 describe('FiltersScreen — Phase 6 §4: one combined edit surface for intake + filter answers', () => {

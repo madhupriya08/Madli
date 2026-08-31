@@ -129,15 +129,37 @@ export function budgetCapOptionsFor(countryCode: string | null): readonly string
 }
 
 /**
- * S15 step 3's "Time window" chips — when, not how far. Exactly the
- * prototype's `timeChips`.
+ * S15 step 3's "Time window" chips — when, not how far.
+ *
+ * Phase 9 §4: the prototype's own `timeChips` ("Right now" / "Tonight,
+ * 7–9pm" / "Tomorrow, breakfast" / "This weekend") read as scheduling
+ * options, not the day-part someone actually wants — and the same four
+ * applied to both doors, so "Tomorrow, breakfast" showed up as a valid
+ * answer even when exploring a museum. Replaced with real day-part
+ * buckets, one list per door: Eat gets meal-shaped buckets (Brunch, Lunch
+ * make sense for a restaurant), Explore doesn't (an "Afternoon" museum
+ * visit, not a "Lunch" one).
  */
-export const TIME_WINDOW_OPTIONS = [
-  'Right now',
-  'Tonight, 7–9pm',
-  'Tomorrow, breakfast',
-  'This weekend',
+export const EAT_TIME_WINDOW_OPTIONS = [
+  'Morning',
+  'Brunch',
+  'Lunch',
+  'Evening',
+  'Night',
+  'Late night',
 ] as const;
+
+export const EXPLORE_TIME_WINDOW_OPTIONS = [
+  'Morning',
+  'Afternoon',
+  'Evening',
+  'Night',
+  'Late night',
+] as const;
+
+export function timeWindowOptionsFor(door: Door): readonly string[] {
+  return door === 'explore' ? EXPLORE_TIME_WINDOW_OPTIONS : EAT_TIME_WINDOW_OPTIONS;
+}
 
 /**
  * S15 step 3's "Drive time" chips — a preset budget for how far someone is
