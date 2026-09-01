@@ -1,6 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { PersonaProvider } from '../../dev/PersonaContext';
+import { ToastProvider } from '../../components/feedback/ToastProvider';
 import { renderWithProviders } from '../../test/renderWithProviders';
 import { SignupScreen } from './SignupScreen';
 import * as authModule from '../../lib/auth';
@@ -76,5 +80,43 @@ describe('SignupScreen — S11 validation', () => {
       expect.objectContaining({ name: 'Priya', email: 'person@example.com' }),
     );
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  // P10 §7: this is the one link in the post-signup ranking-prompt chain
+  // that had no test of its own — PickAreaScreen and LocalOrVisitorScreen
+  // each already have their own test forwarding `state.next` onward, but
+  // nothing asserted that a real signup is what queues
+  // `next: '/ranking-onboarding'` up in the first place.
+  it('hands off to /area with the ranking-onboarding step queued behind it', async () => {
+    function AreaProbe() {
+      const location = useLocation();
+      const next = (location.state as { next?: string } | null)?.next;
+      return <h1>On /area, next={next}</h1>;
+    }
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const user = userEvent.setup();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <PersonaProvider>
+          <ToastProvider>
+            <MemoryRouter initialEntries={['/signup']}>
+              <Routes>
+                <Route path="/signup" element={<SignupScreen />} />
+                <Route path="/area" element={<AreaProbe />} />
+              </Routes>
+            </MemoryRouter>
+          </ToastProvider>
+        </PersonaProvider>
+      </QueryClientProvider>,
+    );
+
+    await user.type(screen.getByLabelText('Your name'), 'Priya');
+    await user.type(screen.getByLabelText('Email'), 'person@example.com');
+    await user.type(screen.getByLabelText('Password'), 'longenough');
+    await user.click(screen.getByRole('button', { name: 'Create account' }));
+
+    expect(
+      await screen.findByRole('heading', { name: 'On /area, next=/ranking-onboarding' }),
+    ).toBeInTheDocument();
   });
 });

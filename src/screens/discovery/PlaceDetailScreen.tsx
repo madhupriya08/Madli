@@ -18,7 +18,8 @@ import { places } from '../../fixtures/places';
 import { categoryName } from '../../fixtures/categories';
 import { placePhotoUrl } from '../../lib/placePhoto';
 import { GoogleMapView } from '../../components/map/GoogleMapView';
-import { fetchPlaceDetails, type GooglePlaceDetails } from '../../lib/placesSearch';
+import { fetchPlaceDetails, inferDoorFromTypes, type GooglePlaceDetails } from '../../lib/placesSearch';
+import { RankGooglePlaceForm } from '../../components/ranking/RankGooglePlaceForm';
 import { pickReason } from '../../data/hybridPicks';
 import { distanceUnitForCountry, useSearch } from '../../lib/searchState';
 import { fetchRoute } from '../../lib/routes';
@@ -222,6 +223,7 @@ export function PlaceDetailScreen() {
     <GoogleDetail
       place={googlePlace!}
       vibe={search.vibe}
+      areaText={search.areaText}
       breakpoint={breakpoint}
       persona={persona}
       isSharedLink={isSharedLink}
@@ -622,6 +624,7 @@ function CatalogueDetail({
 function GoogleDetail({
   place,
   vibe,
+  areaText,
   breakpoint,
   persona,
   isSharedLink,
@@ -635,6 +638,7 @@ function GoogleDetail({
 }: {
   place: GooglePlaceDetails;
   vibe: string | null;
+  areaText: string;
   breakpoint: string;
   persona: string;
   isSharedLink: boolean;
@@ -647,6 +651,7 @@ function GoogleDetail({
   onSignup: () => void;
 }) {
   const [showSignupGate, setShowSignupGate] = useState(false);
+  const [showBeenHere, setShowBeenHere] = useState(false);
   const handleBridge = () => {
     if (persona === 'guest') {
       setShowSignupGate(true);
@@ -890,6 +895,11 @@ function GoogleDetail({
                 Sign up to save
               </Button>
             )}
+            {persona !== 'guest' ? (
+              <Button variant="quiet" onClick={() => setShowBeenHere(true)}>
+                I have been here
+              </Button>
+            ) : null}
           </div>
         </div>
       </div>
@@ -900,6 +910,25 @@ function GoogleDetail({
         breakpoint={breakpoint}
         onSignup={onSignup}
       />
+
+      <Dialog
+        open={showBeenHere}
+        title="Rank this place"
+        onClose={() => setShowBeenHere(false)}
+        variant={breakpoint === 'desktop' ? 'modal' : 'sheet'}
+      >
+        <RankGooglePlaceForm
+          candidate={{
+            placeId: place.placeId,
+            name: place.name,
+            door: inferDoorFromTypes(place.types),
+            location: place.location,
+            areaText: areaText.trim() || null,
+            types: place.types,
+          }}
+          onDone={() => setShowBeenHere(false)}
+        />
+      </Dialog>
     </AppShell>
   );
 }

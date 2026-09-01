@@ -66,6 +66,18 @@ const DOOR_TYPES: Record<Door, string[]> = {
 };
 
 /**
+ * Which door a saved/ranked Google place belongs under, from its own
+ * `types`. Used wherever a place is reached outside a door-scoped search
+ * (a bookmark, a post-visit nudge) and so has no door already attached to
+ * it. Falls back to 'eat' — every real Google place has *some* type, so this
+ * only matters for the placeholder-catalogue rows that carry no types at all.
+ */
+export function inferDoorFromTypes(types: string[] | undefined | null): Door {
+  if (types?.some((t) => DOOR_TYPES.explore.includes(t))) return 'explore';
+  return 'eat';
+}
+
+/**
  * Explore's indoor/outdoor filter, expressed in Place types.
  *
  * Google has no "is this indoors" field, so this narrows the type list

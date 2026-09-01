@@ -115,10 +115,11 @@ export async function fetchMyGoogleRankings(door?: Door): Promise<RankedGooglePl
   }));
 }
 
-export function useMyGoogleRankings(door?: Door) {
+export function useMyGoogleRankings(door?: Door, enabled = true) {
   return useQuery({
     queryKey: ['my-google-rankings', door ?? 'all'],
     queryFn: () => fetchMyGoogleRankings(door),
+    enabled,
     retry: false,
   });
 }

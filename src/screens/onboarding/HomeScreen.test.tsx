@@ -27,6 +27,11 @@ vi.mock('../../data/areaCounts', () => ({
   useAreaDoorCounts: () => ({ data: undefined }),
 }));
 
+let nudgeCandidate: unknown = null;
+vi.mock('../../data/postVisitNudge', () => ({
+  usePostVisitNudgeCandidate: () => nudgeCandidate,
+}));
+
 function SeedArea({ areaText, center }: { areaText: string; center: { lat: number; lng: number } }) {
   const { setSearch } = useSearch();
   return (
@@ -45,6 +50,7 @@ function Harness({ areaText, center }: { areaText: string; center: { lat: number
           <Routes>
             <Route path="/app" element={<HomeScreen />} />
             <Route path="/places/:slug" element={<h1>Place detail</h1>} />
+            <Route path="/post-visit-nudge" element={<h1>Post-visit nudge</h1>} />
           </Routes>
         </MemoryRouter>
       </SearchProvider>
@@ -55,6 +61,7 @@ function Harness({ areaText, center }: { areaText: string; center: { lat: number
 describe('HomeScreen — Phase 8 §9: no Gem of the town banner', () => {
   beforeEach(() => {
     sessionStorage.clear();
+    nudgeCandidate = null;
   });
 
   it('never shows a gem banner, even right on top of the one seeded gem (Nampally)', async () => {
@@ -72,5 +79,38 @@ describe('HomeScreen — Phase 8 §9: no Gem of the town banner', () => {
 
     expect(await screen.findByText('Eat')).toBeInTheDocument();
     expect(screen.getByText('Explore')).toBeInTheDocument();
+  });
+});
+
+// P10 §5: Home is the real trigger for the post-visit nudge (S30) — there is
+// no push-notification system, so "some time after a visit" is not
+// reachable; this is the next-best real moment; landing here.
+describe('HomeScreen — post-visit nudge trigger (P10 §5)', () => {
+  beforeEach(() => {
+    sessionStorage.clear();
+  });
+
+  it('navigates to the nudge once a bookmarked-but-unranked candidate exists', async () => {
+    nudgeCandidate = { kind: 'catalogue', placeId: 'p1', placeName: 'Cafe Bahar' };
+    render(<Harness areaText="Nampally" center={{ lat: 17.3833, lng: 78.4757 }} />);
+
+    expect(await screen.findByRole('heading', { name: 'Post-visit nudge' })).toBeInTheDocument();
+  });
+
+  it('does not navigate when there is no candidate', async () => {
+    nudgeCandidate = null;
+    render(<Harness areaText="Nampally" center={{ lat: 17.3833, lng: 78.4757 }} />);
+
+    await screen.findByRole('heading', { name: 'Where to start?' });
+    expect(screen.queryByRole('heading', { name: 'Post-visit nudge' })).not.toBeInTheDocument();
+  });
+
+  it('only navigates once per session even if the candidate is still present', async () => {
+    nudgeCandidate = { kind: 'catalogue', placeId: 'p1', placeName: 'Cafe Bahar' };
+    sessionStorage.setItem('madli.postVisitNudge.shown', '1');
+    render(<Harness areaText="Nampally" center={{ lat: 17.3833, lng: 78.4757 }} />);
+
+    await screen.findByRole('heading', { name: 'Where to start?' });
+    expect(screen.queryByRole('heading', { name: 'Post-visit nudge' })).not.toBeInTheDocument();
   });
 });

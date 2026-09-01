@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppShell } from '../layout/AppShell';
 import { Card } from '../../components/core/Card';
@@ -6,6 +7,11 @@ import { usePersona } from '../../dev/PersonaContext';
 import { useSearch, type Door } from '../../lib/searchState';
 import { areas } from '../../fixtures/areas';
 import { useAreaDoorCounts } from '../../data/areaCounts';
+import { usePostVisitNudgeCandidate } from '../../data/postVisitNudge';
+
+/** Once per browser session, not once per Home mount — reaching Home via
+ * back/forward or between doors must not re-trigger the same nudge. */
+const NUDGE_SHOWN_KEY = 'madli.postVisitNudge.shown';
 
 // S7: two doors, CSS grid with a 280px minimum so desktop side-by-side and
 // mobile stack are the same markup — real divergence starts at S17.
@@ -26,7 +32,7 @@ const DOORS = [
 
 export function HomeScreen() {
   const navigate = useNavigate();
-  const { persona, displayName } = usePersona();
+  const { persona, userId, displayName } = usePersona();
   const { search, setSearch } = useSearch();
   const personalized = persona === 'user';
   // First name only: "Welcome back, Madhu" is a greeting, "Welcome back,
@@ -39,6 +45,18 @@ export function HomeScreen() {
   // Real counts, not the door's flavour copy — how many places and how many
   // logged rankings actually exist behind each door for this area.
   const { data: doorCounts } = useAreaDoorCounts(matchedArea?.id ?? null);
+
+  // S30's real trigger: there is no push-notification system, so "some time
+  // after a visit" is not reachable — this fires instead the next time a
+  // signed-in person with a bookmarked-but-unranked place lands on Home,
+  // once per browser session so re-visiting Home doesn't repeat it.
+  const nudgeCandidate = usePostVisitNudgeCandidate(userId, personalized);
+  useEffect(() => {
+    if (!nudgeCandidate) return;
+    if (sessionStorage.getItem(NUDGE_SHOWN_KEY)) return;
+    sessionStorage.setItem(NUDGE_SHOWN_KEY, '1');
+    navigate('/post-visit-nudge', { state: { subject: nudgeCandidate }, replace: true });
+  }, [nudgeCandidate, navigate]);
 
   const openDoor = (door: Door) => {
     // Clear the other door's vibes so Eat chips don't bias an Explore search.
