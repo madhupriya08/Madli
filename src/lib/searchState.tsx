@@ -82,7 +82,10 @@ const RELATIVE_BUDGET_TIERS = ['$', '$$', '$$$', '$$$$'] as const;
  * the relative $/$$/$$$/$$$$ notation (Google Maps/Yelp's own convention)
  * rather than a guessed number with no basis at all.
  */
-const CURRENCY_TIERS: Record<string, { symbol: string; amounts: readonly [number, number, number] }> = {
+const CURRENCY_TIERS: Record<
+  string,
+  { symbol: string; amounts: readonly [number, number, number] }
+> = {
   US: { symbol: '$', amounts: [10, 25, 50] },
   CA: { symbol: '$', amounts: [12, 30, 60] },
   AU: { symbol: '$', amounts: [15, 35, 70] },
@@ -113,7 +116,12 @@ function currencyTiersFor(countryCode: string | null) {
  */
 export function budgetCapOptionsFor(countryCode: string | null): readonly string[] {
   if (usesAbsoluteBudgetLabels(countryCode)) {
-    return ['Under ₹150 a head', 'Under ₹400 a head', 'Under ₹800 a head', 'Price is not the issue'];
+    return [
+      'Under ₹150 a head',
+      'Under ₹400 a head',
+      'Under ₹800 a head',
+      'Price is not the issue',
+    ];
   }
   const currency = currencyTiersFor(countryCode);
   if (currency) {
@@ -314,6 +322,18 @@ export function formatDistanceKm(km: string, countryCode: string | null): string
 
 export interface SearchState {
   door: Door;
+  /**
+   * S52's own free-text search ("biryani", "Olive Bistro", "South Indian"),
+   * carried as a real filter rather than a one-off lookup.
+   *
+   * Phase 10 §5: typing something into the Search tab used to do nothing but
+   * list name matches — the words never reached the results screen, so there
+   * was no way to say "show me the places for this craving" at all. It is
+   * folded into the Places text query alongside the vibe/who/occasion words
+   * (see placesSearch's textQueryFor), clears like any other filter, and
+   * shows as its own removable chip on results.
+   */
+  queryText: string;
   /** S15 step 1 — who it is for, or null if skipped. */
   who: string | null;
   /** S15 step 2 — the occasion, or null if skipped. */
@@ -394,6 +414,7 @@ export interface SearchState {
 
 export const DEFAULT_STATE: SearchState = {
   door: 'eat',
+  queryText: '',
   who: null,
   occasion: null,
   budgetCap: null,
@@ -495,6 +516,16 @@ interface SearchContextValue {
   /** Clears everything S16 owns, leaving door, origin, and the S15 answers alone. */
   resetFilters: () => void;
   /**
+   * P12 §2: what "Reset" on the Filters panel actually means now — every
+   * S16 filter *and* every S15 intake answer (who, occasion, the hard
+   * constraint), since that panel shows and edits both. Clearing only half
+   * of what a screen displays is the kind of reset that leaves someone
+   * staring at a still-highlighted chip wondering why the picks did not
+   * change. Door, area and resolved coordinates survive: those are where
+   * you are, not what you asked for.
+   */
+  resetFiltersAndIntake: () => void;
+  /**
    * Where to actually search, with the fallback applied. Never null, so call
    * sites do not each invent their own default.
    */
@@ -552,6 +583,7 @@ export function radiusFromConstraint(search: {
 
 /** The S16 fields, so "Reset filters" clears exactly those and nothing else. */
 const FILTER_DEFAULTS: Partial<SearchState> = {
+  queryText: '',
   vibes: [],
   vibe: null,
   budget: null,
@@ -570,8 +602,25 @@ const FILTER_DEFAULTS: Partial<SearchState> = {
   areaType: null,
 };
 
+/**
+ * The S15 intake answers, so P12 §2's Reset can clear them alongside the
+ * S16 filters above. Deliberately not part of FILTER_DEFAULTS/FilterSlice:
+ * those define what an account *remembers* between sessions, and the
+ * intake answers are a per-outing question ("who is with me today"), not a
+ * standing preference.
+ */
+const INTAKE_DEFAULTS: Partial<SearchState> = {
+  who: null,
+  occasion: null,
+  constraintMode: 'time',
+  timeWindow: null,
+  driveTimePreset: null,
+  budgetCap: null,
+};
+
 /** The same S16 field set FILTER_DEFAULTS resets — the "filters" a signed-in User's account can remember. */
 export interface FilterSlice {
+  queryText: string;
   vibes: string[];
   vibe: string | null;
   budget: string | null;
@@ -592,6 +641,7 @@ export interface FilterSlice {
 
 export function filterSliceOf(search: SearchState): FilterSlice {
   return {
+    queryText: search.queryText,
     vibes: search.vibes,
     vibe: search.vibe,
     budget: search.budget,
@@ -650,16 +700,25 @@ export function SearchProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const resetFiltersAndIntake = useCallback(() => {
+    setState((prev) => {
+      const next = { ...prev, ...FILTER_DEFAULTS, ...INTAKE_DEFAULTS } as SearchState;
+      writeStored(next);
+      return next;
+    });
+  }, []);
+
   const value = useMemo<SearchContextValue>(
     () => ({
       search,
       setSearch,
       resetSearch,
       resetFilters,
+      resetFiltersAndIntake,
       effectiveCenter: search.center ?? DEFAULT_CENTER,
       radiusMeters: radiusFromConstraint(search),
     }),
-    [search, setSearch, resetSearch, resetFilters],
+    [search, setSearch, resetSearch, resetFilters, resetFiltersAndIntake],
   );
 
   return <SearchContext.Provider value={value}>{children}</SearchContext.Provider>;

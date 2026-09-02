@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   buildDiscovery,
+  spreadOutPicks,
   INITIAL_VISIBLE_PICKS,
   MAX_VISIBLE_PICKS,
   reviewDistanceScore,
@@ -9,10 +10,7 @@ import type { GoogleCandidate } from '../lib/placesSearch';
 
 const origin = { lat: 17.35, lng: 78.55 };
 
-function candidate(
-  id: string,
-  opts: Partial<GoogleCandidate> = {},
-): GoogleCandidate {
+function candidate(id: string, opts: Partial<GoogleCandidate> = {}): GoogleCandidate {
   return {
     placeId: `g-${id}`,
     name: id,
@@ -79,5 +77,57 @@ describe('buildDiscovery — Phase 9 §3: "Most famous"', () => {
 
     const result = buildDiscovery({ origin, candidates: [a, b], mostFamous: true });
     expect(result.ranked).toHaveLength(2);
+  });
+});
+
+/**
+ * P12 §4: "suggestions and bridge tap are showing places on the same street
+ * or very close by — the goal is the best places to visit, the must-trys."
+ */
+describe('buildDiscovery — P12 §4: three picks, not one street three times', () => {
+  it('does not put two places from the same street in the top three when other streets are available', () => {
+    // Three doors of the same street, all well reviewed, plus two places
+    // elsewhere that score slightly lower.
+    const sameStreet = ['sameA', 'sameB', 'sameC'].map((id) =>
+      candidate(id, {
+        address: 'Road No. 51, Jubilee Hills',
+        googleRating: 4.8,
+        reviewCount: 900,
+      }),
+    );
+    const elsewhere = ['otherA', 'otherB'].map((id, i) =>
+      candidate(id, {
+        address: `${id} Street, Banjara Hills`,
+        location: { lat: origin.lat + 0.02 * (i + 1), lng: origin.lng },
+        googleRating: 4.5,
+        reviewCount: 400,
+      }),
+    );
+
+    const top3 = buildDiscovery({ origin, candidates: [...sameStreet, ...elsewhere] })
+      .ranked.slice(0, 3)
+      .map((r) => r.candidate.name);
+
+    expect(top3).toContain('sameA');
+    expect(top3).not.toContain('sameB');
+    expect(top3).not.toContain('sameC');
+  });
+
+  it('drops nothing — a passed-over place still appears further down the list', () => {
+    const candidates = ['a', 'b', 'c', 'd'].map((id) =>
+      candidate(id, { address: 'One Street, Somewhere' }),
+    );
+    const result = buildDiscovery({ origin, candidates });
+
+    expect(result.ranked).toHaveLength(4);
+    expect(result.ranked.map((r) => r.candidate.name).sort()).toEqual(['a', 'b', 'c', 'd']);
+  });
+
+  it('keeps a thin pool intact — spreading is a reordering, never a filter', () => {
+    const picks = [
+      { candidate: candidate('x'), location: origin },
+      { candidate: candidate('y'), location: origin },
+    ];
+    expect(spreadOutPicks(picks)).toHaveLength(2);
   });
 });

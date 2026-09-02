@@ -20,6 +20,13 @@ export interface RankingCounts {
   visitors: number;
 }
 
+export interface GoogleComparison {
+  /** A place already in this person's list for this door. */
+  googlePlaceId: string;
+  /** True when they picked the place being ranked over this one. */
+  preferredNew: boolean;
+}
+
 export interface RankGooglePlaceInput {
   googlePlaceId: string;
   placeName: string;
@@ -29,6 +36,14 @@ export interface RankGooglePlaceInput {
   areaText?: string | null;
   /** Google's own place types — what P5 §3's content-based recommender compares candidates against. */
   types?: string[];
+  /**
+   * P12 §9: the head-to-head answers that decide where inside its tier this
+   * lands. Optional throughout — the first place someone ranks in a door
+   * has nothing to compare against, and skipping the second comparison is
+   * allowed exactly as it is in the catalogue's own mechanic (S26).
+   */
+  compare1?: GoogleComparison;
+  compare2?: GoogleComparison;
 }
 
 /**
@@ -86,6 +101,14 @@ export interface RankedGooglePlace {
   raterType: ResidentStatus;
   position: number;
   areaText: string | null;
+  /**
+   * Where the place is, as it was when this was ranked. Denormalised for the
+   * same reason place_name is (see the migration's own comment) — and what
+   * P12 §9's "your list in this locality" on Home matches against, since an
+   * area *name* alone can't tell you a ranked place is round the corner from
+   * where you are standing now.
+   */
+  location: LatLng | null;
   /** Google's own place types, as they were at the time this was ranked. */
   types: string[];
 }
@@ -93,7 +116,9 @@ export interface RankedGooglePlace {
 export async function fetchMyGoogleRankings(door?: Door): Promise<RankedGooglePlace[]> {
   let q = supabase
     .from('google_place_rankings')
-    .select('id, google_place_id, place_name, door, tier, rater_type, position, area_text, types')
+    .select(
+      'id, google_place_id, place_name, door, tier, rater_type, position, area_text, lat, lng, types',
+    )
     .order('position', { ascending: true });
   if (door) q = q.eq('door', door);
 
@@ -111,6 +136,7 @@ export async function fetchMyGoogleRankings(door?: Door): Promise<RankedGooglePl
     raterType: row.rater_type as ResidentStatus,
     position: row.position,
     areaText: row.area_text,
+    location: row.lat != null && row.lng != null ? { lat: row.lat, lng: row.lng } : null,
     types: row.types ?? [],
   }));
 }
@@ -176,7 +202,7 @@ export interface RankLanding {
 }
 
 export async function rankGooglePlace(input: RankGooglePlaceInput): Promise<RankLanding> {
-  const { data, error } = await supabase.rpc('fn_rank_google_place', {
+  const baseArgs = {
     p_google_place_id: input.googlePlaceId,
     p_place_name: input.placeName,
     p_door: input.door,
@@ -185,7 +211,28 @@ export async function rankGooglePlace(input: RankGooglePlaceInput): Promise<Rank
     p_lng: input.location?.lng ?? null,
     p_area_text: input.areaText ?? null,
     p_types: input.types ?? [],
+  };
+  const comparisonArgs = {
+    p_compare_google_place_id_1: input.compare1?.googlePlaceId ?? null,
+    p_preferred_new_over_1: input.compare1?.preferredNew ?? null,
+    p_compare_google_place_id_2: input.compare2?.googlePlaceId ?? null,
+    p_preferred_new_over_2: input.compare2?.preferredNew ?? null,
+  };
+
+  let { data, error } = await supabase.rpc('fn_rank_google_place', {
+    ...baseArgs,
+    ...comparisonArgs,
   });
+
+  // PostgREST reports "no function with these argument names" as PGRST202 —
+  // which here means one specific, recoverable thing: this deployment has
+  // not applied 20260903100000_rank_google_place_compared.sql yet. Losing
+  // the head-to-head refinement is a much smaller cost than losing the
+  // ranking, so retry against the pre-P10 signature rather than failing.
+  if (error && isMissingSchema(error)) {
+    ({ data, error } = await supabase.rpc('fn_rank_google_place', baseArgs));
+  }
+
   if (error) {
     // fn_rank_google_place raises 23514 when the profile has no
     // resident_status. That is reachable from the UI — the residency write can
@@ -230,6 +277,55 @@ export async function unrankGooglePlace(googlePlaceId: string): Promise<void> {
     if (isMissingSchema(error)) return;
     throw error;
   }
+}
+
+/**
+ * Google's own `types` carry a handful of labels every place shares —
+ * they say nothing about what kind of place it is, so an overlap on them
+ * alone is not a category match.
+ */
+const GENERIC_TYPES = new Set(['point_of_interest', 'establishment', 'food', 'store', 'premise']);
+
+function meaningfulTypes(types: string[] | undefined | null): Set<string> {
+  return new Set((types ?? []).filter((t) => !GENERIC_TYPES.has(t)));
+}
+
+/**
+ * P12 §9: which two of the person's existing rankings to compare a new one
+ * against — "based on the category", so a new cafe is weighed against the
+ * cafes they have ranked, not against a nightclub that happens to sit at
+ * the top of the same door.
+ *
+ * Category here is Google's own `types` overlap (a Google place has no
+ * catalogue category to belong to), narrowed to the same tier so the
+ * question is between comparable verdicts. The offer mirrors the
+ * catalogue mechanic's own rule (pickComparisonTargets in rankedEntries.ts):
+ * the current best in that category, plus — only once there are three or
+ * more — its median as an optional second. Falls back to the whole door
+ * when nothing shares a category, since a rough comparison still orders the
+ * list better than no comparison at all.
+ */
+export function pickGoogleComparisonTargets(
+  history: RankedGooglePlace[],
+  candidate: { types?: string[]; tier?: RankTier },
+): { first?: RankedGooglePlace; second?: RankedGooglePlace } {
+  const inTier = candidate.tier ? history.filter((h) => h.tier === candidate.tier) : history;
+  if (inTier.length === 0) return {};
+
+  const candidateTypes = meaningfulTypes(candidate.types);
+  const sameCategory = inTier.filter((entry) => {
+    const entryTypes = meaningfulTypes(entry.types);
+    for (const type of candidateTypes) if (entryTypes.has(type)) return true;
+    return false;
+  });
+
+  const pool = [...(sameCategory.length > 0 ? sameCategory : inTier)].sort(
+    (a, b) => a.position - b.position,
+  );
+  const first = pool[0];
+  if (pool.length < 3) return { first };
+  const second = pool[Math.floor(pool.length / 2)];
+  return { first, second: second.id !== first.id ? second : undefined };
 }
 
 export function useUnrankGooglePlace() {

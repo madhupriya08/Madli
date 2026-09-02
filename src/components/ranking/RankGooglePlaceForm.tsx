@@ -6,9 +6,13 @@ import { useToast } from '../feedback/ToastProvider';
 import { usePersona } from '../../dev/PersonaContext';
 import type { Door, LatLng } from '../../lib/searchState';
 import {
+  pickGoogleComparisonTargets,
   setResidentStatus,
+  useMyGoogleRankings,
   useRankGooglePlace,
   useResidentStatus,
+  type GoogleComparison,
+  type RankedGooglePlace,
   type RankTier,
   type ResidentStatus,
 } from '../../data/googleRankings';
@@ -35,13 +39,20 @@ interface RankGooglePlaceFormProps {
 }
 
 /**
- * The tier-only ranking mechanic (fn_rank_google_place) applied to one real
- * place, outside the onboarding list it was originally built for — reused
- * here so "I've been here" on a real (Google-sourced) place detail page, and
- * a post-visit nudge for one, both write a real ranking rather than routing
- * through S25-27's pairwise mechanic, which only understands the 17 seeded
- * catalogue places (RankingOnboardingScreen's own comment explains why the
- * two mechanics are deliberately different, not a gap to unify).
+ * The ranking mechanic (fn_rank_google_place) applied to one real place,
+ * outside the onboarding list it was originally built for — reused here so
+ * "I've been here" on a real (Google-sourced) place detail page, and a
+ * post-visit nudge for one, both write a real ranking rather than routing
+ * through S25-27's pairwise screens, which only understand the 17 seeded
+ * catalogue places.
+ *
+ * P12 §9: it asks two things now, not one. First "how was it" — the three
+ * tiers in the design's own Rank-this-place card. Then, when the person
+ * already has comparable places ranked, "which do you prefer" against their
+ * existing list *in the same category* (pickGoogleComparisonTargets), which
+ * is what actually decides where the new place lands rather than dropping
+ * it at the bottom of its tier every time. Same shape as the catalogue's
+ * S26 comparison, on the table that can hold a Google place.
  */
 export function RankGooglePlaceForm({ candidate, onDone }: RankGooglePlaceFormProps) {
   const { show } = useToast();
@@ -54,6 +65,16 @@ export function RankGooglePlaceForm({ candidate, onDone }: RankGooglePlaceFormPr
     residencyOverride !== undefined ? residencyOverride : (existingResidency.data ?? null);
   const rank = useRankGooglePlace();
   const [landed, setLanded] = useState<{ position: number; total: number } | null>(null);
+  // The tier they chose, held while the comparison questions are answered.
+  const [tier, setTier] = useState<RankTier | null>(null);
+  const [comparisonStep, setComparisonStep] = useState<1 | 2>(1);
+  const [firstAnswer, setFirstAnswer] = useState<GoogleComparison | null>(null);
+
+  const { data: history = [] } = useMyGoogleRankings(candidate.door);
+  // Re-ranking a place already on the list must not offer that same place as
+  // its own comparison target.
+  const others = history.filter((h) => h.googlePlaceId !== candidate.placeId);
+  const targets = tier ? pickGoogleComparisonTargets(others, { types: candidate.types, tier }) : {};
 
   const chooseResidency = async (status: ResidentStatus) => {
     try {
@@ -64,21 +85,58 @@ export function RankGooglePlaceForm({ candidate, onDone }: RankGooglePlaceFormPr
     }
   };
 
-  const rate = async (tier: RankTier) => {
+  const submit = async (
+    chosenTier: RankTier,
+    compare1?: GoogleComparison,
+    compare2?: GoogleComparison,
+  ) => {
     try {
       const result = await rank.mutateAsync({
         googlePlaceId: candidate.placeId,
         placeName: candidate.name,
         door: candidate.door,
-        tier,
+        tier: chosenTier,
         location: candidate.location,
         areaText: candidate.areaText ?? null,
         types: candidate.types,
+        compare1,
+        compare2,
       });
       setLanded({ position: result.landedPosition, total: result.totalInDoor });
     } catch (err) {
       show(err instanceof Error ? err.message : 'Could not save that ranking.');
     }
+  };
+
+  const rate = async (chosenTier: RankTier) => {
+    const nextTargets = pickGoogleComparisonTargets(others, {
+      types: candidate.types,
+      tier: chosenTier,
+    });
+    // Nothing comparable ranked yet — the first place in a tier has no
+    // head-to-head to answer, so this stays the one-tap flow it was.
+    if (!nextTargets.first) {
+      await submit(chosenTier);
+      return;
+    }
+    setTier(chosenTier);
+    setComparisonStep(1);
+    setFirstAnswer(null);
+  };
+
+  const answerComparison = async (target: RankedGooglePlace, preferredNew: boolean) => {
+    if (!tier) return;
+    const answer: GoogleComparison = { googlePlaceId: target.googlePlaceId, preferredNew };
+    if (comparisonStep === 1) {
+      if (targets.second) {
+        setFirstAnswer(answer);
+        setComparisonStep(2);
+        return;
+      }
+      await submit(tier, answer);
+      return;
+    }
+    await submit(tier, firstAnswer ?? undefined, answer);
   };
 
   if (landed) {
@@ -118,6 +176,54 @@ export function RankGooglePlaceForm({ candidate, onDone }: RankGooglePlaceFormPr
             I&apos;m visiting
           </Tag>
         </div>
+      </div>
+    );
+  }
+
+  const comparisonTarget = comparisonStep === 1 ? targets.first : targets.second;
+  if (tier && comparisonTarget) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+        <p style={{ font: 'var(--type-body)', margin: 0 }}>Which do you prefer?</p>
+        <p style={{ font: 'var(--type-caption)', color: 'var(--text-muted)', margin: 0 }}>
+          Comparison {comparisonStep} of {targets.second ? 2 : 1} — this is what places{' '}
+          {candidate.name} in your list.
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+          <Button
+            variant="secondary"
+            block
+            disabled={rank.isPending}
+            onClick={() => void answerComparison(comparisonTarget, true)}
+          >
+            {candidate.name}
+          </Button>
+          <Button
+            variant="secondary"
+            block
+            disabled={rank.isPending}
+            onClick={() => void answerComparison(comparisonTarget, false)}
+          >
+            {comparisonTarget.placeName}
+          </Button>
+        </div>
+        <button
+          type="button"
+          onClick={() =>
+            void submit(tier, comparisonStep === 2 ? (firstAnswer ?? undefined) : undefined)
+          }
+          style={{
+            background: 'none',
+            border: 'none',
+            color: 'var(--text-link)',
+            cursor: 'pointer',
+            textAlign: 'left',
+            padding: 0,
+            font: 'var(--type-label)',
+          }}
+        >
+          Skip this comparison
+        </button>
       </div>
     );
   }

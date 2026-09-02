@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
-import { PersonaProvider } from '../../dev/PersonaContext';
+import { PersonaProvider, usePersona } from '../../dev/PersonaContext';
 import { SearchProvider, useSearch } from '../../lib/searchState';
 import { HomeScreen } from './HomeScreen';
 
@@ -32,7 +32,37 @@ vi.mock('../../data/postVisitNudge', () => ({
   usePostVisitNudgeCandidate: () => nudgeCandidate,
 }));
 
-function SeedArea({ areaText, center }: { areaText: string; center: { lat: number; lng: number } }) {
+// P12 §9: Home now reads the signed-in person's own ranked places to show
+// their list for this locality. Mocked rather than wrapped in a
+// QueryClientProvider so these tests keep testing Home, not react-query.
+let myRankings: unknown[] = [];
+vi.mock('../../data/googleRankings', () => ({
+  useMyGoogleRankings: () => ({ data: myRankings }),
+}));
+
+function seedRanking(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'r1',
+    googlePlaceId: 'g-ranked-1',
+    placeName: 'Olive Bistro & Bar',
+    door: 'eat',
+    tier: 'loved',
+    raterType: 'local',
+    position: 1,
+    areaText: 'Jubilee Hills',
+    location: null,
+    types: ['restaurant'],
+    ...overrides,
+  };
+}
+
+function SeedArea({
+  areaText,
+  center,
+}: {
+  areaText: string;
+  center: { lat: number; lng: number };
+}) {
   const { setSearch } = useSearch();
   return (
     <button onClick={() => setSearch({ areaText, center, centerSource: 'area' })}>
@@ -41,12 +71,18 @@ function SeedArea({ areaText, center }: { areaText: string; center: { lat: numbe
   );
 }
 
+function SetPersona({ to }: { to: 'guest' | 'user' }) {
+  const { setPersona } = usePersona();
+  return <button onClick={() => setPersona(to)}>set persona {to}</button>;
+}
+
 function Harness({ areaText, center }: { areaText: string; center: { lat: number; lng: number } }) {
   return (
     <PersonaProvider>
       <SearchProvider>
         <MemoryRouter initialEntries={['/app']}>
           <SeedArea areaText={areaText} center={center} />
+          <SetPersona to="user" />
           <Routes>
             <Route path="/app" element={<HomeScreen />} />
             <Route path="/places/:slug" element={<h1>Place detail</h1>} />
@@ -62,6 +98,7 @@ describe('HomeScreen — Phase 8 §9: no Gem of the town banner', () => {
   beforeEach(() => {
     sessionStorage.clear();
     nudgeCandidate = null;
+    myRankings = [];
   });
 
   it('never shows a gem banner, even right on top of the one seeded gem (Nampally)', async () => {
@@ -88,6 +125,7 @@ describe('HomeScreen — Phase 8 §9: no Gem of the town banner', () => {
 describe('HomeScreen — post-visit nudge trigger (P10 §5)', () => {
   beforeEach(() => {
     sessionStorage.clear();
+    myRankings = [];
   });
 
   it('navigates to the nudge once a bookmarked-but-unranked candidate exists', async () => {
@@ -112,5 +150,45 @@ describe('HomeScreen — post-visit nudge trigger (P10 §5)', () => {
 
     await screen.findByRole('heading', { name: 'Where to start?' });
     expect(screen.queryByRole('heading', { name: 'Post-visit nudge' })).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * P12 §9: "in the app page after login show the user his place in that
+ * locality based on his rankings."
+ */
+describe('HomeScreen — your own ranked places in this locality', () => {
+  beforeEach(() => {
+    sessionStorage.clear();
+    nudgeCandidate = null;
+    myRankings = [];
+  });
+
+  it('shows a signed-in person their ranked places for the area they are in', async () => {
+    myRankings = [seedRanking()];
+    render(<Harness areaText="Jubilee Hills" center={{ lat: 17.4239, lng: 78.4738 }} />);
+    await userEvent.click(screen.getByRole('button', { name: 'seed Jubilee Hills' }));
+    await userEvent.click(screen.getByRole('button', { name: 'set persona user' }));
+
+    expect(await screen.findByText('Your list in Jubilee Hills')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Olive Bistro & Bar' })).toBeInTheDocument();
+    expect(screen.getByText('#1')).toBeInTheDocument();
+  });
+
+  it('leaves out places ranked somewhere else entirely', async () => {
+    myRankings = [seedRanking({ areaText: 'Alwal', location: { lat: 17.6, lng: 78.6 } })];
+    render(<Harness areaText="Jubilee Hills" center={{ lat: 17.4239, lng: 78.4738 }} />);
+    await userEvent.click(screen.getByRole('button', { name: 'seed Jubilee Hills' }));
+    await userEvent.click(screen.getByRole('button', { name: 'set persona user' }));
+
+    expect(screen.queryByText('Your list in Jubilee Hills')).not.toBeInTheDocument();
+  });
+
+  it('never shows it to a Guest — a Guest has no rankings to show', async () => {
+    myRankings = [seedRanking()];
+    render(<Harness areaText="Jubilee Hills" center={{ lat: 17.4239, lng: 78.4738 }} />);
+    await userEvent.click(screen.getByRole('button', { name: 'seed Jubilee Hills' }));
+
+    expect(screen.queryByText('Your list in Jubilee Hills')).not.toBeInTheDocument();
   });
 });

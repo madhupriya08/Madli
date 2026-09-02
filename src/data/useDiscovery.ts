@@ -3,7 +3,12 @@ import { searchCandidates } from '../lib/placesSearch';
 import { hasMapsApiKey } from '../lib/googleMaps';
 import { useSearch } from '../lib/searchState';
 import { usePersona } from '../dev/PersonaContext';
-import { buildDiscovery, emptyDiscovery, type DiscoveryResult } from './hybridPicks';
+import {
+  buildDiscovery,
+  emptyDiscovery,
+  spreadOutPicks,
+  type DiscoveryResult,
+} from './hybridPicks';
 import { getPersonalizedSuggestions } from './recommendations';
 import type { Door } from '../lib/searchState';
 
@@ -28,6 +33,7 @@ export function useDiscovery(door: Door): DiscoveryQueryResult {
       effectiveCenter.lat,
       effectiveCenter.lng,
       radiusMeters,
+      search.queryText,
       search.vibes.join('|'),
       search.who,
       search.occasion,
@@ -64,6 +70,7 @@ export function useDiscovery(door: Door): DiscoveryQueryResult {
           door,
           center: effectiveCenter,
           radiusMeters,
+          queryText: search.queryText,
           vibes: search.vibes,
           who: search.who,
           occasion: search.occasion,
@@ -110,11 +117,17 @@ export function useDiscovery(door: Door): DiscoveryQueryResult {
         );
         return {
           result: {
-            ranked: personalized.map((candidate) => ({
-              kind: 'ranked' as const,
-              candidate,
-              location: candidate.location,
-            })),
+            // P12 §4: re-spread after personalising. The affinity re-order
+            // works on the same candidates and can put two doors of one
+            // street back at the top — this is a reordering only, so no
+            // personalised pick is ever dropped by it.
+            ranked: spreadOutPicks(
+              personalized.map((candidate) => ({
+                kind: 'ranked' as const,
+                candidate,
+                location: candidate.location,
+              })),
+            ),
           },
           error: null,
         };

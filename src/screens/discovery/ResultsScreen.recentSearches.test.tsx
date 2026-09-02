@@ -147,7 +147,7 @@ describe('ResultsScreen — recent searches (P11 §3)', () => {
     await userEvent.click(screen.getByRole('button', { name: 'set persona guest' }));
     await screen.findByRole('button', { name: 'Show me two more' }, LOADING_TIMEOUT);
 
-    expect(screen.queryByText('Recent searches')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Your last \d* ?searche?s?/)).not.toBeInTheDocument();
     expect(listRecentSearches(MOCK_USER_ID, 'eat')).toHaveLength(0);
   });
 

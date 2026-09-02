@@ -257,6 +257,7 @@ describe('filterSliceOf / isFilterSliceAtDefaults — P5 §5 account persistence
       budget: '₹300–600',
     });
     expect(slice).toEqual({
+      queryText: '',
       vibes: ['Diner'],
       vibe: 'Diner',
       budget: '₹300–600',

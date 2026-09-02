@@ -19,12 +19,18 @@ import { PostVisitNudgeScreen, type PostVisitNudgeSubject } from './PostVisitNud
 const rankMutateAsync = vi.fn();
 
 vi.mock('../../data/googleRankings', async () => {
-  const actual =
-    await vi.importActual<typeof import('../../data/googleRankings')>('../../data/googleRankings');
+  const actual = await vi.importActual<typeof import('../../data/googleRankings')>(
+    '../../data/googleRankings',
+  );
   return {
     ...actual,
     useResidentStatus: () => ({ data: 'visitor' }),
     useRankGooglePlace: () => ({ mutateAsync: rankMutateAsync, isPending: false }),
+    // P12 §9: the form reads the person's existing rankings to ask the
+    // comparison question. Empty here — these tests are about the nudge's
+    // own branching, not the comparison step (covered in
+    // RankGooglePlaceForm.test.tsx).
+    useMyGoogleRankings: () => ({ data: [] }),
     setResidentStatus: vi.fn(),
   };
 });
@@ -76,7 +82,9 @@ describe('PostVisitNudgeScreen', () => {
 
   it('a catalogue subject: "Yes, log it" goes to /log-visit with its placeId', async () => {
     render(
-      <Harness initialEntry={{ pathname: '/post-visit-nudge', state: { subject: catalogueSubject } }} />,
+      <Harness
+        initialEntry={{ pathname: '/post-visit-nudge', state: { subject: catalogueSubject } }}
+      />,
     );
     expect(await screen.findByText('Did you make it to Cafe Bahar?')).toBeInTheDocument();
 
@@ -86,7 +94,9 @@ describe('PostVisitNudgeScreen', () => {
 
   it('"Not yet" and "Didn\'t go" both return to /app without ranking anything', async () => {
     render(
-      <Harness initialEntry={{ pathname: '/post-visit-nudge', state: { subject: catalogueSubject } }} />,
+      <Harness
+        initialEntry={{ pathname: '/post-visit-nudge', state: { subject: catalogueSubject } }}
+      />,
     );
     await userEvent.click(await screen.findByRole('button', { name: 'Not yet' }));
     expect(await screen.findByRole('heading', { name: 'Where to start?' })).toBeInTheDocument();
@@ -95,7 +105,9 @@ describe('PostVisitNudgeScreen', () => {
   it('a Google subject: "Yes, log it" ranks in place and returns to /app when done', async () => {
     rankMutateAsync.mockResolvedValue({ landedPosition: 3, totalInDoor: 4 });
     render(
-      <Harness initialEntry={{ pathname: '/post-visit-nudge', state: { subject: googleSubject } }} />,
+      <Harness
+        initialEntry={{ pathname: '/post-visit-nudge', state: { subject: googleSubject } }}
+      />,
     );
     expect(await screen.findByText('Did you make it to Testville Diner?')).toBeInTheDocument();
 

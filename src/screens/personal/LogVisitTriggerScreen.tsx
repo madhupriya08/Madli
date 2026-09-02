@@ -17,6 +17,10 @@ const TIERS: { value: Tier; label: string }[] = [
 // S25: two taps from here to a ranked place — the whole design constraint on
 // S25-S27. The category shown is not decoration: it decides which pairwise
 // bucket the place lands in, set on the catalogue record (S44), not chosen here.
+//
+// P12 §9: titled and worded exactly like the Rank-this-place card the
+// post-visit nudge shows for a real (Google-sourced) place, so the two
+// ranking entry points read as the same question rather than two designs.
 export function LogVisitTriggerScreen() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -36,8 +40,8 @@ export function LogVisitTriggerScreen() {
   return (
     <Dialog
       open
-      title="How was it?"
-      subtitle={place.name}
+      title="Rank this place"
+      subtitle={`How was ${place.name}?`}
       onClose={() => navigate(-1)}
       variant={breakpoint === 'desktop' ? 'modal' : 'sheet'}
     >
@@ -48,7 +52,8 @@ export function LogVisitTriggerScreen() {
           marginBottom: 'var(--space-4)',
         }}
       >
-        Ranked in {categoryName(place.categoryId)}
+        Ranked in {categoryName(place.categoryId)} — we&apos;ll compare it against the ones you
+        already ranked there.
       </p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
         {TIERS.map((t) => (

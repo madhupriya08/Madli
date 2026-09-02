@@ -109,7 +109,15 @@ export function ResultsScreen({ door }: { door: 'eat' | 'explore' }) {
   // Deliberately not memoized (see the comment above) — a plain localStorage
   // read is cheap, and memoizing it would need the exact setState-in-effect
   // this app avoids elsewhere just to invalidate the cache correctly.
-  const recentSearches = listRecentSearches(userId, door);
+  //
+  // P12 §7: all five, both doors — not just this door's. The store keeps
+  // five entries in total, so door-filtering here meant "your last searches"
+  // routinely showed one or two of them, and an Explore search you ran a
+  // minute ago was unreachable from the Eat results you were standing on.
+  // Each chip's label already names its own door, and picking one that
+  // belongs to the other door switches to it rather than silently applying
+  // Explore filters to an Eat list.
+  const recentSearches = listRecentSearches(userId);
 
   const markers: MapMarker[] = useMemo(
     () =>
@@ -168,11 +176,20 @@ export function ResultsScreen({ door }: { door: 'eat' | 'explore' }) {
                 marginBottom: 'var(--space-2)',
               }}
             >
-              Recent searches
+              Your last{' '}
+              {recentSearches.length === 1 ? 'search' : `${recentSearches.length} searches`}
             </h2>
             <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
               {recentSearches.map((r) => (
-                <Tag key={r.id} onClick={() => setSearch(r.snapshot)}>
+                <Tag
+                  key={r.id}
+                  onClick={() => {
+                    setSearch(r.snapshot);
+                    if (r.snapshot.door !== door) {
+                      navigate(r.snapshot.door === 'explore' ? '/results/explore' : '/results/eat');
+                    }
+                  }}
+                >
                   {r.label}
                 </Tag>
               ))}
@@ -296,8 +313,8 @@ export function ResultsScreen({ door }: { door: 'eat' | 'explore' }) {
         variant={breakpoint === 'desktop' ? 'modal' : 'sheet'}
       >
         <p style={{ font: 'var(--type-body)', marginBottom: 'var(--space-5)' }}>
-          Saving, two-stop plans and your ranked list are the parts we have to store. Everything
-          you have done so far carries over.
+          Saving, two-stop plans and your ranked list are the parts we have to store. Everything you
+          have done so far carries over.
         </p>
         <div style={{ display: 'flex', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
           <Button onClick={() => navigate('/signup')}>Sign up</Button>

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Dialog } from '../../components/feedback/Dialog';
 import { Switch } from '../../components/forms/Switch';
@@ -5,8 +6,10 @@ import { Tag } from '../../components/core/Tag';
 import { Button } from '../../components/core/Button';
 import { Tabs } from '../../components/navigation/Tabs';
 import { usePersona } from '../../dev/PersonaContext';
+import { saveFilters } from '../../data/searchFilters';
 import {
   useSearch,
+  filterSliceOf,
   vibeOptionsFor,
   KITCHEN_OPTIONS,
   CUISINE_OPTIONS,
@@ -70,10 +73,25 @@ const CONSTRAINT_TABS: Array<{ mode: ConstraintMode; label: string }> = [
 // Phase 9 §4: Time window's own chip set is now door-specific real
 // day-part buckets (timeWindowOptionsFor) — see searchState.tsx's own
 // comment for why.
+//
+// P12 §1: the panel was a 420px column on desktop, which put nine chip
+// groups plus nine switches into a scroller barely wider than the phone
+// sheet — every group wrapped onto three lines and the whole thing had to
+// be scrolled twice to read once. It is a 900px modal now, with the groups
+// laid out in real columns, so a desktop screen actually shows the ask.
+//
+// P12 §2: "Reset" clears the intake answers this panel also shows
+// (who/occasion/hard constraint), not just the S16 filters — see
+// searchState's resetFiltersAndIntake.
+//
+// P12 §6: "Save this set" was a bare <button> with no onClick at all. It
+// writes the current filter set to the account now and says so.
 export function FiltersScreen() {
-  const { breakpoint, persona } = usePersona();
+  const { breakpoint, persona, userId } = usePersona();
   const navigate = useNavigate();
-  const { search, setSearch, resetFilters } = useSearch();
+  const { search, setSearch, resetFiltersAndIntake } = useSearch();
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const isDesktop = breakpoint === 'desktop';
   const door = search.door;
   const {
     vibes,
@@ -98,8 +116,31 @@ export function FiltersScreen() {
   const toggleVibe = (v: string) =>
     setSearch({ vibes: vibes.includes(v) ? vibes.filter((x) => x !== v) : [...vibes, v] });
 
+  // What actually got saved, counted rather than claimed — "Saved" over an
+  // empty filter set would be a confirmation of nothing.
+  const activeFilterCount = Object.values(filterSliceOf(search)).filter((v) =>
+    Array.isArray(v) ? v.length > 0 : v !== null && v !== false && v !== '',
+  ).length;
+  const savedSummary =
+    activeFilterCount === 0
+      ? 'Saved an empty set — every filter is cleared, which is a real starting point too.'
+      : `Saved ${activeFilterCount} ${activeFilterCount === 1 ? 'filter' : 'filters'} to your account.`;
+
+  const saveSet = async () => {
+    setSaveState('saving');
+    try {
+      await saveFilters(userId, filterSliceOf(search));
+      setSaveState('saved');
+    } catch {
+      // The exact Postgres/network reason is not something anyone standing
+      // in the filters panel can act on — what matters is that it did not
+      // save, and that trying again is worth a shot.
+      setSaveState('error');
+    }
+  };
+
   const group = (title: string, body: React.ReactNode) => (
-    <div>
+    <div style={{ breakInside: 'avoid' }}>
       <h4 style={{ font: 'var(--type-label)', marginBottom: 'var(--space-2)' }}>{title}</h4>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>{body}</div>
     </div>
@@ -116,198 +157,253 @@ export function FiltersScreen() {
       </Tag>
     ));
 
+  // width 900: room for two real columns of chip groups on desktop rather
+  // than one phone-width scroller. The sheet variant ignores it and stays
+  // full-bleed on mobile, where one column is right.
   return (
-    <Dialog
-      open
-      variant={breakpoint === 'desktop' ? 'modal' : 'sheet'}
-      title="Filters"
-      onClose={() => navigate(-1)}
-      width={420}
-      footer={
-        <>
-          <Button variant="ghost" onClick={resetFilters}>
-            Reset
-          </Button>
-          <Button
-            onClick={() => {
-              setSearch({ door });
-              navigate(door === 'eat' ? '/results/eat' : '/results/explore');
-            }}
-          >
-            Apply
-          </Button>
-        </>
-      }
-    >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
-        {group(
-          'Who is it for?',
-          oneOf(WHO_OPTIONS, who, (v) => setSearch({ who: v })),
-        )}
+    <>
+      <Dialog
+        open
+        variant={breakpoint === 'desktop' ? 'modal' : 'sheet'}
+        title="Filters"
+        // Escape reaches both dialogs while the saved-confirmation is up
+        // (each Dialog listens on document) — so with it open, closing means
+        // dismissing it, not walking out of Filters entirely.
+        onClose={() => (saveState === 'saved' ? setSaveState('idle') : navigate(-1))}
+        width={900}
+        style={isDesktop ? { maxHeight: '92vh' } : undefined}
+        footer={
+          <>
+            <Button variant="ghost" onClick={resetFiltersAndIntake}>
+              Reset all
+            </Button>
+            <Button
+              onClick={() => {
+                setSearch({ door });
+                navigate(door === 'eat' ? '/results/eat' : '/results/explore');
+              }}
+            >
+              Apply
+            </Button>
+          </>
+        }
+      >
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: isDesktop ? 'repeat(2, minmax(0, 1fr))' : '1fr',
+            alignItems: 'start',
+            columnGap: 'var(--space-7)',
+            rowGap: 'var(--space-5)',
+          }}
+        >
+          {group(
+            'Who is it for?',
+            oneOf(WHO_OPTIONS, who, (v) => setSearch({ who: v })),
+          )}
 
-        {group(
-          "What's the occasion?",
-          oneOf(OCCASION_OPTIONS, occasion, (v) => setSearch({ occasion: v })),
-        )}
+          {group(
+            "What's the occasion?",
+            oneOf(OCCASION_OPTIONS, occasion, (v) => setSearch({ occasion: v })),
+          )}
 
-        <div>
-          <h4 style={{ font: 'var(--type-label)', marginBottom: 'var(--space-2)' }}>
-            Your one hard constraint
-          </h4>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-            <Tabs
-              size="sm"
-              style={{ width: 'fit-content' }}
-              items={CONSTRAINT_TABS.map((tab) => ({ value: tab.mode, label: tab.label }))}
-              value={constraintMode}
-              onChange={(v) => setSearch({ constraintMode: v as ConstraintMode })}
-            />
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
-              {constraintMode === 'time'
-                ? oneOf(timeWindowOptions, timeWindow, (v) => setSearch({ timeWindow: v }))
-                : null}
-              {constraintMode === 'drive'
-                ? oneOf(DRIVE_TIME_OPTIONS, driveTimePreset, (v) =>
-                    setSearch({ driveTimePreset: v }),
-                  )
-                : null}
-              {constraintMode === 'budget'
-                ? oneOf(budgetCapOptions, budgetCap, (v) => setSearch({ budgetCap: v }))
-                : null}
+          <div style={{ gridColumn: '1 / -1' }}>
+            <h4 style={{ font: 'var(--type-label)', marginBottom: 'var(--space-2)' }}>
+              Your one hard constraint
+            </h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+              <Tabs
+                size="sm"
+                style={{ width: 'fit-content' }}
+                items={CONSTRAINT_TABS.map((tab) => ({ value: tab.mode, label: tab.label }))}
+                value={constraintMode}
+                onChange={(v) => setSearch({ constraintMode: v as ConstraintMode })}
+              />
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
+                {constraintMode === 'time'
+                  ? oneOf(timeWindowOptions, timeWindow, (v) => setSearch({ timeWindow: v }))
+                  : null}
+                {constraintMode === 'drive'
+                  ? oneOf(DRIVE_TIME_OPTIONS, driveTimePreset, (v) =>
+                      setSearch({ driveTimePreset: v }),
+                    )
+                  : null}
+                {constraintMode === 'budget'
+                  ? oneOf(budgetCapOptions, budgetCap, (v) => setSearch({ budgetCap: v }))
+                  : null}
+              </div>
             </div>
           </div>
-        </div>
 
-        {group(
-          'Vibe',
-          vibeOptions.map((v) => (
-            <Tag key={v} selected={vibes.includes(v)} onClick={() => toggleVibe(v)}>
-              {v}
-            </Tag>
-          )),
-        )}
+          {group(
+            'Vibe',
+            vibeOptions.map((v) => (
+              <Tag key={v} selected={vibes.includes(v)} onClick={() => toggleVibe(v)}>
+                {v}
+              </Tag>
+            )),
+          )}
 
-        {door === 'eat'
-          ? group(
-              'Kitchen',
-              oneOf(KITCHEN_OPTIONS, kitchen, (v) => setSearch({ kitchen: v })),
-            )
-          : null}
+          {door === 'eat'
+            ? group(
+                'Kitchen',
+                oneOf(KITCHEN_OPTIONS, kitchen, (v) => setSearch({ kitchen: v })),
+              )
+            : null}
 
-        {door === 'eat'
-          ? group(
-              'Cuisine',
-              oneOf(CUISINE_OPTIONS, cuisine, (v) => setSearch({ cuisine: v })),
-            )
-          : null}
+          {door === 'eat'
+            ? group(
+                'Cuisine',
+                oneOf(CUISINE_OPTIONS, cuisine, (v) => setSearch({ cuisine: v })),
+              )
+            : null}
 
-        {group(
-          'Distance',
-          // Its own field (distanceKm), independent of S15's hard-constraint
-          // toggle — the two used to share one field, so picking a distance
-          // here silently overwrote whatever S15 had set. Presets are
-          // locale-aware (km or miles) but distanceKm itself always stores
-          // real kilometres — the one unit the actual radius math works in.
-          //
-          // "Any distance" is the empty/default state (distanceKm === ''),
-          // the same state every other filter group here starts in with
-          // nothing highlighted — searching with none of these touched
-          // already works. It used to render pre-selected, which read as a
-          // distance filter being required before you could search at all.
-          // It never highlights now; clicking it still clears back to no
-          // preference, same as before.
-          distancePresets.map((p) => (
-            <Tag
-              key={p.label}
-              selected={p.km !== null && distanceKm === p.km}
-              onClick={() => setSearch({ distanceKm: p.km ?? '' })}
-            >
-              {p.label}
-            </Tag>
-          )),
-        )}
+          {group(
+            'Distance (optional)',
+            // Its own field (distanceKm), independent of S15's hard-constraint
+            // toggle — the two used to share one field, so picking a distance
+            // here silently overwrote whatever S15 had set. Presets are
+            // locale-aware (km or miles) but distanceKm itself always stores
+            // real kilometres — the one unit the actual radius math works in.
+            //
+            // P12 §3: distance is not a required answer and never was — the
+            // search runs perfectly well with no preference at all. So each
+            // preset toggles: tapping the one already chosen clears it, the
+            // same way every single-select chip group on this panel behaves
+            // (see `oneOf`). "Any distance" is the same clear, spelled out,
+            // and stays unhighlighted so an untouched group never reads as a
+            // choice already made.
+            distancePresets.map((p) => (
+              <Tag
+                key={p.label}
+                selected={p.km !== null && distanceKm === p.km}
+                onClick={() =>
+                  setSearch({ distanceKm: p.km !== null && distanceKm !== p.km ? p.km : '' })
+                }
+              >
+                {p.label}
+              </Tag>
+            )),
+          )}
 
-        {door === 'explore'
-          ? group(
-              'Area type',
-              AREA_TYPES.map((t) => (
-                <Tag
-                  key={t}
-                  selected={areaType === t}
-                  onClick={() => setSearch({ areaType: areaType === t ? null : t })}
-                >
-                  {t}
-                </Tag>
-              )),
-            )
-          : null}
+          {door === 'explore'
+            ? group(
+                'Area type',
+                AREA_TYPES.map((t) => (
+                  <Tag
+                    key={t}
+                    selected={areaType === t}
+                    onClick={() => setSearch({ areaType: areaType === t ? null : t })}
+                  >
+                    {t}
+                  </Tag>
+                )),
+              )
+            : null}
 
-        {door === 'explore'
-          ? group(
-              'Place type',
-              oneOf(PLACE_TYPE_OPTIONS, placeType, (v) => setSearch({ placeType: v })),
-            )
-          : null}
+          {door === 'explore'
+            ? group(
+                'Place type',
+                oneOf(PLACE_TYPE_OPTIONS, placeType, (v) => setSearch({ placeType: v })),
+              )
+            : null}
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-          <Switch
-            label="Most famous"
-            checked={search.mostFamous}
-            onChange={(v) => setSearch({ mostFamous: v })}
-          />
-          <Switch
-            label="Open now"
-            checked={search.openNow}
-            onChange={(v) => setSearch({ openNow: v })}
-          />
-          <Switch
-            label="Open late"
-            checked={search.openLate}
-            onChange={(v) => setSearch({ openLate: v })}
-          />
-          <Switch
-            label="Allows pets"
-            checked={search.allowsPets}
-            onChange={(v) => setSearch({ allowsPets: v })}
-          />
-          {door === 'eat' ? (
-            <Switch
-              label="Serves pet food"
-              checked={search.servesPetFood}
-              onChange={(v) => setSearch({ servesPetFood: v })}
-            />
-          ) : null}
-          <Switch
-            label="Family friendly"
-            checked={search.familyFriendly}
-            onChange={(v) => setSearch({ familyFriendly: v })}
-          />
-          <Switch
-            label="Couple friendly"
-            checked={search.coupleFriendly}
-            onChange={(v) => setSearch({ coupleFriendly: v })}
-          />
-          <Switch
-            label={door === 'eat' ? 'Skip long waits' : 'Avoid crowded times'}
-            checked={search.waitCare}
-            onChange={(v) => setSearch({ waitCare: v })}
-          />
-        </div>
-
-        {persona !== 'guest' ? (
-          <button
+          <div
             style={{
-              background: 'none',
-              border: 'none',
-              color: 'var(--text-link)',
-              cursor: 'pointer',
-              textAlign: 'left',
+              gridColumn: '1 / -1',
+              display: 'grid',
+              gridTemplateColumns: isDesktop ? 'repeat(2, minmax(0, 1fr))' : '1fr',
+              columnGap: 'var(--space-7)',
+              rowGap: 'var(--space-4)',
             }}
           >
-            Save this set
-          </button>
-        ) : null}
-      </div>
-    </Dialog>
+            <Switch
+              label="Most famous"
+              checked={search.mostFamous}
+              onChange={(v) => setSearch({ mostFamous: v })}
+            />
+            <Switch
+              label="Open now"
+              checked={search.openNow}
+              onChange={(v) => setSearch({ openNow: v })}
+            />
+            <Switch
+              label="Open late"
+              checked={search.openLate}
+              onChange={(v) => setSearch({ openLate: v })}
+            />
+            <Switch
+              label="Allows pets"
+              checked={search.allowsPets}
+              onChange={(v) => setSearch({ allowsPets: v })}
+            />
+            {door === 'eat' ? (
+              <Switch
+                label="Serves pet food"
+                checked={search.servesPetFood}
+                onChange={(v) => setSearch({ servesPetFood: v })}
+              />
+            ) : null}
+            <Switch
+              label="Family friendly"
+              checked={search.familyFriendly}
+              onChange={(v) => setSearch({ familyFriendly: v })}
+            />
+            <Switch
+              label="Couple friendly"
+              checked={search.coupleFriendly}
+              onChange={(v) => setSearch({ coupleFriendly: v })}
+            />
+            <Switch
+              label={door === 'eat' ? 'Skip long waits' : 'Avoid crowded times'}
+              checked={search.waitCare}
+              onChange={(v) => setSearch({ waitCare: v })}
+            />
+          </div>
+
+          {persona !== 'guest' ? (
+            <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <button
+                type="button"
+                disabled={saveState === 'saving'}
+                onClick={() => void saveSet()}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-link)',
+                  cursor: saveState === 'saving' ? 'progress' : 'pointer',
+                  textAlign: 'left',
+                  padding: 0,
+                  font: 'var(--type-label)',
+                }}
+              >
+                {saveState === 'saving' ? 'Saving this set…' : 'Save this set'}
+              </button>
+              {saveState === 'error' ? (
+                <span style={{ font: 'var(--type-caption)', color: 'var(--status-warn-fg)' }}>
+                  Could not save that set. Try again in a moment.
+                </span>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      </Dialog>
+
+      {saveState === 'saved' ? (
+        <Dialog
+          open
+          variant={isDesktop ? 'modal' : 'sheet'}
+          title="Filter set saved"
+          onClose={() => setSaveState('idle')}
+          width={360}
+          footer={<Button onClick={() => setSaveState('idle')}>Back to filters</Button>}
+        >
+          <p style={{ font: 'var(--type-body)', margin: 0 }}>{savedSummary}</p>
+          <p style={{ font: 'var(--type-body-sm)', color: 'var(--text-muted)', margin: 0 }}>
+            It comes back the next time you open Madli on this account.
+          </p>
+        </Dialog>
+      ) : null}
+    </>
   );
 }

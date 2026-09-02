@@ -52,7 +52,11 @@ function writeAll(userId: string, items: RecentSearch[]) {
 function labelFor(search: SearchState): string {
   const doorLabel = search.door === 'eat' ? 'Eat' : 'Explore';
   const area = search.areaText.trim() || 'Nearby';
-  const extra = search.vibes[0] ?? search.who ?? search.occasion ?? null;
+  // P12 §5/§7: a typed search ("biryani") is the most distinctive thing
+  // about that entry — without it, three different cravings in the same
+  // area collapse into one identical "Eat · Jubilee Hills" chip and the
+  // de-duplication below keeps only the last of them.
+  const extra = search.queryText.trim() || search.vibes[0] || search.who || search.occasion || null;
   return [doorLabel, area, extra].filter(Boolean).join(' · ');
 }
 
@@ -75,8 +79,16 @@ export function recordRecentSearch(userId: string, search: SearchState): void {
   writeAll(userId, [entry, ...existing].slice(0, MAX_RECENT));
 }
 
+/**
+ * The last five, newest first. Capped on read as well as on write: the
+ * five-entry promise is what the screens print ("Your last 5 searches"), and
+ * a stored blob from an older build — or one written by another tab — must
+ * not quietly make that line a lie.
+ */
 export function listRecentSearches(userId: string, door?: Door): RecentSearch[] {
   if (!userId) return [];
-  const all = readAll(userId).sort((a, b) => b.savedAt - a.savedAt);
+  const all = readAll(userId)
+    .sort((a, b) => b.savedAt - a.savedAt)
+    .slice(0, MAX_RECENT);
   return door ? all.filter((r) => r.door === door) : all;
 }

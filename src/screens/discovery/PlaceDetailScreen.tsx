@@ -18,7 +18,11 @@ import { places } from '../../fixtures/places';
 import { categoryName } from '../../fixtures/categories';
 import { placePhotoUrl } from '../../lib/placePhoto';
 import { GoogleMapView } from '../../components/map/GoogleMapView';
-import { fetchPlaceDetails, inferDoorFromTypes, type GooglePlaceDetails } from '../../lib/placesSearch';
+import {
+  fetchPlaceDetails,
+  inferDoorFromTypes,
+  type GooglePlaceDetails,
+} from '../../lib/placesSearch';
 import { RankGooglePlaceForm } from '../../components/ranking/RankGooglePlaceForm';
 import { pickReason } from '../../data/hybridPicks';
 import { distanceUnitForCountry, useSearch } from '../../lib/searchState';
@@ -28,7 +32,12 @@ import {
   removeSavedGooglePlace,
   saveGooglePlace,
 } from '../../lib/savedGooglePlaces';
-import { useAddBookmark, useAllRankedEntries, useBookmarks, useRemoveBookmark } from '../../data/hooks';
+import {
+  useAddBookmark,
+  useAllRankedEntries,
+  useBookmarks,
+  useRemoveBookmark,
+} from '../../data/hooks';
 import { useMyGoogleRankings } from '../../data/googleRankings';
 
 /**
@@ -261,9 +270,7 @@ export function PlaceDetailScreen() {
           },
         })
       }
-      onBridge={() =>
-        navigate(`/places/${encodeURIComponent(googlePlace!.placeId)}/bridge`)
-      }
+      onBridge={() => navigate(`/places/${encodeURIComponent(googlePlace!.placeId)}/bridge`)}
       onSignup={() => navigate('/signup')}
     />
   );
@@ -386,7 +393,9 @@ function CatalogueDetail({
           width: '100%',
         }}
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)', minWidth: 0 }}>
+        <div
+          style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)', minWidth: 0 }}
+        >
           <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 4 }}>
             {photos.map((ph, i) => (
               <div key={i} style={{ width: 150, flex: 'none' }}>
@@ -470,7 +479,9 @@ function CatalogueDetail({
                   {place.address}
                 </div>
               ) : null}
-              <span style={{ font: 'var(--type-label)', color: 'var(--text-link)', cursor: 'pointer' }}>
+              <span
+                style={{ font: 'var(--type-label)', color: 'var(--text-link)', cursor: 'pointer' }}
+              >
                 Report wrong information
               </span>
             </>,
@@ -488,7 +499,9 @@ function CatalogueDetail({
             : null}
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)', minWidth: 0 }}>
+        <div
+          style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)', minWidth: 0 }}
+        >
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {eyebrow(place.gem ? 'Why this is a gem' : 'Why this one')}
             <ReasonNote tone={place.gem ? 'gem' : 'plain'}>{place.reason}</ReasonNote>
@@ -526,7 +539,9 @@ function CatalogueDetail({
                 <>
                   {eyebrow('What to order')}
                   {persona !== 'guest' || isSharedLink ? (
-                    <p style={{ margin: 0, font: 'var(--type-body-sm)', color: 'var(--text-body)' }}>
+                    <p
+                      style={{ margin: 0, font: 'var(--type-body-sm)', color: 'var(--text-body)' }}
+                    >
                       {/* No per-dish breakdown exists yet — that would need visit-log
                           text mined into named dishes, a real backend feature this
                           round did not build. The one honest number the fixtures
@@ -711,6 +726,9 @@ function GoogleDetail({
           place.reviewCount ? ` · ${place.reviewCount.toLocaleString()} reviews` : ''
         }`
       : null;
+  // Computed once: the "Google reviews" card below checks against it so the
+  // same sentence is not printed twice on one page (P12 §8).
+  const reason = pickReason(place, vibe);
 
   const openDirections = () => {
     const { lat, lng } = place.location;
@@ -779,7 +797,9 @@ function GoogleDetail({
           width: '100%',
         }}
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)', minWidth: 0 }}>
+        <div
+          style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)', minWidth: 0 }}
+        >
           {photos.length > 1 ? (
             <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 4 }}>
               {photos.slice(1).map((src, i) => (
@@ -848,17 +868,21 @@ function GoogleDetail({
                   {place.address}
                 </div>
               ) : null}
-              <span style={{ font: 'var(--type-label)', color: 'var(--text-link)', cursor: 'pointer' }}>
+              <span
+                style={{ font: 'var(--type-label)', color: 'var(--text-link)', cursor: 'pointer' }}
+              >
                 Report wrong information
               </span>
             </>,
           )}
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)', minWidth: 0 }}>
+        <div
+          style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)', minWidth: 0 }}
+        >
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {eyebrow('Why this one')}
-            <ReasonNote>{pickReason(place, vibe)}</ReasonNote>
+            <ReasonNote>{reason}</ReasonNote>
           </div>
 
           {vibe || typeLabel ? (
@@ -874,7 +898,12 @@ function GoogleDetail({
               <p style={{ margin: 0, font: 'var(--type-label)', color: 'var(--text-heading)' }}>
                 {ratingLine ?? 'No Google rating yet'}
               </p>
-              {place.editorialSummary ? (
+              {/* P12 §8: "Why this one" above is pickReason(), whose first
+                  choice is this very editorial summary — so a place that has
+                  one printed the identical sentence twice on one screen,
+                  under two different headings. Only shown here when it is
+                  not already the reason. */}
+              {place.editorialSummary && reason !== place.editorialSummary ? (
                 <p style={{ margin: 0, font: 'var(--type-body-sm)', color: 'var(--text-body)' }}>
                   {place.editorialSummary}
                 </p>

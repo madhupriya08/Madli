@@ -1,8 +1,8 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
-import { PersonaProvider } from '../../dev/PersonaContext';
+import { PersonaProvider, usePersona } from '../../dev/PersonaContext';
 import { SearchProvider, useSearch, type SearchState } from '../../lib/searchState';
 import { FiltersScreen } from './FiltersScreen';
 import { AppliedFilterChips } from './AppliedFilterChips';
@@ -18,6 +18,12 @@ import { AppliedFilterChips } from './AppliedFilterChips';
  * confirmed intentional, not a gap, so intake is untouched here.
  */
 
+const saveFiltersMock = vi.fn();
+vi.mock('../../data/searchFilters', () => ({
+  saveFilters: (...args: unknown[]) => saveFiltersMock(...args),
+  fetchSavedFilters: () => Promise.resolve(null),
+}));
+
 function seed(initial: Partial<SearchState>) {
   sessionStorage.setItem('madli.search', JSON.stringify(initial));
 }
@@ -31,10 +37,16 @@ function probe(): SearchState {
   return JSON.parse(screen.getByTestId('probe').textContent ?? '{}') as SearchState;
 }
 
+function SetPersona({ to }: { to: 'guest' | 'user' }) {
+  const { setPersona } = usePersona();
+  return <button onClick={() => setPersona(to)}>set persona {to}</button>;
+}
+
 function Harness() {
   return (
     <PersonaProvider>
       <SearchProvider>
+        <SetPersona to="user" />
         <MemoryRouter initialEntries={['/filters']}>
           <Routes>
             <Route
@@ -223,5 +235,100 @@ describe('FiltersScreen — Phase 8 §11: Budget shown once, not twice', () => {
 
     expect(await screen.findByRole('tab', { name: 'Budget' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Budget' })).not.toBeInTheDocument();
+  });
+});
+
+describe('FiltersScreen — P12 §2: Reset clears the intake answers too', () => {
+  it('"Reset all" clears who, occasion and the hard constraint, not just the S16 filters', async () => {
+    seed({
+      door: 'eat',
+      countryCode: 'IN',
+      who: 'Couple',
+      occasion: 'Date',
+      constraintMode: 'drive',
+      driveTimePreset: '20 min',
+      vibes: ['Diner'],
+      kitchen: 'Non-veg',
+      distanceKm: '5',
+      openNow: true,
+    });
+    render(<Harness />);
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Reset all' }));
+
+    const state = probe();
+    expect(state.who).toBeNull();
+    expect(state.occasion).toBeNull();
+    expect(state.driveTimePreset).toBeNull();
+    expect(state.constraintMode).toBe('time');
+    expect(state.vibes).toEqual([]);
+    expect(state.kitchen).toBeNull();
+    expect(state.distanceKm).toBe('');
+    expect(state.openNow).toBe(false);
+  });
+
+  it('keeps where you are — the door and the area survive a reset', async () => {
+    seed({ door: 'explore', areaText: 'Jubilee Hills', who: 'Solo' });
+    render(<Harness />);
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Reset all' }));
+
+    expect(probe().door).toBe('explore');
+    expect(probe().areaText).toBe('Jubilee Hills');
+  });
+});
+
+describe('FiltersScreen — P12 §3: distance is optional and deselectable', () => {
+  it('tapping the chosen distance preset again clears it', async () => {
+    seed({ door: 'eat', countryCode: 'IN' });
+    render(<Harness />);
+
+    await userEvent.click(await screen.findByText('Under 5 km'));
+    expect(probe().distanceKm).toBe('5');
+
+    await userEvent.click(screen.getByText('Under 5 km'));
+    expect(probe().distanceKm).toBe('');
+  });
+});
+
+describe('FiltersScreen — P12 §6: "Save this set" actually saves', () => {
+  beforeEach(() => {
+    saveFiltersMock.mockReset().mockResolvedValue(undefined);
+  });
+
+  it('writes the current filter set and confirms it to the person', async () => {
+    seed({ door: 'eat', countryCode: 'IN', vibes: ['Diner'], kitchen: 'Non-veg' });
+    render(<Harness />);
+    await userEvent.click(screen.getByRole('button', { name: 'set persona user' }));
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Save this set' }));
+
+    expect(saveFiltersMock).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ vibes: ['Diner'], kitchen: 'Non-veg' }),
+    );
+    expect(await screen.findByText('Filter set saved')).toBeInTheDocument();
+    expect(screen.getByText('Saved 3 filters to your account.')).toBeInTheDocument();
+  });
+
+  it('says so plainly when the save fails, rather than claiming it saved', async () => {
+    saveFiltersMock.mockRejectedValue(new Error('offline'));
+    seed({ door: 'eat', countryCode: 'IN' });
+    render(<Harness />);
+    await userEvent.click(screen.getByRole('button', { name: 'set persona user' }));
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Save this set' }));
+
+    expect(
+      await screen.findByText('Could not save that set. Try again in a moment.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Filter set saved')).not.toBeInTheDocument();
+  });
+
+  it('is absent for a Guest — there is no account to save it to', async () => {
+    seed({ door: 'eat' });
+    render(<Harness />);
+
+    expect(screen.queryByRole('button', { name: 'Save this set' })).not.toBeInTheDocument();
   });
 });

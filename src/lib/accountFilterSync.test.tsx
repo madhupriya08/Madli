@@ -24,6 +24,7 @@ vi.mock('../data/searchFilters', () => ({
 }));
 
 const SAVED: FilterSlice = {
+  queryText: '',
   vibes: ['Date night'],
   vibe: 'Date night',
   budget: '₹300–600',

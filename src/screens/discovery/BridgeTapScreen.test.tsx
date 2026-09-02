@@ -69,9 +69,7 @@ const NEARBY_STOP: GoogleCandidate = {
   types: ['park'],
 };
 
-function Harness({
-  slug = 'restaurants%2Fhotel-shadab',
-}: { slug?: string } = {}) {
+function Harness({ slug = 'restaurants%2Fhotel-shadab' }: { slug?: string } = {}) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return (
     <QueryClientProvider client={queryClient}>
@@ -313,7 +311,7 @@ describe('BridgeTapScreen — Phase 6 §8: "Add another stop" from a saved plan'
     expect(createPlanMutateAsyncMock).not.toHaveBeenCalled();
   });
 
-  it('re-anchored via a catalogue place\'s own id (no googlePlaceId on that place) still finds the existing plan, not a dead end', async () => {
+  it("re-anchored via a catalogue place's own id (no googlePlaceId on that place) still finds the existing plan, not a dead end", async () => {
     // Mehfil (restaurants/mehfil): has real lat/lng (Phase 6 §1) but
     // deliberately no googlePlaceId, so its plan anchor_key is its own
     // catalogue UUID, not a Google id — placeBySlug can't match that UUID
@@ -378,9 +376,7 @@ describe('BridgeTapScreen — Phase 6 §7: door selector + reference-point prior
 
     await screen.findByRole('tab', { name: 'Explore' });
     expect(screen.getByRole('tab', { name: 'Explore' })).toHaveAttribute('aria-selected', 'true');
-    expect(searchCandidatesMock).toHaveBeenCalledWith(
-      expect.objectContaining({ door: 'explore' }),
-    );
+    expect(searchCandidatesMock).toHaveBeenCalledWith(expect.objectContaining({ door: 'explore' }));
   });
 
   it('clicking "Eat" overrides the default and re-searches that door instead', async () => {
@@ -394,9 +390,7 @@ describe('BridgeTapScreen — Phase 6 §7: door selector + reference-point prior
       'aria-selected',
       'true',
     );
-    expect(searchCandidatesMock).toHaveBeenLastCalledWith(
-      expect.objectContaining({ door: 'eat' }),
-    );
+    expect(searchCandidatesMock).toHaveBeenLastCalledWith(expect.objectContaining({ door: 'eat' }));
   });
 
   it("a Guest's outing already in progress searches from the most recently added stop, not the original anchor", async () => {
@@ -427,7 +421,7 @@ describe('BridgeTapScreen — Phase 6 §7: door selector + reference-point prior
     });
     render(<Harness />);
 
-    expect(await screen.findByText(/Nearest to Most Recent Stop/)).toBeInTheDocument();
+    expect(await screen.findByText(/within reach of Most Recent Stop/)).toBeInTheDocument();
     expect(searchCandidatesMock).toHaveBeenCalledWith(
       expect.objectContaining({ center: { lat: 17.45, lng: 78.45 } }),
     );
@@ -469,7 +463,7 @@ describe('BridgeTapScreen — Phase 6 §7: door selector + reference-point prior
     });
     render(<Harness />);
 
-    expect(await screen.findByText(/Nearest to Stop B/)).toBeInTheDocument();
+    expect(await screen.findByText(/within reach of Stop B/)).toBeInTheDocument();
     expect(searchCandidatesMock).toHaveBeenCalledWith(
       expect.objectContaining({ center: { lat: 17.42, lng: 78.42 } }),
     );
@@ -507,7 +501,14 @@ describe('BridgeTapScreen — Phase 8 §12: View plan button', () => {
       anchorLat: 17.368888,
       anchorLng: 78.4755104,
       stops: [
-        { placeId: 'first-stop', name: 'First Stop', address: '', lat: 17.4, lng: 78.4, addedAt: 1 },
+        {
+          placeId: 'first-stop',
+          name: 'First Stop',
+          address: '',
+          lat: 17.4,
+          lng: 78.4,
+          addedAt: 1,
+        },
       ],
     });
     const user = userEvent.setup();

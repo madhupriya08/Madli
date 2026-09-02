@@ -16,12 +16,29 @@ import { placeById, placeBySlug } from '../../fixtures/places';
 import { fetchPlaceDetails, searchCandidates, type GoogleCandidate } from '../../lib/placesSearch';
 import { haversineMeters, useSearch, type Door, type LatLng } from '../../lib/searchState';
 import { hasMapsApiKey } from '../../lib/googleMaps';
-import { pickReason } from '../../data/hybridPicks';
+import { pickReason, reviewDistanceScore, spreadOutPicks } from '../../data/hybridPicks';
 import { addOutingStop, getOuting, isStopInOuting } from '../../lib/outingPlans';
 import { usePlans, useCreatePlan, useAddPlanItem } from '../../data/hooks';
 
 const NEARBY_RADIUS_M = 12_000;
 const MAX_NEARBY = 3;
+
+/**
+ * P12 §4: this screen used to sort strictly by distance and take the three
+ * nearest, which on a busy street is three doors of the same street — the
+ * opposite of "where should we go next". Two changes, both here:
+ *
+ *  - Anything closer than this to where the outing currently is counts as
+ *    the same stop, not a next one, so it is dropped outright.
+ *  - What is left is ordered by how good the place actually is (Google
+ *    rating weighted by review volume) with distance as a real but
+ *    secondary cost, then spread across streets by spreadOutPicks. Over
+ *    this screen's 12km radius the penalty below is worth up to ~6 points
+ *    against a review score that tops out near 18: a genuinely great place
+ *    a few kilometres on wins, a mediocre one across the city does not.
+ */
+const SAME_STOP_METERS = 200;
+const BRIDGE_DISTANCE_PENALTY = 0.5;
 
 const EAT_TYPES = new Set([
   'restaurant',
@@ -85,8 +102,9 @@ function openGoogleMapsRoute(anchor: Anchor, stops: Array<{ location: LatLng }>)
 
 /**
  * S20 — Places nearby after a pick.
- * From an eat place → three closest explore spots by default.
- * From an explore place → three closest places to eat by default.
+ * From an eat place → three explore spots worth the trip, by default.
+ * From an explore place → three places to eat worth the trip, by default.
+ * "Worth the trip", not "closest": see SAME_STOP_METERS above for why.
  *
  * Phase 6 §7: that default is now a starting point, not the only option —
  * two Eat/Explore buttons let a person search the other door instead. And
@@ -217,7 +235,10 @@ export function BridgeTapScreen() {
       return { location: { lat: lastStop.lat, lng: lastStop.lng }, name: lastStop.name };
     }
     if (outing?.anchorLat != null && outing?.anchorLng != null) {
-      return { location: { lat: outing.anchorLat, lng: outing.anchorLng }, name: outing.anchorName };
+      return {
+        location: { lat: outing.anchorLat, lng: outing.anchorLng },
+        name: outing.anchorName,
+      };
     }
     return fallback;
     // planVersion forces this to re-read localStorage after a Guest adds a stop.
@@ -242,7 +263,7 @@ export function BridgeTapScreen() {
         clipToRadius: true,
         maxResults: 20,
       });
-      return candidates
+      const scored = candidates
         .filter((c) => c.placeId !== anchor.id)
         .map((c) => {
           const distanceMeters = haversineMeters(referencePoint.location, c.location);
@@ -252,7 +273,15 @@ export function BridgeTapScreen() {
             driveLabel: formatDrive(distanceMeters),
           };
         })
-        .sort((a, b) => a.distanceMeters - b.distanceMeters)
+        .filter((c) => c.distanceMeters >= SAME_STOP_METERS)
+        .sort(
+          (a, b) =>
+            reviewDistanceScore(b, referencePoint.location, BRIDGE_DISTANCE_PENALTY) -
+            reviewDistanceScore(a, referencePoint.location, BRIDGE_DISTANCE_PENALTY),
+        );
+
+      return spreadOutPicks(scored.map((c) => ({ candidate: c, location: c.location })))
+        .map((p) => p.candidate)
         .slice(0, MAX_NEARBY);
     },
     enabled: Boolean(anchor) && hasMapsApiKey(),
@@ -282,10 +311,13 @@ export function BridgeTapScreen() {
     referencePoint.location.lat === anchor.location.lat &&
     referencePoint.location.lng === anchor.location.lng;
 
+  // P12 §4: "closest" was both the old sort and the old promise. Neither is
+  // what this screen does now — it picks the three best places worth the
+  // trip from here, which is what someone building an outing actually wants.
   const headline =
     effectiveDoor === 'eat'
-      ? 'The three closest places to eat afterwards'
-      : 'The three closest places worth stopping at afterwards';
+      ? 'Three places worth eating at after this'
+      : 'Three places worth stopping at after this';
   const screenTitle = effectiveDoor === 'eat' ? 'Eat nearby' : 'Explore nearby';
 
   if (!decoded) {
@@ -370,8 +402,8 @@ export function BridgeTapScreen() {
             }}
           >
             {referenceIsAnchor
-              ? `Anchored to ${anchor.name}, nearest first.`
-              : `Nearest to ${referencePoint.name} — the stop you added most recently — first.`}{' '}
+              ? `Best-rated first, within reach of ${anchor.name}.`
+              : `Best-rated first, within reach of ${referencePoint.name} — the stop you added most recently.`}{' '}
             Add as many as you want — each one joins the route without leaving this screen.
           </p>
           <div
@@ -556,9 +588,7 @@ export function BridgeTapScreen() {
                         <Button
                           size="sm"
                           variant="quiet"
-                          onClick={() =>
-                            navigate(`/places/${encodeURIComponent(stop.placeId)}`)
-                          }
+                          onClick={() => navigate(`/places/${encodeURIComponent(stop.placeId)}`)}
                         >
                           Details
                         </Button>
@@ -607,7 +637,9 @@ export function BridgeTapScreen() {
                                 show(`Added ${stop.name} to your plan.`);
                               } catch (err) {
                                 show(
-                                  err instanceof Error ? err.message : 'Could not save that to your plan.',
+                                  err instanceof Error
+                                    ? err.message
+                                    : 'Could not save that to your plan.',
                                 );
                               }
                               return;

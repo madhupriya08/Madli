@@ -70,7 +70,8 @@ const PLACE_NAMES: Record<string, string> = {
 };
 
 vi.mock('../../fixtures/places', async () => {
-  const actual = await vi.importActual<typeof import('../../fixtures/places')>('../../fixtures/places');
+  const actual =
+    await vi.importActual<typeof import('../../fixtures/places')>('../../fixtures/places');
   return {
     ...actual,
     placeById: (id: string) => (PLACE_NAMES[id] ? { id, name: PLACE_NAMES[id] } : undefined),
@@ -78,11 +79,16 @@ vi.mock('../../fixtures/places', async () => {
 });
 
 vi.mock('../../data/googleRankings', async () => {
-  const actual =
-    await vi.importActual<typeof import('../../data/googleRankings')>('../../data/googleRankings');
+  const actual = await vi.importActual<typeof import('../../data/googleRankings')>(
+    '../../data/googleRankings',
+  );
   return {
     ...actual,
     useMyGoogleRankings: () => ({ data: googleRankings }),
+    // P12 §9: the re-rank card this screen now opens reads both of these.
+    // Mocked so these tests stay about the list, not react-query.
+    useResidentStatus: () => ({ data: 'visitor' }),
+    useRankGooglePlace: () => ({ mutateAsync: vi.fn(), isPending: false }),
   };
 });
 
@@ -127,7 +133,9 @@ describe('MyRankedListScreen — merges catalogue and Google rankings', () => {
     // Mobile layout (the default breakpoint here) shows one column at a
     // time behind tabs — the category heading (an <h3>) and its own tab
     // (a <button role="tab">) legitimately share the same text.
-    expect(await screen.findByRole('heading', { name: 'Breakfast and tiffin' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: 'Breakfast and tiffin' }),
+    ).toBeInTheDocument();
     expect(screen.getByText('Cafe Bahar')).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Eat — nearby places' })).toBeInTheDocument();
 
@@ -162,7 +170,9 @@ describe('MyRankedListScreen — matches the S31 design handoff', () => {
 
     expect(await screen.findByText('Cafe Bahar')).toBeInTheDocument();
     // 1 catalogue entry + 1 Google entry from the mocks above.
-    expect(screen.getByText('2 places ranked · 25 needed for full ranking weight')).toBeInTheDocument();
+    expect(
+      screen.getByText('2 places ranked · 25 needed for full ranking weight'),
+    ).toBeInTheDocument();
     expect(screen.getByText('Been and loved')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Share the list' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Re-rank by comparing' })).toBeInTheDocument();
@@ -204,5 +214,46 @@ describe('MyRankedListScreen — matches the S31 design handoff', () => {
     expect(screen.getByText('#2')).toBeInTheDocument();
     expect(screen.queryByText('#3')).not.toBeInTheDocument();
     expect(screen.getByText('1 disliked, hidden but still counted')).toBeInTheDocument();
+  });
+});
+
+/**
+ * P12 §9: "my ranked list and any ranking logic should ask the user to rank
+ * the place ... followed up with comparing the existing list."
+ */
+describe('MyRankedListScreen — re-ranking from the list itself', () => {
+  beforeEach(() => {
+    rankedEntries = [
+      { id: 'e1', placeId: 'catalogue-1', categoryId: CAT_ID, tier: 'loved', position: 1 },
+    ];
+    googleRankings = [
+      {
+        id: 'g1',
+        googlePlaceId: 'google-1',
+        placeName: 'Testville Diner',
+        door: 'eat',
+        tier: 'loved',
+        raterType: 'visitor',
+        position: 1,
+        areaText: null,
+        types: ['restaurant'],
+      },
+    ];
+  });
+
+  it('opens the same Rank-this-place card the rest of the app uses', async () => {
+    render(<Harness />);
+
+    await userEvent.click(await screen.findByRole('tab', { name: 'Eat — nearby places' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Re-rank' }));
+
+    expect(await screen.findByRole('heading', { name: 'Rank this place' })).toBeInTheDocument();
+  });
+
+  it('offers no re-rank on a catalogue row — that path has no update mechanic yet', async () => {
+    render(<Harness />);
+
+    await screen.findByRole('heading', { name: 'Breakfast and tiffin' });
+    expect(screen.queryByRole('button', { name: 'Re-rank' })).not.toBeInTheDocument();
   });
 });

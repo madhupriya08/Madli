@@ -51,8 +51,16 @@ export function IntakeScreen() {
   // away, dropping every answer — results queried on `type` alone. It now
   // writes into the shared search state that results and the map read.
   const { search, setSearch } = useSearch();
-  const { who, occasion, budgetCap, constraintMode, timeWindow, driveTimePreset, door, countryCode } =
-    search;
+  const {
+    who,
+    occasion,
+    budgetCap,
+    constraintMode,
+    timeWindow,
+    driveTimePreset,
+    door,
+    countryCode,
+  } = search;
   const budgetCapOptions = budgetCapOptionsFor(countryCode);
   const timeWindowOptions = timeWindowOptionsFor(door);
 
@@ -89,6 +97,13 @@ export function IntakeScreen() {
           <p style={{ font: 'var(--type-body-sm)', color: 'var(--text-muted)' }}>
             Pick the one that actually decides it. The others we will work around.
           </p>
+          {/* P12 §3: none of this is required — a distance or drive-time
+              budget least of all. Tapping the chip you already chose clears
+              it (see `toggle` above); this says so rather than leaving
+              people to discover it. */}
+          <p style={{ font: 'var(--type-caption)', color: 'var(--text-faint)' }}>
+            Optional — tap a chip again to clear it, or skip this step entirely.
+          </p>
           <Tabs
             size="sm"
             style={{ width: 'fit-content' }}
@@ -100,9 +115,7 @@ export function IntakeScreen() {
             ? chipRow(timeWindowOptions, timeWindow, (v) => setSearch({ timeWindow: v }))
             : null}
           {constraintMode === 'drive'
-            ? chipRow(DRIVE_TIME_OPTIONS, driveTimePreset, (v) =>
-                setSearch({ driveTimePreset: v }),
-              )
+            ? chipRow(DRIVE_TIME_OPTIONS, driveTimePreset, (v) => setSearch({ driveTimePreset: v }))
             : null}
           {constraintMode === 'budget'
             ? chipRow(budgetCapOptions, budgetCap, (v) => setSearch({ budgetCap: v }))

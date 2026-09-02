@@ -12,7 +12,10 @@ import type { RankedGooglePlace } from './googleRankings';
 const fetchMyGoogleRankingsMock = vi.fn();
 vi.mock('./googleRankings', async () => {
   const actual = await vi.importActual<typeof import('./googleRankings')>('./googleRankings');
-  return { ...actual, fetchMyGoogleRankings: (...args: unknown[]) => fetchMyGoogleRankingsMock(...args) };
+  return {
+    ...actual,
+    fetchMyGoogleRankings: (...args: unknown[]) => fetchMyGoogleRankingsMock(...args),
+  };
 });
 
 function candidate(placeId: string, types: string[]): GoogleCandidate {
@@ -34,6 +37,7 @@ function ranked(
     raterType: 'local',
     position,
     areaText: null,
+    location: null,
     types,
   };
 }
@@ -69,7 +73,10 @@ describe('scoreCandidatesByHistory', () => {
       ranked('top', ['park'], 'loved', 1),
       ranked('mid', ['museum'], 'loved', 2),
     ];
-    const scoreWhenFirst = scoreCandidatesByHistory([candidate('c', ['museum'])], historyTopRanked)[0];
+    const scoreWhenFirst = scoreCandidatesByHistory(
+      [candidate('c', ['museum'])],
+      historyTopRanked,
+    )[0];
     const scoreWhenSecond = scoreCandidatesByHistory(
       [candidate('c', ['museum'])],
       historyBottomRanked,
@@ -113,11 +120,10 @@ describe('getPersonalizedSuggestions', () => {
     fetchMyGoogleRankingsMock.mockResolvedValue([ranked('past-1', ['museum'], 'loved', 1)]);
     const parkCandidate = candidate('park-1', ['park']);
     const museumCandidate = candidate('museum-1', ['museum']);
-    const result = await getPersonalizedSuggestions(
-      'user-1',
-      'explore',
-      [parkCandidate, museumCandidate],
-    );
+    const result = await getPersonalizedSuggestions('user-1', 'explore', [
+      parkCandidate,
+      museumCandidate,
+    ]);
     expect(result[0]).toBe(museumCandidate);
     expect(result[1]).toBe(parkCandidate);
   });

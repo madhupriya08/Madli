@@ -4,14 +4,28 @@ import { AppShell } from '../layout/AppShell';
 import { Card } from '../../components/core/Card';
 import { Icon } from '../../components/core/Icon';
 import { usePersona } from '../../dev/PersonaContext';
-import { useSearch, type Door } from '../../lib/searchState';
+import { haversineMeters, useSearch, type Door } from '../../lib/searchState';
 import { areas } from '../../fixtures/areas';
 import { useAreaDoorCounts } from '../../data/areaCounts';
 import { usePostVisitNudgeCandidate } from '../../data/postVisitNudge';
+import { useMyGoogleRankings } from '../../data/googleRankings';
 
 /** Once per browser session, not once per Home mount — reaching Home via
  * back/forward or between doors must not re-trigger the same nudge. */
 const NUDGE_SHOWN_KEY = 'madli.postVisitNudge.shown';
+
+/**
+ * P12 §9: "in the app page after login show the user his place in that
+ * locality based on his rankings."
+ *
+ * "In this locality" is answered two ways, because either one alone gets it
+ * wrong: by the area name the place was ranked under (exact, but only ever
+ * set when the person had an area chosen at the time), and by real distance
+ * from wherever the search is currently centred (works regardless, and is
+ * what "round here" actually means). A place qualifies on either.
+ */
+const NEARBY_RANKING_METERS = 8_000;
+const MAX_HOME_RANKINGS = 3;
 
 // S7: two doors, CSS grid with a 280px minimum so desktop side-by-side and
 // mobile stack are the same markup — real divergence starts at S17.
@@ -33,7 +47,7 @@ const DOORS = [
 export function HomeScreen() {
   const navigate = useNavigate();
   const { persona, userId, displayName } = usePersona();
-  const { search, setSearch } = useSearch();
+  const { search, setSearch, effectiveCenter } = useSearch();
   const personalized = persona === 'user';
   // First name only: "Welcome back, Madhu" is a greeting, "Welcome back,
   // Madhu Priya Reddy" is a form letter.
@@ -45,6 +59,23 @@ export function HomeScreen() {
   // Real counts, not the door's flavour copy — how many places and how many
   // logged rankings actually exist behind each door for this area.
   const { data: doorCounts } = useAreaDoorCounts(matchedArea?.id ?? null);
+
+  // The person's own ranked places near here — their list, not the app's.
+  // Disliked entries are excluded exactly as they are on S31: still counted,
+  // never displayed.
+  const { data: myRankings = [] } = useMyGoogleRankings(undefined, personalized);
+  const areaKey = search.areaText.trim().toLowerCase();
+  const rankingsHere = myRankings
+    .filter((entry) => entry.tier !== 'disliked')
+    .filter((entry) => {
+      const sameArea = areaKey !== '' && (entry.areaText ?? '').trim().toLowerCase() === areaKey;
+      const nearby =
+        entry.location != null &&
+        haversineMeters(effectiveCenter, entry.location) <= NEARBY_RANKING_METERS;
+      return sameArea || nearby;
+    })
+    .sort((a, b) => a.position - b.position)
+    .slice(0, MAX_HOME_RANKINGS);
 
   // S30's real trigger: there is no push-notification system, so "some time
   // after a visit" is not reachable — this fires instead the next time a
@@ -60,7 +91,10 @@ export function HomeScreen() {
 
   const openDoor = (door: Door) => {
     // Clear the other door's vibes so Eat chips don't bias an Explore search.
-    setSearch({ door, vibes: [] });
+    // P12 §5: and drop any typed search still carried from the Search tab —
+    // starting a door from Home is a fresh intent, not a continuation of
+    // "biryani" from twenty minutes ago.
+    setSearch({ door, vibes: [], queryText: '' });
     // Straight to intake. Home is always located — S8 (`/area`) runs once,
     // required, between the auth choice and here — so there is no per-tap
     // "was location asked?" check left to make.
@@ -135,6 +169,89 @@ export function HomeScreen() {
           </div>
         ) : null}
 
+        {personalized && rankingsHere.length > 0 ? (
+          <section
+            style={{
+              border: '1px solid var(--border-hairline)',
+              borderRadius: 'var(--radius-lg)',
+              background: 'var(--white)',
+              padding: 'var(--space-5)',
+              marginBottom: 'var(--space-6)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 'var(--space-3)',
+            }}
+          >
+            <h2
+              style={{
+                margin: 0,
+                font: 'var(--type-eyebrow)',
+                textTransform: 'uppercase',
+                letterSpacing: 'var(--tracking-eyebrow)',
+                color: 'var(--text-muted)',
+              }}
+            >
+              Your list {search.areaText.trim() ? `in ${search.areaText.trim()}` : 'around here'}
+            </h2>
+            <ol style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+              {rankingsHere.map((entry, i) => (
+                <li
+                  key={entry.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
+                    padding: '8px 0',
+                    borderBottom:
+                      i === rankingsHere.length - 1 ? 'none' : '1px solid var(--border-hairline)',
+                  }}
+                >
+                  {/* Their own position in this door's list, which is what
+                      the number means everywhere else in the app too — not a
+                      renumbering of the three shown here. */}
+                  <span
+                    style={{ font: 'var(--type-label)', color: 'var(--text-muted)', width: 28 }}
+                  >
+                    #{entry.position}
+                  </span>
+                  <button
+                    onClick={() => navigate(`/places/${encodeURIComponent(entry.googlePlaceId)}`)}
+                    style={{
+                      flex: 1,
+                      textAlign: 'left',
+                      background: 'none',
+                      border: 'none',
+                      padding: 0,
+                      cursor: 'pointer',
+                      font: 'var(--type-body-sm)',
+                      color: 'var(--text-heading)',
+                    }}
+                  >
+                    {entry.placeName}
+                  </button>
+                  <span style={{ font: 'var(--type-evidence)', color: 'var(--evidence-text)' }}>
+                    {entry.tier === 'loved' ? 'Loved it' : 'It was fine'}
+                  </span>
+                </li>
+              ))}
+            </ol>
+            <button
+              onClick={() => navigate('/my-list')}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--text-link)',
+                cursor: 'pointer',
+                textAlign: 'left',
+                padding: 0,
+                font: 'var(--type-label)',
+              }}
+            >
+              See your whole ranked list
+            </button>
+          </section>
+        ) : null}
+
         <div
           style={{
             display: 'grid',
@@ -161,8 +278,8 @@ export function HomeScreen() {
               <p style={{ font: 'var(--type-body-sm)', color: 'var(--text-muted)' }}>{door.body}</p>
               {doorCounts ? (
                 <p style={{ font: 'var(--type-evidence)', color: 'var(--evidence-text)' }}>
-                  {doorCounts[door.value].placeCount} places ·{' '}
-                  {doorCounts[door.value].rankedCount} rankings logged
+                  {doorCounts[door.value].placeCount} places · {doorCounts[door.value].rankedCount}{' '}
+                  rankings logged
                 </p>
               ) : null}
             </Card>

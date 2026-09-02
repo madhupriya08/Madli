@@ -38,6 +38,19 @@ function chipsFor(search: SearchState, currentPath: string): ChipSpec[] {
   const chips: ChipSpec[] = [];
   const filters = '/filters';
 
+  // P12 §5: what was typed into the Search tab is a filter like any other —
+  // it leads the list because it is the most specific thing the person
+  // said, and its × drops back to the plain filtered search rather than
+  // stranding someone on a query they can only escape by retyping.
+  if (search.queryText.trim()) {
+    chips.push({
+      key: 'queryText',
+      label: `"${search.queryText.trim()}"`,
+      to: '/search',
+      clear: { queryText: '' },
+    });
+  }
+
   if (search.who) {
     chips.push({ key: 'who', label: search.who, to: filters, clear: { who: null } });
   }

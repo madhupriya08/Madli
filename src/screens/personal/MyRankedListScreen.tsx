@@ -8,6 +8,8 @@ import { Switch } from '../../components/forms/Switch';
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { useToast } from '../../components/feedback/ToastProvider';
 import { usePersona } from '../../dev/PersonaContext';
+import { Dialog } from '../../components/feedback/Dialog';
+import { RankGooglePlaceForm } from '../../components/ranking/RankGooglePlaceForm';
 import { useAllRankedEntries, LOCAL_STATUS_THRESHOLD } from '../../data/hooks';
 import { useMyGoogleRankings } from '../../data/googleRankings';
 import { categories } from '../../fixtures/categories';
@@ -48,6 +50,13 @@ interface Row {
   pos: number;
   name: string;
   tier: Tier;
+  /**
+   * P12 §9: set only on the Google-ranked rows, which are the ones this
+   * screen can actually re-rank in place — fn_log_ranked_visit (the
+   * catalogue's own path) refuses a place that is already ranked, so a
+   * catalogue row has no update path to offer yet.
+   */
+  rerank?: { googlePlaceId: string; name: string; door: Door; types: string[] };
 }
 
 interface Column {
@@ -99,7 +108,13 @@ function toColumn(
   id: string,
   label: string,
   meta: { icon: string; color: string },
-  all: Array<{ id: string; position: number; tier: Tier; name: string }>,
+  all: Array<{
+    id: string;
+    position: number;
+    tier: Tier;
+    name: string;
+    rerank?: Row['rerank'];
+  }>,
 ): Column {
   const sorted = [...all].sort((a, b) => a.position - b.position);
   const visible = sorted.filter((e) => e.tier !== 'disliked');
@@ -115,7 +130,13 @@ function toColumn(
     // disliked entry would otherwise leave a gap (#1, #2, #4). The design
     // handoff's own S31 rendering re-numbers from the filtered array's index
     // for exactly this reason.
-    rows: visible.map((e, i) => ({ key: e.id, pos: i + 1, name: e.name, tier: e.tier })),
+    rows: visible.map((e, i) => ({
+      key: e.id,
+      pos: i + 1,
+      name: e.name,
+      tier: e.tier,
+      rerank: e.rerank,
+    })),
     hiddenCount: sorted.length - visible.length,
   };
 }
@@ -141,6 +162,12 @@ export function MyRankedListScreen() {
   const { data: entries = [] } = useAllRankedEntries(userId);
   const { data: googleEntries = [] } = useMyGoogleRankings(undefined, persona !== 'guest');
   const [hideVisited, setHideVisitedState] = useState(() => readHideVisited(userId));
+  // P12 §9: "my ranked list ... should ask the user to rank the place ... and
+  // follow up by comparing against the existing list." Re-ranking from the
+  // list itself uses the very same card the post-visit nudge and the "I've
+  // been here" button use — one ranking question in the whole app, asked the
+  // same way, comparison step and all.
+  const [reranking, setReranking] = useState<Row['rerank'] | null>(null);
 
   const usedCategoryIds = [...new Set(entries.map((e) => e.categoryId))];
   const usedCategories = categories.filter((c) => usedCategoryIds.includes(c.id));
@@ -168,7 +195,18 @@ export function MyRankedListScreen() {
         DOOR_COLUMN_META[door],
         googleEntries
           .filter((e) => e.door === door)
-          .map((e) => ({ id: e.id, position: e.position, tier: e.tier, name: e.placeName })),
+          .map((e) => ({
+            id: e.id,
+            position: e.position,
+            tier: e.tier,
+            name: e.placeName,
+            rerank: {
+              googlePlaceId: e.googlePlaceId,
+              name: e.placeName,
+              door: e.door,
+              types: e.types,
+            },
+          })),
       ),
     ),
   ].filter((c) => c.rows.length > 0 || c.hiddenCount > 0);
@@ -265,7 +303,14 @@ export function MyRankedListScreen() {
             borderBottom: '1px solid var(--border-hairline)',
           }}
         >
-          <span style={{ font: 'var(--type-label)', color: 'var(--text-muted)', width: 30, flex: 'none' }}>
+          <span
+            style={{
+              font: 'var(--type-label)',
+              color: 'var(--text-muted)',
+              width: 30,
+              flex: 'none',
+            }}
+          >
             #{row.pos}
           </span>
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
@@ -276,6 +321,11 @@ export function MyRankedListScreen() {
               {TIER_LABEL[row.tier as 'loved' | 'fine']}
             </span>
           </div>
+          {row.rerank ? (
+            <Button size="sm" variant="quiet" onClick={() => setReranking(row.rerank)}>
+              Re-rank
+            </Button>
+          ) : null}
         </div>
       ))}
       {column.hiddenCount > 0 ? (
@@ -378,6 +428,25 @@ export function MyRankedListScreen() {
           </>
         )}
       </div>
+
+      {reranking ? (
+        <Dialog
+          open
+          title="Rank this place"
+          variant={breakpoint === 'desktop' ? 'modal' : 'sheet'}
+          onClose={() => setReranking(null)}
+        >
+          <RankGooglePlaceForm
+            candidate={{
+              placeId: reranking.googlePlaceId,
+              name: reranking.name,
+              door: reranking.door,
+              types: reranking.types,
+            }}
+            onDone={() => setReranking(null)}
+          />
+        </Dialog>
+      ) : null}
     </AppShell>
   );
 }

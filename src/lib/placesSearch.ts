@@ -94,6 +94,13 @@ export interface SearchCandidatesInput {
   door: Door;
   center: LatLng;
   radiusMeters: number;
+  /**
+   * P12 §5: whatever was typed into the Search tab ("biryani", "South
+   * Indian", a place's own name), carried through as a real filter. It goes
+   * first in the text query — it is the most specific thing the person
+   * said, and Google's relevance weights early terms most heavily.
+   */
+  queryText?: string | null;
   /** S16 vibe chips, multi-select. */
   vibes?: string[];
   /** S15 — who the outing is for. */
@@ -285,6 +292,7 @@ const PLACE_TYPE_QUERY: Record<string, string> = {
  */
 function textQueryFor(input: SearchCandidatesInput): string {
   const parts: string[] = [];
+  if (input.queryText?.trim()) parts.push(input.queryText.trim());
   for (const vibe of input.vibes ?? []) parts.push(VIBE_QUERY[vibe] ?? vibe);
   if (input.who) parts.push(WHO_QUERY[input.who] ?? input.who);
   if (input.occasion) parts.push(OCCASION_QUERY[input.occasion] ?? input.occasion);
