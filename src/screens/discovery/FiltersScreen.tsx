@@ -208,10 +208,18 @@ export function FiltersScreen() {
           // here silently overwrote whatever S15 had set. Presets are
           // locale-aware (km or miles) but distanceKm itself always stores
           // real kilometres — the one unit the actual radius math works in.
+          //
+          // "Any distance" is the empty/default state (distanceKm === ''),
+          // the same state every other filter group here starts in with
+          // nothing highlighted — searching with none of these touched
+          // already works. It used to render pre-selected, which read as a
+          // distance filter being required before you could search at all.
+          // It never highlights now; clicking it still clears back to no
+          // preference, same as before.
           distancePresets.map((p) => (
             <Tag
               key={p.label}
-              selected={p.km === null ? distanceKm === '' : distanceKm === p.km}
+              selected={p.km !== null && distanceKm === p.km}
               onClick={() => setSearch({ distanceKm: p.km ?? '' })}
             >
               {p.label}

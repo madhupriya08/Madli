@@ -55,6 +55,33 @@ function Harness() {
   );
 }
 
+describe('FiltersScreen — Distance: "Any distance" is not a required selection', () => {
+  it('starts with nothing highlighted in the Distance group — matches every other filter group', async () => {
+    seed({ door: 'eat', countryCode: 'IN' });
+    render(<Harness />);
+
+    const anyDistance = await screen.findByText('Any distance');
+    // Selected vs. not is a background-colour swap on the Tag itself (no
+    // aria-pressed) — see Tag.tsx. Live testing showed this pre-highlighted,
+    // which read as a distance filter being required before you could
+    // search at all; the default (no distanceKm set) is a real "no
+    // preference", same as every untouched chip group above it.
+    expect(anyDistance.style.background).not.toContain('teal-500');
+    expect(anyDistance.style.background).toContain('surface-sunken');
+  });
+
+  it('picking a distance preset highlights it, not "Any distance" — and "Any distance" clears it back', async () => {
+    seed({ door: 'eat', countryCode: 'IN' });
+    render(<Harness />);
+
+    await userEvent.click(await screen.findByText('Under 2 km'));
+    expect(probe().distanceKm).toBe('2');
+
+    await userEvent.click(screen.getByText('Any distance'));
+    expect(probe().distanceKm).toBe('');
+  });
+});
+
 describe('FiltersScreen — S16 door-specific groups', () => {
   it('Eat door: shows Kitchen, hides Area type, and offers the Eat vibe set', async () => {
     seed({ door: 'eat' });
