@@ -36,6 +36,15 @@ export function usePlaceBySlug(slug: string | undefined) {
 
 // --- Ranking loop ---
 
+/**
+ * S32/S31: local status is tied to ranking depth, not time served or a badge
+ * scheme — 25 ranked places is the real threshold the weight curve behind it
+ * is built around (Phase 1 flagged the curve itself as unresolved; this is
+ * just the count). Shared by ProfileScreen's progress bar and
+ * MyRankedListScreen's own subtitle so both quote the same number.
+ */
+export const LOCAL_STATUS_THRESHOLD = 25;
+
 export function useVisibleRankedEntries(userId: string, categoryId?: string) {
   return useQuery({
     queryKey: ['rankedEntries', 'visible', userId, categoryId],

@@ -3,14 +3,13 @@ import { AppShell } from '../layout/AppShell';
 import { Card } from '../../components/core/Card';
 import { Button } from '../../components/core/Button';
 import { usePersona } from '../../dev/PersonaContext';
-import { useVisibleRankedEntries } from '../../data/hooks';
-
-const LOCAL_STATUS_THRESHOLD = 25;
+import { useVisibleRankedEntries, LOCAL_STATUS_THRESHOLD } from '../../data/hooks';
 
 // S32: local status is tied to ranking depth, not time served or a badge
 // scheme. Progress toward 25 is shown because the weight curve behind it is
 // real (Phase 1 flagged the exact curve as unresolved — this is a count, not
-// the weighting formula itself).
+// the weighting formula itself). LOCAL_STATUS_THRESHOLD lives in data/hooks.ts
+// so MyRankedListScreen's own subtitle quotes the same number.
 export function ProfileScreen() {
   const navigate = useNavigate();
   const { userId } = usePersona();
