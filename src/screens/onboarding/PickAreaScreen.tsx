@@ -11,7 +11,7 @@ import { useToast } from '../../components/feedback/ToastProvider';
 import { usePersona } from '../../dev/PersonaContext';
 import { DEFAULT_CENTER, haversineMeters, useSearch } from '../../lib/searchState';
 import { areas, nearestArea, type Area } from '../../fixtures/areas';
-import { fetchHomeAreaId, setHomeAreaId } from '../../data/homeArea';
+import { fetchHomeArea, setHomeAreaId, setHomeAreaText } from '../../data/homeArea';
 import { hasMapsApiKey } from '../../lib/googleMaps';
 import {
   reverseGeocodeArea,
@@ -76,7 +76,9 @@ export function PickAreaScreen() {
   const [suggestions, setSuggestions] = useState<AreaSuggestion[]>([]);
   const [suggestLoading, setSuggestLoading] = useState(false);
   const [resolvingPlaceId, setResolvingPlaceId] = useState<string | null>(null);
-  const [homeOverride, setHomeOverride] = useState<string | null | undefined>(undefined);
+  const [homeOverride, setHomeOverride] = useState<
+    { areaId: string | null; areaText: string | null } | undefined
+  >(undefined);
   const navigate = useNavigate();
   const routerLocation = useLocation();
   const { show } = useToast();
@@ -85,15 +87,19 @@ export function PickAreaScreen() {
   const next = (routerLocation.state as AreaNavState | null)?.next ?? '/app';
 
   const homeAreaQuery = useQuery({
-    queryKey: ['home-area-id', userId],
-    queryFn: () => fetchHomeAreaId(userId),
+    queryKey: ['home-area', userId],
+    queryFn: () => fetchHomeArea(userId),
     enabled: persona !== 'guest' && !!userId,
     retry: false,
   });
   // Reflects Supabase directly, not a synced copy: the query result until a
   // toggle actually succeeds, then whatever that toggle just wrote. Nothing
-  // here is optimistic ahead of a real write landing.
-  const currentHomeAreaId = homeOverride !== undefined ? homeOverride : (homeAreaQuery.data ?? null);
+  // here is optimistic ahead of a real write landing. Home is either the
+  // seeded-area id or a live-searched area's text, never both, so setting
+  // either one always overrides the whole pair rather than just one field.
+  const currentHome = homeOverride ?? homeAreaQuery.data ?? { areaId: null, areaText: null };
+  const currentHomeAreaId = currentHome.areaId;
+  const currentHomeAreaText = currentHome.areaText;
 
   const filtered = areas.filter((a) => a.name.toLowerCase().includes(query.toLowerCase()));
 
@@ -175,7 +181,20 @@ export function PickAreaScreen() {
     const value = on ? area.id : null;
     try {
       await setHomeAreaId(userId, value);
-      setHomeOverride(value);
+      setHomeOverride({ areaId: value, areaText: null });
+    } catch (err) {
+      show(err instanceof Error ? err.message : 'Could not save your home area.');
+    }
+  };
+
+  // The live-search counterpart of toggleHome, for a real place outside the
+  // eight seeded neighbourhoods — the bug this closes: there was previously
+  // no "Set as home" affordance anywhere in this list at all.
+  const toggleHomeText = async (suggestion: AreaSuggestion, on: boolean) => {
+    const value = on ? suggestion.label : null;
+    try {
+      await setHomeAreaText(userId, value);
+      setHomeOverride({ areaId: null, areaText: value });
     } catch (err) {
       show(err instanceof Error ? err.message : 'Could not save your home area.');
     }
@@ -363,16 +382,25 @@ export function PickAreaScreen() {
                 }}
               >
                 {suggestions.map((s) => (
-                  <li key={s.placeId}>
+                  <li
+                    key={s.placeId}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 'var(--space-3)',
+                      padding: 'var(--space-4)',
+                      borderRadius: 'var(--radius-md)',
+                      border: '1px solid var(--border-hairline)',
+                    }}
+                  >
                     <button
                       onClick={() => void chooseLiveSuggestion(s)}
                       disabled={resolvingPlaceId === s.placeId}
                       style={{
-                        width: '100%',
+                        flex: 1,
                         background: 'none',
-                        border: '1px solid var(--border-hairline)',
-                        borderRadius: 'var(--radius-md)',
-                        padding: 'var(--space-4)',
+                        border: 'none',
                         textAlign: 'left',
                         cursor: 'pointer',
                         font: 'var(--type-body)',
@@ -381,6 +409,13 @@ export function PickAreaScreen() {
                     >
                       {resolvingPlaceId === s.placeId ? 'Finding it…' : s.label}
                     </button>
+                    {persona !== 'guest' ? (
+                      <Switch
+                        checked={currentHomeAreaText === s.label}
+                        onChange={(v) => void toggleHomeText(s, v)}
+                        label="Home"
+                      />
+                    ) : null}
                   </li>
                 ))}
               </ul>

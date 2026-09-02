@@ -64,13 +64,15 @@ function rowToPlan(planRow: Record<string, unknown>, itemRows: Record<string, un
   };
 }
 
-export async function getBookmarks(userId: string): Promise<{ id: string; placeId: string }[]> {
+export async function getBookmarks(
+  userId: string,
+): Promise<{ id: string; placeId: string; note: string | null }[]> {
   const { data, error } = await supabase
     .from('bookmarks')
-    .select('id, place_id')
+    .select('id, place_id, note')
     .eq('user_id', userId);
   if (error) throw error;
-  return data.map((b) => ({ id: b.id, placeId: b.place_id }));
+  return data.map((b) => ({ id: b.id, placeId: b.place_id, note: b.note }));
 }
 
 export async function addBookmark(userId: string, placeId: string): Promise<void> {
@@ -82,6 +84,20 @@ export async function removeBookmark(userId: string, placeId: string): Promise<v
   const { error } = await supabase
     .from('bookmarks')
     .delete()
+    .eq('user_id', userId)
+    .eq('place_id', placeId);
+  if (error) throw error;
+}
+
+/** The optional "why I saved this" note (S23) — set or cleared, never required. */
+export async function setBookmarkNote(
+  userId: string,
+  placeId: string,
+  note: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from('bookmarks')
+    .update({ note: note.trim() || null })
     .eq('user_id', userId)
     .eq('place_id', placeId);
   if (error) throw error;

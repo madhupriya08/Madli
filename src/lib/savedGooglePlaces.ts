@@ -10,6 +10,9 @@ export interface SavedGooglePlace {
   photoUrl?: string;
   types: string[];
   savedAt: number;
+  location?: { lat: number; lng: number };
+  /** Freeform "why I saved this" — the same idea as bookmarks.note for a catalogue place. */
+  note?: string;
 }
 
 const STORAGE_KEY = 'madli.savedGooglePlaces';
@@ -49,4 +52,10 @@ export function saveGooglePlace(place: Omit<SavedGooglePlace, 'savedAt'>): void 
 
 export function removeSavedGooglePlace(placeId: string): void {
   writeAll(readAll().filter((p) => p.placeId !== placeId));
+}
+
+export function setSavedGooglePlaceNote(placeId: string, note: string): void {
+  writeAll(
+    readAll().map((p) => (p.placeId === placeId ? { ...p, note: note.trim() || undefined } : p)),
+  );
 }

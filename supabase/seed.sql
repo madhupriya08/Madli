@@ -155,7 +155,7 @@ insert into public.places (
    'A 13th-century fort that became the seat of the Qutb Shahi kingdom and the source of the Koh-i-Noor diamond''s cutting.',
    '{}', null, null, 0, 0, null, 'Ibrahim Bagh, Golconda', '040 2351 3984', '9am – 5:30pm'),
 
-  ('00000000-0000-0000-0000-0000000000e5', 'places/charminar', 'Charminar', 'explore', 'Devotional',
+  ('00000000-0000-0000-0000-0000000000e5', 'places/charminar', 'Charminar', 'explore', 'Historical',
    '00000000-0000-0000-0000-0000000000c5', 'Old City', '00000000-0000-0000-0000-0000000000a3', '₹25 entry',
    'Four hundred and thirty years old, and the bangle lanes behind it are the actual reason to come.',
    'Built in 1591 to mark the founding of Hyderabad, at the centre of four historic roads that still meet there.',

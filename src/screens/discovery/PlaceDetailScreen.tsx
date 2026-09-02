@@ -28,7 +28,8 @@ import {
   removeSavedGooglePlace,
   saveGooglePlace,
 } from '../../lib/savedGooglePlaces';
-import { useAddBookmark, useBookmarks, useRemoveBookmark } from '../../data/hooks';
+import { useAddBookmark, useAllRankedEntries, useBookmarks, useRemoveBookmark } from '../../data/hooks';
+import { useMyGoogleRankings } from '../../data/googleRankings';
 
 /**
  * The prototype gates this exact modal behind three separate guest actions —
@@ -128,6 +129,11 @@ export function PlaceDetailScreen() {
   const removeBookmark = useRemoveBookmark(userId);
   const [, setSaveTick] = useState(0);
   const { search, effectiveCenter } = useSearch();
+  // S19's "You've been here" badge: real regardless of tier, so a disliked
+  // visit (which drops off the *visible* ranked list, S31) still counts —
+  // the badge means "you logged this", not "this is still on your list".
+  const { data: allRankedEntries = [] } = useAllRankedEntries(userId);
+  const { data: myGoogleRankings = [] } = useMyGoogleRankings(undefined, persona !== 'guest');
 
   const decodedSlug = slug ? decodeURIComponent(slug) : undefined;
   const place = places.find((p) => p.slug === decodedSlug);
@@ -196,6 +202,7 @@ export function PlaceDetailScreen() {
         breakpoint={breakpoint}
         persona={persona}
         isSharedLink={isSharedLink}
+        hasBeenHere={allRankedEntries.some((e) => e.placeId === place.id)}
         driveLine={driveLine ?? place.drive}
         isBookmarked={bookmarks.some((b) => b.placeId === place.id)}
         onToggleBookmark={() =>
@@ -227,6 +234,7 @@ export function PlaceDetailScreen() {
       breakpoint={breakpoint}
       persona={persona}
       isSharedLink={isSharedLink}
+      hasBeenHere={myGoogleRankings.some((r) => r.googlePlaceId === googlePlace!.placeId)}
       driveLine={driveLine}
       isBookmarked={isGooglePlaceSaved(googlePlace!.placeId)}
       onToggleBookmark={() => {
@@ -239,6 +247,7 @@ export function PlaceDetailScreen() {
             address: g.address,
             photoUrl: g.photoUrl,
             types: g.types,
+            location: g.location,
           });
         setSaveTick((n) => n + 1);
       }}
@@ -265,6 +274,7 @@ function CatalogueDetail({
   breakpoint,
   persona,
   isSharedLink,
+  hasBeenHere,
   driveLine,
   isBookmarked,
   onToggleBookmark,
@@ -277,6 +287,7 @@ function CatalogueDetail({
   breakpoint: string;
   persona: string;
   isSharedLink: boolean;
+  hasBeenHere: boolean;
   driveLine: string | null | undefined;
   isBookmarked: boolean;
   onToggleBookmark: () => void;
@@ -343,6 +354,7 @@ function CatalogueDetail({
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <Badge tone="onImage">{rankLabel}</Badge>
               {isSharedLink ? <Badge tone="onImage">Opened from a shared link</Badge> : null}
+              {hasBeenHere ? <Badge tone="onImage">You&apos;ve been here</Badge> : null}
               {place.gem ? <Badge tone="onImage">Local gem</Badge> : null}
             </div>
             <h1
@@ -558,6 +570,22 @@ function CatalogueDetail({
               )
             : null}
 
+          {place.type === 'explore'
+            ? sectionCard(
+                <>
+                  {eyebrow('Do not miss')}
+                  <p style={{ margin: 0, font: 'var(--type-body-sm)', color: 'var(--text-body)' }}>
+                    {/* Same honest-count stand-in as "What to order" above, for
+                        the same reason: no visit-log-mining pipeline exists yet
+                        to produce a real named-highlight list for either door. */}
+                    {place.highlights
+                      ? `${place.highlights} highlights mentioned by people who have logged a visit here.`
+                      : 'Nobody has logged what not to miss here yet.'}
+                  </p>
+                </>,
+              )
+            : null}
+
           <button
             type="button"
             onClick={handleBridge}
@@ -628,6 +656,7 @@ function GoogleDetail({
   breakpoint,
   persona,
   isSharedLink,
+  hasBeenHere,
   driveLine,
   isBookmarked,
   onToggleBookmark,
@@ -642,6 +671,7 @@ function GoogleDetail({
   breakpoint: string;
   persona: string;
   isSharedLink: boolean;
+  hasBeenHere: boolean;
   driveLine: string | null;
   isBookmarked: boolean;
   onToggleBookmark: () => void;
@@ -714,7 +744,12 @@ function GoogleDetail({
               gap: 10,
             }}
           >
-            {isSharedLink ? <Badge tone="onImage">Opened from a shared link</Badge> : null}
+            {isSharedLink || hasBeenHere ? (
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {isSharedLink ? <Badge tone="onImage">Opened from a shared link</Badge> : null}
+                {hasBeenHere ? <Badge tone="onImage">You&apos;ve been here</Badge> : null}
+              </div>
+            ) : null}
             <h1
               style={{
                 margin: 0,

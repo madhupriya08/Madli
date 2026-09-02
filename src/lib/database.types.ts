@@ -42,6 +42,9 @@
 //
 // `areas.lat`/`areas.lng` (20260827090000) are included below — those were
 // verified against a real generation when added.
+//
+// `bookmarks.note` (20260902100000) was likewise checked field-for-field
+// against a real generation taken right after that migration was applied.
 
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
@@ -142,8 +145,20 @@ export type Database = {
         Relationships: [];
       };
       bookmarks: {
-        Row: { created_at: string; id: string; place_id: string; user_id: string };
-        Insert: { created_at?: string; id?: string; place_id: string; user_id: string };
+        Row: {
+          created_at: string;
+          id: string;
+          note: string | null;
+          place_id: string;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          note?: string | null;
+          place_id: string;
+          user_id: string;
+        };
         Update: Partial<Database['public']['Tables']['bookmarks']['Insert']>;
         Relationships: [];
       };

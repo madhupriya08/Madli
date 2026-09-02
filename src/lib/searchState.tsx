@@ -181,7 +181,6 @@ export const EAT_VIBE_OPTIONS = [
 
 export const EXPLORE_VIBE_OPTIONS = [
   'Historical',
-  'Devotional',
   'Sightseeing',
   'Nightlife / clubs',
   'Concerts',

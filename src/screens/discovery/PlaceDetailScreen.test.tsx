@@ -67,6 +67,11 @@ vi.mock('../../data/hooks', () => ({
       notifyBookmarkListeners();
     },
   }),
+  useAllRankedEntries: () => ({ data: [] }),
+}));
+
+vi.mock('../../data/googleRankings', () => ({
+  useMyGoogleRankings: () => ({ data: [] }),
 }));
 
 function SetPersona({ to }: { to: 'guest' | 'user' }) {

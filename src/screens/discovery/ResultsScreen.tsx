@@ -6,6 +6,7 @@ import { PickSkeleton } from '../../components/feedback/Skeleton';
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { Button } from '../../components/core/Button';
 import { Tabs } from '../../components/navigation/Tabs';
+import { Tag } from '../../components/core/Tag';
 import { Dialog } from '../../components/feedback/Dialog';
 import { usePersona } from '../../dev/PersonaContext';
 import { useGuestSession } from '../../lib/guestSession';
@@ -15,6 +16,7 @@ import { useSearch } from '../../lib/searchState';
 import { GoogleMapView, type MapMarker } from '../../components/map/GoogleMapView';
 import { AppliedFilterChips } from './AppliedFilterChips';
 import { useRankingCounts } from '../../data/googleRankings';
+import { recordRecentSearch, listRecentSearches } from '../../lib/recentSearches';
 import { track, logEvent } from '../../lib/analytics';
 import type { Rank } from '../../components/trust/RankBadge';
 
@@ -92,8 +94,22 @@ export function ResultsScreen({ door }: { door: 'eat' | 'explore' }) {
       open_now: search.openNow,
     });
     logEvent('results_shown', hasSession ? userId : null, { ranked_count: ranked.length });
+    // Guest-excluded (recordRecentSearch itself already no-ops on an empty
+    // userId, same as every other Guest-has-no-profile-row feature in this
+    // app) — this is the one point every real results view passes through,
+    // for either door. Only writes to localStorage here, deliberately no
+    // setState: the render below reads it back directly (unmemoized) rather
+    // than caching a stale pre-write value behind a manual "tick" — the
+    // showLoading timeout's own already-scheduled re-render is what actually
+    // surfaces the freshly-recorded entry.
+    if (persona !== 'guest') recordRecentSearch(userId, search);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [discovery, isLoading, door, googleError]);
+
+  // Deliberately not memoized (see the comment above) — a plain localStorage
+  // read is cheap, and memoizing it would need the exact setState-in-effect
+  // this app avoids elsewhere just to invalidate the cache correctly.
+  const recentSearches = listRecentSearches(userId, door);
 
   const markers: MapMarker[] = useMemo(
     () =>
@@ -140,6 +156,29 @@ export function ResultsScreen({ door }: { door: 'eat' | 'explore' }) {
         </div>
 
         <AppliedFilterChips />
+
+        {recentSearches.length > 0 ? (
+          <div style={{ marginBottom: 'var(--space-4)' }}>
+            <h2
+              style={{
+                font: 'var(--type-eyebrow)',
+                textTransform: 'uppercase',
+                letterSpacing: 'var(--tracking-eyebrow)',
+                color: 'var(--text-muted)',
+                marginBottom: 'var(--space-2)',
+              }}
+            >
+              Recent searches
+            </h2>
+            <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+              {recentSearches.map((r) => (
+                <Tag key={r.id} onClick={() => setSearch(r.snapshot)}>
+                  {r.label}
+                </Tag>
+              ))}
+            </div>
+          </div>
+        ) : null}
 
         <p
           style={{

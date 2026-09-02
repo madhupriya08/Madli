@@ -207,13 +207,13 @@ const VIBE_QUERY: Record<string, string> = {
   'Calm and pleasant': 'quiet calm relaxed',
   // S16 Explore vibes
   Historical: 'historical landmarks heritage',
-  Devotional: 'temples churches mosques',
   Sightseeing: 'sightseeing landmarks',
   'Nightlife / clubs': 'nightlife clubs bars',
   Concerts: 'live music concert venue',
   Scenic: 'scenic viewpoints lakes',
   // Retired single-vibe labels, still reachable from an older sessionStorage blob.
   'Quick bite': 'quick bite casual',
+  Devotional: 'temples churches mosques',
   Family: 'family friendly',
   Solo: 'casual for one',
   Celebration: 'celebration',

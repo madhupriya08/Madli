@@ -26,6 +26,7 @@ import { PickAreaScreen } from './PickAreaScreen';
  */
 
 let homeAreaId: string | null = null;
+let homeAreaText: string | null = null;
 const updateSpy = vi.fn();
 
 const hasMapsApiKeyMock = vi.fn(() => false);
@@ -55,12 +56,17 @@ vi.mock('../../lib/supabaseClient', () => ({
     from: () => ({
       select: () => ({
         eq: () => ({
-          single: () => Promise.resolve({ data: { home_area_id: homeAreaId }, error: null }),
+          single: () =>
+            Promise.resolve({
+              data: { home_area_id: homeAreaId, home_area_text: homeAreaText },
+              error: null,
+            }),
         }),
       }),
-      update: (patch: { home_area_id: string | null }) => {
+      update: (patch: { home_area_id?: string | null; home_area_text?: string | null }) => {
         updateSpy(patch);
-        homeAreaId = patch.home_area_id;
+        if ('home_area_id' in patch) homeAreaId = patch.home_area_id ?? null;
+        if ('home_area_text' in patch) homeAreaText = patch.home_area_text ?? null;
         return { eq: () => Promise.resolve({ error: null }) };
       },
     }),
@@ -133,6 +139,7 @@ describe('PickAreaScreen — S8, merged', () => {
   beforeEach(() => {
     sessionStorage.clear();
     homeAreaId = null;
+    homeAreaText = null;
     updateSpy.mockClear();
     // Not configured by default — matches most of these tests, which only
     // care about the seeded eight. Tests that exercise live search or the
@@ -248,7 +255,10 @@ describe('PickAreaScreen — S8, merged', () => {
 
     await userEvent.click(homeSwitch);
     await waitFor(() =>
-      expect(updateSpy).toHaveBeenCalledWith({ home_area_id: expect.any(String) }),
+      expect(updateSpy).toHaveBeenCalledWith({
+        home_area_id: expect.any(String),
+        home_area_text: null,
+      }),
     );
     await waitFor(() => expect(homeSwitch).toBeChecked());
   });
@@ -288,6 +298,39 @@ describe('PickAreaScreen — S8, merged', () => {
       expect(state.center).toEqual({ lat: 19.0596, lng: 72.8295 });
       expect(state.centerSource).toBe('area');
       expect(state.countryCode).toBe('IN');
+    });
+
+    // P11 §4: the bug this closes — a live (non-seeded) search result had no
+    // "Set as home" affordance anywhere, even though profiles.home_area_text
+    // already existed for exactly this case (a real place with no seeded
+    // `areas` row to point a `home_area_id` FK at).
+    it('offers "Set as home" on a live search result too, and it persists to home_area_text', async () => {
+      hasMapsApiKeyMock.mockReturnValue(true);
+      suggestAreasMock.mockResolvedValue([
+        { placeId: 'place-mumbai-bandra', label: 'Bandra, Mumbai, Maharashtra, India' },
+      ]);
+
+      render(<Harness />);
+      await userEvent.click(screen.getByRole('button', { name: 'set persona user' }));
+      await userEvent.type(screen.getByPlaceholderText('Search a neighbourhood'), 'bandra');
+
+      const bandraRow = (
+        await screen.findByText('Bandra, Mumbai, Maharashtra, India')
+      ).closest('li')!;
+      const homeSwitch = within(bandraRow).getByRole('switch', { name: 'Home' });
+      expect(homeSwitch).not.toBeChecked();
+
+      await userEvent.click(homeSwitch);
+      await waitFor(() =>
+        expect(updateSpy).toHaveBeenCalledWith({
+          home_area_id: null,
+          home_area_text: 'Bandra, Mumbai, Maharashtra, India',
+        }),
+      );
+      await waitFor(() => expect(homeSwitch).toBeChecked());
+      // Still on this screen — toggling home is independent of picking the
+      // area, exactly like the seeded-list row above.
+      expect(screen.queryByRole('heading', { name: 'Where to start?' })).not.toBeInTheDocument();
     });
 
     it('does not offer live search at all when Maps is not configured', async () => {

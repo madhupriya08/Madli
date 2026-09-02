@@ -42,6 +42,7 @@ vi.mock('../../data/hooks', () => ({
   useBookmarks: () => ({ data: [] }),
   useAddBookmark: () => ({ mutate: vi.fn() }),
   useRemoveBookmark: () => ({ mutate: vi.fn() }),
+  useAllRankedEntries: () => ({ data: [] }),
 }));
 
 vi.mock('../../lib/placesSearch', async () => {
@@ -60,6 +61,7 @@ vi.mock('../../data/googleRankings', async () => {
     ...actual,
     useResidentStatus: () => ({ data: 'visitor' }),
     useRankGooglePlace: () => ({ mutateAsync: rankMutateAsync, isPending: false }),
+    useMyGoogleRankings: () => ({ data: [] }),
     setResidentStatus: vi.fn(),
   };
 });

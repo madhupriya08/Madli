@@ -46,6 +46,14 @@ export interface Place {
   // explore-only (place_explore_details in the real schema)
   crowdLevel?: string;
   best?: string;
+  /**
+   * Explore's counterpart to `dishes` — a mention count for the "Do not
+   * miss" section (S19), not a per-item breakdown: there is no real
+   * visit-log-mining pipeline for either door yet, so both stay an honest
+   * count rather than a fabricated list. Undefined until that pipeline
+   * exists; no fixture below sets it.
+   */
+  highlights?: number;
 }
 
 const A = {
@@ -539,7 +547,7 @@ export const places: Place[] = [
     slug: 'places/charminar',
     name: 'Charminar',
     type: 'explore',
-    vibe: 'Devotional',
+    vibe: 'Historical',
     categoryId: C.historical,
     neighborhood: 'Old City',
     areaId: A.oldCity,

@@ -44,6 +44,19 @@ export function useVisibleRankedEntries(userId: string, categoryId?: string) {
   });
 }
 
+/**
+ * Includes 'disliked' entries — for the "You've been here" badge (S19),
+ * which must reflect whether a visit was ever logged at all, not just
+ * whether it still shows on the visible ranked list.
+ */
+export function useAllRankedEntries(userId: string, categoryId?: string) {
+  return useQuery({
+    queryKey: ['rankedEntries', 'all', userId, categoryId],
+    queryFn: () => rankedEntriesApi.getAllRankedEntries(userId, categoryId),
+    enabled: !!userId,
+  });
+}
+
 /** The comparison targets offered on S26 — real entries fetched, then the pure pick logic applied. */
 export function useComparisonTargets(userId: string, categoryId: string | undefined) {
   return useQuery({
@@ -85,6 +98,15 @@ export function useBookmarks(userId: string) {
     queryKey: ['bookmarks', userId],
     queryFn: () => plansApi.getBookmarks(userId),
     enabled: !!userId,
+  });
+}
+
+export function useSetBookmarkNote(userId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { placeId: string; note: string }) =>
+      plansApi.setBookmarkNote(userId, input.placeId, input.note),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['bookmarks', userId] }),
   });
 }
 
