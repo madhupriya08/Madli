@@ -119,7 +119,7 @@ export interface SearchCandidatesInput {
   areaText?: string;
   areaType?: AreaType | null;
   allowsPets?: boolean;
-  /** Phase 9 §1: Explore door only — see SearchState.servesPetFood's own comment. */
+  /** Eat door only — see SearchState.servesPetFood's own comment. */
   servesPetFood?: boolean;
   familyFriendly?: boolean;
   coupleFriendly?: boolean;
@@ -184,10 +184,6 @@ const EAT_ONLY_TYPES = new Set([
 
 function belongsOnDoor(input: SearchCandidatesInput, types: string[]): boolean {
   if (input.door !== 'explore') return true;
-  // Phase 9 §1: someone who explicitly asked for a pet-food-serving Explore
-  // place is asking for exactly the food-adjacent result this filter would
-  // otherwise strip — honour the ask instead of silently emptying it out.
-  if (input.servesPetFood) return true;
   return !types.some((t) => EAT_ONLY_TYPES.has(t));
 }
 

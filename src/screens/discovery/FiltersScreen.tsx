@@ -55,9 +55,11 @@ const CONSTRAINT_TABS: Array<{ mode: ConstraintMode; label: string }> = [
 // Budget is asked exactly once now, the same hard-constraint question S15
 // already asks, not a second independent band filter nothing else surfaced.
 //
-// Phase 9 §1: "Serves pet food" — deleted from both doors in Phase 8 §7 —
-// is back, Explore only. The user clarified afterward it belongs there, not
-// on Eat.
+// "Serves pet food" — deleted from both doors in Phase 8 §7, brought back
+// Explore-only in Phase 9 §1 on the user's own clarification at the time,
+// reversed again afterward: it belongs on Eat, not Explore — a restaurant
+// or cafe can serve food for pets; a park or museum doesn't "serve"
+// anything, so the Explore placement never made sense on its own terms.
 //
 // Phase 9 §3: Cuisine (Eat) and Place type (Explore) are new single-select
 // tag groups, door-gated the same way Kitchen/Area type already are.
@@ -260,7 +262,7 @@ export function FiltersScreen() {
             checked={search.allowsPets}
             onChange={(v) => setSearch({ allowsPets: v })}
           />
-          {door === 'explore' ? (
+          {door === 'eat' ? (
             <Switch
               label="Serves pet food"
               checked={search.servesPetFood}

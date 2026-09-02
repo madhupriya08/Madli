@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
-import { PersonaProvider } from '../../dev/PersonaContext';
+import { PersonaProvider, usePersona } from '../../dev/PersonaContext';
 import { ToastProvider } from '../../components/feedback/ToastProvider';
 import { SearchProvider, useSearch } from '../../lib/searchState';
 import { saveGooglePlace } from '../../lib/savedGooglePlaces';
@@ -13,15 +13,20 @@ import { BookmarksScreen } from './BookmarksScreen';
  * Covers the "Bookmark - U" checklist the user asked to close: remove,
  * an optional "why I saved this" note, filter by area/category, the
  * resurfaced-when-nearby banner (S23's own spec: "a variant of this screen,
- * not a notification" — i.e. a nearby bookmark legitimately renders in both
- * that section AND the regular list below, not instead of it), and
- * mark-as-visited working for a Google-sourced bookmark too (previously
- * catalogue-only).
+ * not a notification"), and mark-as-visited working for a Google-sourced
+ * bookmark too (previously catalogue-only).
+ *
+ * A nearby bookmark renders once, not twice — an earlier version of this
+ * screen also repeated it in the plain list below "Nearby now" with no
+ * divider between the two, which live testing read as a duplicate-add bug
+ * rather than the intentional highlight it was meant to be.
  */
 
 const removeBookmarkMutate = vi.fn();
 const setBookmarkNoteMutate = vi.fn();
 let bookmarksData: Array<{ id: string; placeId: string; note: string | null }> = [];
+let rankedCatalogueData: Array<{ placeId: string }> = [];
+let rankedGoogleData: Array<{ googlePlaceId: string }> = [];
 
 vi.mock('../../data/hooks', async () => {
   const actual = await vi.importActual<typeof import('../../data/hooks')>('../../data/hooks');
@@ -31,6 +36,7 @@ vi.mock('../../data/hooks', async () => {
     usePlans: () => ({ data: [] }),
     useRemoveBookmark: () => ({ mutate: removeBookmarkMutate }),
     useSetBookmarkNote: () => ({ mutate: setBookmarkNoteMutate }),
+    useAllRankedEntries: () => ({ data: rankedCatalogueData }),
   };
 });
 
@@ -41,6 +47,7 @@ vi.mock('../../data/googleRankings', async () => {
     ...actual,
     useResidentStatus: () => ({ data: 'visitor' }),
     useRankGooglePlace: () => ({ mutateAsync: vi.fn(), isPending: false }),
+    useMyGoogleRankings: () => ({ data: rankedGoogleData }),
   };
 });
 
@@ -85,6 +92,8 @@ describe('BookmarksScreen — S23 checklist', () => {
     removeBookmarkMutate.mockReset();
     setBookmarkNoteMutate.mockReset();
     bookmarksData = [{ id: 'b1', placeId: CAFE_BAHAR.id, note: null }];
+    rankedCatalogueData = [];
+    rankedGoogleData = [];
   });
 
   it('removing a catalogue bookmark calls the remove mutation', async () => {
@@ -164,16 +173,16 @@ describe('BookmarksScreen — S23 checklist', () => {
       { id: 'b2', placeId: CHARMINAR.id, note: null },
     ];
     // Seeded to Cafe Bahar's own coordinates — Charminar is ~4km away, so
-    // only Cafe Bahar should land in the nearby section. It also still
-    // renders again in the regular list below, per S23's own framing of
-    // this as "a variant of this screen, not a notification".
+    // only Cafe Bahar should land in the nearby section. It appears exactly
+    // once on screen (in "Nearby now"), not again in the plain list below.
     render(<Harness centerLat={CAFE_BAHAR.lat} centerLng={CAFE_BAHAR.lng} />);
 
     const nearbyHeading = await screen.findByText('Nearby now');
     const nearbySection = nearbyHeading.parentElement!;
     expect(within(nearbySection).getByText('Cafe Bahar')).toBeInTheDocument();
     expect(within(nearbySection).queryByText('Charminar')).not.toBeInTheDocument();
-    expect(screen.getAllByText('Cafe Bahar')).toHaveLength(2);
+    expect(screen.getAllByText('Cafe Bahar')).toHaveLength(1);
+    expect(screen.getByText('Charminar')).toBeInTheDocument();
   });
 
   it('marking a Google bookmark as visited opens the tier-ranking dialog', async () => {
@@ -188,5 +197,69 @@ describe('BookmarksScreen — S23 checklist', () => {
 
     await userEvent.click(await screen.findByRole('button', { name: 'Mark as visited' }));
     expect(await screen.findByText('How was Testville Diner?')).toBeInTheDocument();
+  });
+
+  it('shows "Visited" (disabled) for a catalogue bookmark already ranked', async () => {
+    rankedCatalogueData = [{ placeId: CAFE_BAHAR.id }];
+    render(<Harness />);
+
+    const visited = await screen.findByRole('button', { name: 'Visited' });
+    expect(visited).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Mark as visited' })).not.toBeInTheDocument();
+  });
+
+  it('shows "Visited" (disabled) for a Google bookmark already ranked', async () => {
+    bookmarksData = [];
+    saveGooglePlace({
+      placeId: 'g1',
+      name: 'Testville Diner',
+      address: '1 Test St',
+      types: ['restaurant'],
+    });
+    rankedGoogleData = [{ googlePlaceId: 'g1' }];
+    render(<Harness />);
+
+    const visited = await screen.findByRole('button', { name: 'Visited' });
+    expect(visited).toBeDisabled();
+  });
+
+  it('"Rank this place" opens as a centered modal on desktop, not a bottom sheet', async () => {
+    bookmarksData = [];
+    saveGooglePlace({
+      placeId: 'g1',
+      name: 'Testville Diner',
+      address: '1 Test St',
+      types: ['restaurant'],
+    });
+
+    function SetDesktop() {
+      const { setBreakpoint } = usePersona();
+      return (
+        <button onClick={() => setBreakpoint('desktop')}>go desktop</button>
+      );
+    }
+
+    render(
+      <PersonaProvider>
+        <ToastProvider>
+          <SearchProvider>
+            <MemoryRouter>
+              <AutoSeedCenter lat={FAR_AWAY.lat} lng={FAR_AWAY.lng} />
+              <SetDesktop />
+              <BookmarksScreen />
+            </MemoryRouter>
+          </SearchProvider>
+        </ToastProvider>
+      </PersonaProvider>,
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: 'go desktop' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Mark as visited' }));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Rank this place' });
+    // A sheet is bottom-aligned and full width (see Dialog.tsx); a desktop
+    // modal is centered with a capped width — width is the one difference
+    // that survives down to the rendered inline style either way.
+    expect(dialog.style.width).not.toBe('100%');
   });
 });

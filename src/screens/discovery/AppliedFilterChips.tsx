@@ -144,9 +144,9 @@ function chipsFor(search: SearchState, currentPath: string): ChipSpec[] {
     [search.openNow, 'Open now', { openNow: false }],
     [search.openLate, 'Open late', { openLate: false }],
     [search.allowsPets, 'Allows pets', { allowsPets: false }],
-    // Phase 9 §1: Explore only — the FiltersScreen switch that sets this is
-    // itself door-gated, but a value can still linger after switching doors.
-    [search.door === 'explore' && search.servesPetFood, 'Serves pet food', { servesPetFood: false }],
+    // Eat only — the FiltersScreen switch that sets this is itself
+    // door-gated, but a value can still linger after switching doors.
+    [search.door === 'eat' && search.servesPetFood, 'Serves pet food', { servesPetFood: false }],
     [search.familyFriendly, 'Family friendly', { familyFriendly: false }],
     [search.coupleFriendly, 'Couple friendly', { coupleFriendly: false }],
     [

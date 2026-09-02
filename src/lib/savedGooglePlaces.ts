@@ -17,12 +17,38 @@ export interface SavedGooglePlace {
 
 const STORAGE_KEY = 'madli.savedGooglePlaces';
 
+function identityKey(name: string, address: string): string {
+  return `${name.trim().toLowerCase()}|${address.trim().toLowerCase()}`;
+}
+
+/**
+ * Google's own Places data occasionally lists the same physical business
+ * under two different place ids — seen live in testing as the identical
+ * name+address saved twice from two separate searches, rendering as a
+ * flat-out duplicate on the Bookmarks screen. placeId is what every other
+ * function here keys on, but it isn't a reliable enough identity on its own,
+ * so any read merges same-name-and-address entries down to the most
+ * recently saved one and writes the cleaned list straight back — that
+ * self-heals whatever duplicates are already sitting in a person's storage
+ * the first time any of these functions runs, not just on the next fresh save.
+ */
+function dedupeByIdentity(items: SavedGooglePlace[]): SavedGooglePlace[] {
+  const byIdentity = new Map<string, SavedGooglePlace>();
+  for (const item of [...items].sort((a, b) => a.savedAt - b.savedAt)) {
+    byIdentity.set(identityKey(item.name, item.address), item);
+  }
+  return [...byIdentity.values()];
+}
+
 function readAll(): SavedGooglePlace[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw) as SavedGooglePlace[];
-    return Array.isArray(parsed) ? parsed : [];
+    if (!Array.isArray(parsed)) return [];
+    const deduped = dedupeByIdentity(parsed);
+    if (deduped.length !== parsed.length) writeAll(deduped);
+    return deduped;
   } catch {
     return [];
   }
@@ -45,7 +71,10 @@ export function isGooglePlaceSaved(placeId: string): boolean {
 }
 
 export function saveGooglePlace(place: Omit<SavedGooglePlace, 'savedAt'>): void {
-  const next = readAll().filter((p) => p.placeId !== place.placeId);
+  const identity = identityKey(place.name, place.address);
+  const next = readAll().filter(
+    (p) => p.placeId !== place.placeId && identityKey(p.name, p.address) !== identity,
+  );
   next.unshift({ ...place, savedAt: Date.now() });
   writeAll(next);
 }

@@ -78,16 +78,17 @@ describe('FiltersScreen — S16 door-specific groups', () => {
     expect(screen.getByText('Avoid crowded times')).toBeInTheDocument();
   });
 
-  it('Phase 9 §1: "Serves pet food" shows on Explore', async () => {
-    seed({ door: 'explore' });
-    render(<Harness />);
-    expect(await screen.findByText('Serves pet food')).toBeInTheDocument();
-  });
-
-  it('Phase 9 §1: "Serves pet food" is absent on Eat', async () => {
+  it('"Serves pet food" shows on Eat', async () => {
     seed({ door: 'eat' });
     render(<Harness />);
     await screen.findByRole('heading', { name: 'Kitchen' });
+    expect(screen.getByText('Serves pet food')).toBeInTheDocument();
+  });
+
+  it('"Serves pet food" is absent on Explore', async () => {
+    seed({ door: 'explore' });
+    render(<Harness />);
+    await screen.findByRole('heading', { name: 'Area type' });
     expect(screen.queryByText('Serves pet food')).not.toBeInTheDocument();
   });
 

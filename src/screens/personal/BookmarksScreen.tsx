@@ -10,7 +10,14 @@ import { Dialog } from '../../components/feedback/Dialog';
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { RankGooglePlaceForm } from '../../components/ranking/RankGooglePlaceForm';
 import { usePersona } from '../../dev/PersonaContext';
-import { useBookmarks, useRemoveBookmark, useSetBookmarkNote, usePlans } from '../../data/hooks';
+import {
+  useAllRankedEntries,
+  useBookmarks,
+  useRemoveBookmark,
+  useSetBookmarkNote,
+  usePlans,
+} from '../../data/hooks';
+import { useMyGoogleRankings } from '../../data/googleRankings';
 import { placeById } from '../../fixtures/places';
 import { areas } from '../../fixtures/areas';
 import { categories } from '../../fixtures/categories';
@@ -60,12 +67,19 @@ export function BookmarksScreen() {
   const [rankingRow, setRankingRow] = useState<PlaceRow | null>(null);
   const [googleTick, setGoogleTick] = useState(0);
   const navigate = useNavigate();
-  const { userId } = usePersona();
+  const { breakpoint, userId } = usePersona();
   const { effectiveCenter, search } = useSearch();
   const { data: bookmarks = [] } = useBookmarks(userId);
   const { data: cataloguePlans = [] } = usePlans(userId);
   const removeBookmark = useRemoveBookmark(userId);
   const setBookmarkNote = useSetBookmarkNote(userId);
+  // Whether a row has already been ranked — catalogue and Google places each
+  // have their own ranking mechanic (see RankGooglePlaceForm's own comment),
+  // so the "has this been visited" check has to look in both places.
+  const { data: allRankedEntries = [] } = useAllRankedEntries(userId);
+  const { data: myGoogleRankings = [] } = useMyGoogleRankings();
+  const rankedCatalogueIds = new Set(allRankedEntries.map((e) => e.placeId));
+  const rankedGoogleIds = new Set(myGoogleRankings.map((r) => r.googlePlaceId));
   // Re-read on each tab switch (or after a Google-side write here) so saves
   // from detail / bridge, and removes / notes made right on this screen,
   // both show up without needing a full remount.
@@ -126,6 +140,13 @@ export function BookmarksScreen() {
   const nearbyRows = placeRows.filter(
     (r) => r.location && haversineMeters(effectiveCenter, r.location) <= NEARBY_RADIUS_METERS,
   );
+  // A nearby row is already surfaced up in "Nearby now" — repeating the
+  // identical card again immediately below it, with no divider between the
+  // two sections, read as the same place having been bookmarked twice.
+  // Excluded here rather than de-duplicated visually: each saved place still
+  // shows exactly once on screen, just in whichever section is more useful.
+  const nearbyKeys = new Set(nearbyRows.map((r) => r.key));
+  const otherRows = placeRows.filter((r) => !nearbyKeys.has(r.key));
 
   const removeRow = (row: PlaceRow) => {
     if (row.kind === 'catalogue') removeBookmark.mutate(row.placeId);
@@ -174,85 +195,91 @@ export function BookmarksScreen() {
     })),
   ];
 
-  const placeCard = (row: PlaceRow) => (
-    <Card key={row.key} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          gap: 'var(--space-3)',
-        }}
-      >
-        <button
-          type="button"
-          onClick={() => navigate(`/places/${encodeURIComponent(row.placeId)}`)}
+  const placeCard = (row: PlaceRow) => {
+    const isVisited =
+      row.kind === 'catalogue'
+        ? rankedCatalogueIds.has(row.placeId)
+        : rankedGoogleIds.has(row.placeId);
+    return (
+      <Card key={row.key} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+        <div
           style={{
-            background: 'none',
-            border: 'none',
-            padding: 0,
-            textAlign: 'left',
-            cursor: 'pointer',
-            minWidth: 0,
-            flex: 1,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: 'var(--space-3)',
           }}
         >
-          <div style={{ font: 'var(--type-body)', color: 'var(--text-heading)' }}>{row.name}</div>
-          {row.address ? (
-            <div
-              style={{
-                font: 'var(--type-caption)',
-                color: 'var(--text-muted)',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {row.address}
-            </div>
-          ) : null}
-        </button>
-        <Button size="sm" variant="secondary" onClick={() => markVisited(row)}>
-          Mark as visited
-        </Button>
-        <Button size="sm" variant="ghost" onClick={() => removeRow(row)}>
-          Remove
-        </Button>
-      </div>
-
-      {editingKey === row.key ? (
-        <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'flex-end' }}>
-          <div style={{ flex: 1 }}>
-            <Input
-              value={noteDraft}
-              onChange={(e) => setNoteDraft(e.target.value)}
-              placeholder="Why did you save this?"
-              maxLength={280}
-            />
-          </div>
-          <Button size="sm" onClick={() => saveNote(row)}>
-            Save
+          <button
+            type="button"
+            onClick={() => navigate(`/places/${encodeURIComponent(row.placeId)}`)}
+            style={{
+              background: 'none',
+              border: 'none',
+              padding: 0,
+              textAlign: 'left',
+              cursor: 'pointer',
+              minWidth: 0,
+              flex: 1,
+            }}
+          >
+            <div style={{ font: 'var(--type-body)', color: 'var(--text-heading)' }}>{row.name}</div>
+            {row.address ? (
+              <div
+                style={{
+                  font: 'var(--type-caption)',
+                  color: 'var(--text-muted)',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {row.address}
+              </div>
+            ) : null}
+          </button>
+          <Button size="sm" variant="secondary" disabled={isVisited} onClick={() => markVisited(row)}>
+            {isVisited ? 'Visited' : 'Mark as visited'}
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => removeRow(row)}>
+            Remove
           </Button>
         </div>
-      ) : (
-        <button
-          type="button"
-          onClick={() => startNote(row)}
-          style={{
-            alignSelf: 'flex-start',
-            background: 'none',
-            border: 'none',
-            padding: 0,
-            cursor: 'pointer',
-            font: 'var(--type-caption)',
-            color: row.note ? 'var(--text-body)' : 'var(--text-link)',
-          }}
-        >
-          {row.note || 'Add a note — why did you save this?'}
-        </button>
-      )}
-    </Card>
-  );
+
+        {editingKey === row.key ? (
+          <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'flex-end' }}>
+            <div style={{ flex: 1 }}>
+              <Input
+                value={noteDraft}
+                onChange={(e) => setNoteDraft(e.target.value)}
+                placeholder="Why did you save this?"
+                maxLength={280}
+              />
+            </div>
+            <Button size="sm" onClick={() => saveNote(row)}>
+              Save
+            </Button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => startNote(row)}
+            style={{
+              alignSelf: 'flex-start',
+              background: 'none',
+              border: 'none',
+              padding: 0,
+              cursor: 'pointer',
+              font: 'var(--type-caption)',
+              color: row.note ? 'var(--text-body)' : 'var(--text-link)',
+            }}
+          >
+            {row.note || 'Add a note — why did you save this?'}
+          </button>
+        )}
+      </Card>
+    );
+  };
 
   return (
     <AppShell title="Bookmarks">
@@ -325,11 +352,11 @@ export function BookmarksScreen() {
                 title="Nothing saved yet"
                 body="Bookmark a place from its detail page to see it here."
               />
-            ) : (
+            ) : otherRows.length > 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-                {placeRows.map(placeCard)}
+                {otherRows.map(placeCard)}
               </div>
-            )}
+            ) : null}
           </>
         ) : planRows.length === 0 ? (
           <EmptyState
@@ -376,7 +403,7 @@ export function BookmarksScreen() {
         open={rankingRow !== null}
         title="Rank this place"
         onClose={() => setRankingRow(null)}
-        variant="sheet"
+        variant={breakpoint === 'desktop' ? 'modal' : 'sheet'}
       >
         {rankingRow ? (
           <RankGooglePlaceForm

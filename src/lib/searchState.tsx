@@ -359,8 +359,11 @@ export interface SearchState {
   centerSource: 'geolocation' | 'area' | 'default' | null;
   /** S16 filters. */
   allowsPets: boolean;
-  /** Phase 9 §1: Explore door only. Phase 8 §7 removed this from both doors;
-   * the user clarified afterward it should exist for Explore, not Eat. */
+  /** Eat door only. Phase 8 §7 removed this from both doors, Phase 9 §1
+   * brought it back Explore-only on the user's clarification at the time;
+   * reversed again afterward to Eat, where it actually makes sense — a
+   * restaurant or cafe can serve pet food, a park or museum doesn't "serve"
+   * anything. */
   servesPetFood: boolean;
   /** S16 budget band. */
   budget: string | null;
