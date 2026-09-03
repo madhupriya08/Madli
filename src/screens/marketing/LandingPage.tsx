@@ -60,63 +60,74 @@ export function LandingPage() {
     <MarketingShell>
       <section
         style={{
-          ...SECTION,
-          padding: 'var(--space-9) var(--gutter) var(--space-8)',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 'var(--space-6)',
-          alignItems: 'flex-start',
+          background: 'radial-gradient(120% 100% at 15% 0%, var(--teal-50) 0%, transparent 55%)',
         }}
       >
-        <span
+        <div
+          className="madli-page-enter"
           style={{
-            font: 'var(--type-eyebrow)',
-            textTransform: 'uppercase',
-            letterSpacing: 'var(--tracking-eyebrow)',
-            color: 'var(--teal-600)',
+            ...SECTION,
+            padding: 'var(--space-9) var(--gutter) var(--space-8)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 'var(--space-6)',
+            alignItems: 'flex-start',
           }}
         >
-          Ranked by the people who actually live there
-        </span>
-        <h1 style={{ font: 'var(--type-display)', maxWidth: '15ch', textWrap: 'pretty' }}>
-          Three picks. One reason each.
-        </h1>
-        <p
-          style={{
-            font: 'var(--type-body-lg)',
-            color: 'var(--text-body)',
-            maxWidth: 'var(--prose-max)',
-          }}
-        >
-          Madli ranks restaurants and places to visit by asking the people who actually live there,
-          not by whoever paid. Every pick comes with the one reason it beat the rest.
-        </p>
-        {/* All three the same weight, on purpose — matching the same call on
+          <span
+            style={{
+              font: 'var(--type-eyebrow)',
+              textTransform: 'uppercase',
+              letterSpacing: 'var(--tracking-eyebrow)',
+              color: 'var(--teal-700)',
+              background: 'var(--teal-50)',
+              border: '1px solid var(--teal-100)',
+              borderRadius: 'var(--radius-pill)',
+              padding: '6px 14px',
+            }}
+          >
+            Ranked by the people who actually live there
+          </span>
+          <h1 style={{ font: 'var(--type-display)', maxWidth: '15ch', textWrap: 'pretty' }}>
+            Three picks. One reason each.
+          </h1>
+          <p
+            style={{
+              font: 'var(--type-body-lg)',
+              color: 'var(--text-body)',
+              maxWidth: 'var(--prose-max)',
+            }}
+          >
+            Madli ranks restaurants and places to visit by asking the people who actually live
+            there, not by whoever paid. Every pick comes with the one reason it beat the rest.
+          </p>
+          {/* All three the same weight, on purpose — matching the same call on
             S6 Splash. Signing up must not read as the "real" path with guest
             browsing tacked on as an afterthought: neither is coral (`accent`
             is reserved for one CTA per view anyway, so it can't badge both),
             neither is smaller. */}
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-          <Button variant="secondary" size="lg" onClick={() => navigate('/signup')}>
-            Sign up free
-          </Button>
-          <Button variant="secondary" size="lg" onClick={() => navigate('/login')}>
-            Log in
-          </Button>
-          <Button
-            variant="secondary"
-            size="lg"
-            onClick={() => {
-              logEvent('session_started', null);
-              navigate('/area');
-            }}
-          >
-            Look around as a guest
-          </Button>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            <Button variant="secondary" size="lg" onClick={() => navigate('/signup')}>
+              Sign up free
+            </Button>
+            <Button variant="secondary" size="lg" onClick={() => navigate('/login')}>
+              Log in
+            </Button>
+            <Button
+              variant="secondary"
+              size="lg"
+              onClick={() => {
+                logEvent('session_started', null);
+                navigate('/area');
+              }}
+            >
+              Look around as a guest
+            </Button>
+          </div>
+          <span style={{ font: 'var(--type-evidence)', color: 'var(--evidence-text)' }}>
+            No account needed to search
+          </span>
         </div>
-        <span style={{ font: 'var(--type-evidence)', color: 'var(--evidence-text)' }}>
-          No account needed to search
-        </span>
       </section>
 
       {/* P14: "so please do rank the places to allow all users to really
@@ -126,6 +137,7 @@ export function LandingPage() {
           GemOfTheTownPage for what this produces once enough exist. */}
       <section style={{ ...SECTION, paddingTop: 0, paddingBottom: 0 }}>
         <div
+          className="madli-hover-lift"
           style={{
             padding: 'var(--space-6)',
             background: 'var(--teal-50)',
@@ -140,9 +152,9 @@ export function LandingPage() {
             Every rank surfaces the gems, not just the famous names
           </span>
           <p style={{ font: 'var(--type-body)', color: 'var(--text-body)', maxWidth: '60ch' }}>
-            Local rankings carry the most weight, on purpose: the whole point is finding the
-            places locals love that outsiders never hear about. Rank a few favourites and you're
-            helping surface the next one.
+            Local rankings carry the most weight, on purpose: the whole point is finding the places
+            locals love that outsiders never hear about. Rank a few favourites and you're helping
+            surface the next one.
           </p>
         </div>
       </section>
@@ -161,6 +173,7 @@ export function LandingPage() {
           How it works
         </div>
         <div
+          className="madli-stagger"
           style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
@@ -170,6 +183,7 @@ export function LandingPage() {
           {HOW_STEPS.map((s) => (
             <div
               key={s.n}
+              className="madli-hover-lift"
               style={{
                 display: 'flex',
                 flexDirection: 'column',
