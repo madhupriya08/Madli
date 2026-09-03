@@ -212,12 +212,17 @@ export function PickAreaScreen() {
 
   return (
     <AppShell title="Pick your area" onBack={() => navigate(-1)} showTabBar={false}>
+      {/* P14: capped like Signup/Login (both maxWidth: 420) — without this,
+          the desktop frame's full var(--app-max) (1160px) stretched the
+          button and search field into one long, disproportionate strip.
+          A single-column form reads better narrow, even on a wide screen. */}
       <div
         style={{
           padding: 'var(--space-6) var(--gutter)',
           display: 'flex',
           flexDirection: 'column',
           gap: 'var(--space-6)',
+          maxWidth: 480,
         }}
       >
         <p style={{ font: 'var(--type-body)', color: 'var(--text-body)' }}>

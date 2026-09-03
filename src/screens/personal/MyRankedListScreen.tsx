@@ -33,9 +33,10 @@ const CATEGORY_META: Record<string, { icon: string; color: string }> = {
   'Concerts and events': { icon: 'sparkles', color: 'var(--sky-500)' },
 };
 
-const TIER_LABEL: Record<'loved' | 'fine', string> = {
+const TIER_LABEL: Record<Tier, string> = {
   loved: 'Been and loved',
   fine: 'Been and fine',
+  disliked: 'Not for me',
 };
 
 /** What "Re-rank" actually does for this row — the two ranking mechanics this app has, each with its own re-rank path (P13 §6). */
@@ -58,7 +59,6 @@ interface Column {
   color: string;
   totalCount: number;
   rows: Row[];
-  hiddenCount: number;
 }
 
 function hideVisitedKey(userId: string) {
@@ -109,27 +109,24 @@ function toColumn(
   }>,
 ): Column {
   const sorted = [...all].sort((a, b) => a.position - b.position);
-  const visible = sorted.filter((e) => e.tier !== 'disliked');
   return {
     id,
     label,
     icon: meta.icon,
     color: meta.color,
     totalCount: sorted.length,
-    // Display position is a renumbering of the visible rows, not the raw
-    // stored `position` — both ranked_entries and google_place_rankings scope
-    // that column per category/door *including* disliked rows, so a hidden
-    // disliked entry would otherwise leave a gap (#1, #2, #4). The design
-    // handoff's own S31 rendering re-numbers from the filtered array's index
-    // for exactly this reason.
-    rows: visible.map((e, i) => ({
+    // P14: "show the disliked place as well don't hide" -- every ranked
+    // entry appears now, disliked included, in real stored-position order.
+    // Both ranked_entries and google_place_rankings already scope position
+    // per category/door including disliked rows, so this is the raw order,
+    // not a re-numbering.
+    rows: sorted.map((e, i) => ({
       key: e.id,
       pos: i + 1,
       name: e.name,
       tier: e.tier,
       rerank: e.rerank,
     })),
-    hiddenCount: sorted.length - visible.length,
   };
 }
 
@@ -181,10 +178,10 @@ function subtypeColumns(door: Door, entries: RankedGooglePlace[]): Column[] {
   return [...buckets.entries()].map(([id, b]) => toColumn(id, b.label, b, b.rows));
 }
 
-// S31: disliked places drop out of the visible list but stay logged — they
-// keep contributing to ranking without cluttering the list. Real divergence
-// (design_handoff_madli/README.md's own S31 note): desktop is multi-column by
-// category, mobile is one column with category tabs.
+// S31: real divergence (design_handoff_madli/README.md's own S31 note):
+// desktop is multi-column by category, mobile is one column with category
+// tabs. P14: disliked places used to drop out of this list entirely (logged,
+// never shown) -- they render now, same as loved/fine, per explicit request.
 //
 // P10 §6: a person's ranked list used to only ever show catalogue places
 // (the 17 seeded fixtures) — anything ranked via the onboarding ask or the
@@ -243,7 +240,7 @@ export function MyRankedListScreen() {
       'explore',
       googleEntries.filter((e) => e.door === 'explore'),
     ),
-  ].filter((c) => c.rows.length > 0 || c.hiddenCount > 0);
+  ].filter((c) => c.rows.length > 0);
 
   const totalCount = columns.reduce((n, c) => n + c.totalCount, 0);
 
@@ -369,7 +366,7 @@ export function MyRankedListScreen() {
               {row.name}
             </span>
             <span style={{ font: 'var(--type-evidence)', color: 'var(--evidence-text)' }}>
-              {TIER_LABEL[row.tier as 'loved' | 'fine']}
+              {TIER_LABEL[row.tier]}
             </span>
           </div>
           {row.rerank ? (
@@ -379,18 +376,6 @@ export function MyRankedListScreen() {
           ) : null}
         </div>
       ))}
-      {column.hiddenCount > 0 ? (
-        <div
-          style={{
-            padding: '10px var(--space-4)',
-            font: 'var(--type-evidence)',
-            color: 'var(--evidence-text)',
-            background: 'var(--slate-50)',
-          }}
-        >
-          {column.hiddenCount} disliked, hidden but still counted
-        </div>
-      ) : null}
     </div>
   );
 

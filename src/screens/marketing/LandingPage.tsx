@@ -90,7 +90,7 @@ export function LandingPage() {
               padding: '6px 14px',
             }}
           >
-            Ranked by real locals, not tourists
+            Ranked by real locals
           </span>
           <h1 style={{ font: 'var(--type-display)', maxWidth: '15ch', textWrap: 'pretty' }}>
             Three picks. One reason each.
@@ -240,8 +240,14 @@ export function LandingPage() {
               own baked-in background nearly matches --bg-page-warm — it
               rendered, but close enough to invisible that it read as
               missing. The header already used the transparent version via
-              this same Logo component; this just matches it. */}
-          <Logo variant="wordmark" height={18} />
+              this same Logo component; this just matches it.
+              alignSelf: flex-start is load-bearing here — this parent is a
+              flex column (default align-items: stretch), and the Logo's own
+              width:'auto' does not opt an <img> out of being stretched to
+              fill the cross axis; without this the wordmark rendered
+              horizontally distorted, stretched to the container's width
+              while height stayed pinned. */}
+          <Logo variant="wordmark" height={18} style={{ alignSelf: 'flex-start' }} />
           <span style={{ font: 'var(--type-evidence)', color: 'var(--evidence-text)' }}>
             Search anywhere: deep local rankings grow with every place someone ranks
           </span>

@@ -33,18 +33,25 @@ const MAX_HOME_RANKINGS = 3;
 
 // S7: two doors, CSS grid with a 280px minimum so desktop side-by-side and
 // mobile stack are the same markup — real divergence starts at S17.
+// P14: a distinct accent colour per door (icon badge, not the whole card —
+// accent stays reserved for one CTA per view elsewhere in the app) gives
+// the two the visual difference their names already imply.
 const DOORS = [
   {
     value: 'eat' as const,
     label: 'Eat',
     body: 'Breakfast, biryani, cafes: three picks in two minutes.',
     icon: 'utensils',
+    tint: 'var(--teal-50)',
+    accent: 'var(--teal-600)',
   },
   {
     value: 'explore' as const,
     label: 'Explore',
     body: 'Lakes, history, nightlife: where to go today.',
     icon: 'map',
+    tint: 'var(--sky-50)',
+    accent: 'var(--sky-500)',
   },
 ];
 
@@ -313,11 +320,23 @@ export function HomeScreen() {
                 flexDirection: 'column',
                 alignItems: 'center',
                 gap: 'var(--space-3)',
-                padding: 'var(--space-9)',
+                padding: 'var(--space-7)',
                 textAlign: 'center',
               }}
             >
-              <Icon name={door.icon} size={32} color="var(--teal-500)" />
+              <div
+                style={{
+                  width: 56,
+                  height: 56,
+                  borderRadius: 'var(--radius-circle)',
+                  background: door.tint,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Icon name={door.icon} size={26} color={door.accent} />
+              </div>
               <h2 style={{ font: 'var(--type-h3)' }}>{door.label}</h2>
               <p style={{ font: 'var(--type-body-sm)', color: 'var(--text-muted)' }}>{door.body}</p>
               {doorCounts ? (

@@ -17,10 +17,11 @@ import { MyRankedListScreen } from './MyRankedListScreen';
  * P11 §11: an earlier version of this screen had drifted far from the actual
  * S31 design (design_handoff_madli/prototype/Madli Prototype.dc.html) — no
  * header stats line, no Share/Re-rank buttons, no hide-visited toggle, no
- * "Been and loved"/"Been and fine" tier labels, no disliked-hidden footer,
- * and it used the raw stored position (which can have gaps where a disliked
- * entry sits) instead of a clean renumbering of the visible rows. This suite
- * also covers that rebuild.
+ * "Been and loved"/"Been and fine" tier labels, and no consistent row
+ * numbering. This suite also covers that rebuild.
+ *
+ * P14: disliked entries used to drop out of this list entirely (still
+ * counted, never shown) -- they render now, same as loved/fine.
  *
  * P13 §7: Google rankings split by subtype within each door now (not just
  * one flat "Eat"/"Explore" column) — see rankedSubtypes.test.ts for the
@@ -243,7 +244,7 @@ describe('MyRankedListScreen — matches the S31 design handoff', () => {
     expect(await screen.findByText('Ranked list copied. Paste it anywhere.')).toBeInTheDocument();
   });
 
-  it('renumbers visible rows sequentially, closing the gap a hidden disliked entry leaves in the raw position', async () => {
+  it('P14: shows a disliked entry in the list too, in position order, rather than hiding it', async () => {
     rankedEntries = [
       { id: 'e1', placeId: 'catalogue-1', categoryId: CAT_ID, tier: 'loved', position: 1 },
       { id: 'e2', placeId: 'catalogue-2', categoryId: CAT_ID, tier: 'disliked', position: 2 },
@@ -253,12 +254,10 @@ describe('MyRankedListScreen — matches the S31 design handoff', () => {
     render(<Harness />);
 
     expect(await screen.findByText('#1')).toBeInTheDocument();
-    // The disliked entry (would-be #2) is hidden — the next visible entry
-    // renumbers to #2, not #3, and the raw position gap never reaches the
-    // screen.
     expect(screen.getByText('#2')).toBeInTheDocument();
-    expect(screen.queryByText('#3')).not.toBeInTheDocument();
-    expect(screen.getByText('1 disliked, hidden but still counted')).toBeInTheDocument();
+    expect(screen.getByText('#3')).toBeInTheDocument();
+    expect(screen.getByText('Not for me')).toBeInTheDocument();
+    expect(screen.queryByText(/hidden but still counted/)).not.toBeInTheDocument();
   });
 });
 
