@@ -7,6 +7,7 @@ import { PhotoFrame } from '../../components/core/PhotoFrame';
 import { RankBadge } from '../../components/trust/RankBadge';
 import { RankGap } from '../../components/trust/RankGap';
 import { SampleSize } from '../../components/trust/SampleSize';
+import { CommunityRankBlock } from '../../components/trust/CommunityRankBlock';
 import { ReasonNote } from '../../components/trust/ReasonNote';
 import { Badge } from '../../components/core/Badge';
 import { Button } from '../../components/core/Button';
@@ -903,6 +904,8 @@ function GoogleDetail({
               {typeLabel ? <Badge tone="neutral">{typeLabel}</Badge> : null}
             </div>
           ) : null}
+
+          <CommunityRankBlock googlePlaceId={place.placeId} />
 
           {sectionCard(
             <>

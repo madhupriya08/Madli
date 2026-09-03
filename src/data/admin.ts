@@ -35,6 +35,19 @@ export async function countRankedEntries(): Promise<number> {
   return data;
 }
 
+/**
+ * P14: "Total places" for the Analytics dashboard -- distinct real places
+ * someone has actually ranked, replacing the old seed-catalogue row count.
+ * Same reasoning as countRankedEntries: google_place_rankings RLS is
+ * owner-only, so this narrow count function is the only way an admin
+ * session can see this total for real.
+ */
+export async function countRankedGooglePlaces(): Promise<number> {
+  const { data, error } = await supabase.rpc('fn_admin_count_ranked_google_places');
+  if (error) throw error;
+  return data;
+}
+
 /** Phase 7 §2: "Active users (30d)" — real Users only, via auth.users.last_sign_in_at (never exposed to the client directly). */
 export async function countActiveUsers(days = 30): Promise<number> {
   const { data, error } = await supabase.rpc('fn_admin_count_active_users', { p_days: days });

@@ -264,3 +264,10 @@ export function useCreateAdminAccount() {
 export function useRankedEntriesCount() {
   return useQuery({ queryKey: ['rankedEntriesCount'], queryFn: adminApi.countRankedEntries });
 }
+
+export function useRankedGooglePlacesCount() {
+  return useQuery({
+    queryKey: ['rankedGooglePlacesCount'],
+    queryFn: adminApi.countRankedGooglePlaces,
+  });
+}

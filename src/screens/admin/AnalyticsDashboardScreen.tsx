@@ -1,10 +1,10 @@
 import { AdminShell } from '../layout/AdminShell';
 import { Card } from '../../components/core/Card';
 import { usePersona } from '../../dev/PersonaContext';
-import { places } from '../../fixtures/places';
 import {
   useReports,
   useRankedEntriesCount,
+  useRankedGooglePlacesCount,
   useActiveUserCount,
   usePlanStats,
   useFunnelStats,
@@ -65,6 +65,7 @@ export function AnalyticsDashboardScreen() {
   // claims/reports didn't: business_claims/reports RLS already lets an
   // admin see every row, ranked_entries' RLS is strictly owner-only).
   const { data: rankedEntriesCount } = useRankedEntriesCount();
+  const { data: rankedGooglePlacesCount } = useRankedGooglePlacesCount();
   const { data: allReports = [] } = useReports();
   // Phase 7 §2/§5: the rest of this dashboard used to be a wall of '—'
   // placeholders — see PHASE_7 notes / the admin_analytics_metrics
@@ -77,15 +78,11 @@ export function AnalyticsDashboardScreen() {
   const { data: gemCandidates } = useGemCandidates();
   const { data: auditLog = [] } = useAuditLog();
 
-  // Only active places count as "the catalogue" — the one inactive fixture
-  // (Deccan Grill House) exists purely as an admin-mock example row and was
-  // being counted as a real listing here, inflating this by one.
-  const activePlaceCount = places.filter((p) => p.isActive).length;
-
   const adminActionsLast24h = countWithinWindow(auditLog, TWENTY_FOUR_HOURS_MS);
 
   const values: Record<string, string> = {
-    'Total places': String(activePlaceCount),
+    'Total places':
+      rankedGooglePlacesCount === undefined ? '…' : String(rankedGooglePlacesCount),
     'Active users (30d)': activeUsers === undefined ? '…' : String(activeUsers),
     'Ranked visits logged': rankedEntriesCount === undefined ? '…' : String(rankedEntriesCount),
     'Guest → signup rate': funnel

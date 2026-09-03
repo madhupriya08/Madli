@@ -72,6 +72,7 @@ vi.mock('../../data/hooks', () => ({
 
 vi.mock('../../data/googleRankings', () => ({
   useMyGoogleRankings: () => ({ data: [] }),
+  useRankingCounts: () => ({ data: {} }),
 }));
 
 // P13 §8's own regression test needs a real (mocked) Google-sourced branch
