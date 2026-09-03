@@ -147,7 +147,7 @@ describe('PlaceDetailScreen — S19 gaps closed against the prototype', () => {
 
   it('falls back to a real map placeholder, matching the design copy, when a place has no coordinates', async () => {
     render(<Harness slug="restaurants%2Fdeccan-grill-house" />);
-    expect(await screen.findByText('Map placeholder — open directions')).toBeInTheDocument();
+    expect(await screen.findByText('Map placeholder, open directions')).toBeInTheDocument();
     expect(screen.getByText('Real geography is deliberately not drawn')).toBeInTheDocument();
   });
 
@@ -155,7 +155,7 @@ describe('PlaceDetailScreen — S19 gaps closed against the prototype', () => {
     render(<Harness />);
     await userEvent.click(screen.getByRole('button', { name: 'set persona guest' }));
 
-    expect(await screen.findByText('6 dishes mentioned — sign up to see them')).toBeInTheDocument();
+    expect(await screen.findByText('6 dishes mentioned. Sign up to see them')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Sign up to see them' })).toBeInTheDocument();
   });
 

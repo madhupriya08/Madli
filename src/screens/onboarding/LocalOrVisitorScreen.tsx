@@ -78,7 +78,7 @@ export function LocalOrVisitorScreen() {
         </h1>
         <p style={{ font: 'var(--type-body)', color: 'var(--text-body)', maxWidth: '38ch' }}>
           We keep local and visitor rankings apart, and show both counts on every pick. Entirely
-          optional — skip it and everything still works.
+          optional, skip it and everything still works.
         </p>
         <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
           <Tag selected={currentAnswer === 'local'} onClick={() => void choose('local')}>

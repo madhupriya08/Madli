@@ -274,7 +274,7 @@ export function BookmarksScreen() {
               color: row.note ? 'var(--text-body)' : 'var(--text-link)',
             }}
           >
-            {row.note || 'Add a note — why did you save this?'}
+            {row.note || 'Add a note: why did you save this?'}
           </button>
         )}
       </Card>

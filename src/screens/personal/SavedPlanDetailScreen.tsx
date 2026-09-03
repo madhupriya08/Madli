@@ -151,7 +151,7 @@ function OutingPlanDetail({
         }}
       >
         {isSharedLink ? (
-          <Badge tone="teal">Shared link — no account needed, never expires</Badge>
+          <Badge tone="teal">Shared link · no account needed · never expires</Badge>
         ) : null}
         <p style={{ margin: 0, font: 'var(--type-body)', color: 'var(--text-body)' }}>
           Outing from {plan.anchorName} · {plan.stops.length} stop

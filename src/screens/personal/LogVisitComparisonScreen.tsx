@@ -95,7 +95,7 @@ export function LogVisitComparisonScreen() {
       <AppShell title="Almost done" onBack={() => navigate(-1)} showTabBar={false}>
         <div style={{ padding: 'var(--space-6) var(--gutter)', textAlign: 'center' }}>
           <p style={{ font: 'var(--type-body)', marginBottom: 'var(--space-5)' }}>
-            {newPlace.name} is the first place you&apos;ve ranked in this category — nothing to
+            {newPlace.name} is the first place you&apos;ve ranked in this category. Nothing to
             compare it against yet.
           </p>
           <Button onClick={() => submit()}>Add to my list</Button>

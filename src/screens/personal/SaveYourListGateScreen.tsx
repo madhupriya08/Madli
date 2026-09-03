@@ -17,8 +17,8 @@ export function SaveYourListGateScreen() {
       variant={breakpoint === 'desktop' ? 'modal' : 'sheet'}
     >
       <p style={{ font: 'var(--type-body)', marginBottom: 'var(--space-5)' }}>
-        You just ranked a place. Without an account, this list disappears when you close the app —
-        nothing is saved anywhere.
+        You just ranked a place. Without an account, this list disappears when you close the app.
+        Nothing is saved anywhere.
       </p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
         <Button onClick={() => navigate('/signup')}>Sign up to keep it</Button>

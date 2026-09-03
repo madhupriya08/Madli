@@ -403,8 +403,8 @@ export function BridgeTapScreen() {
           >
             {referenceIsAnchor
               ? `Best-rated first, within reach of ${anchor.name}.`
-              : `Best-rated first, within reach of ${referencePoint.name} — the stop you added most recently.`}{' '}
-            Add as many as you want — each one joins the route without leaving this screen.
+              : `Best-rated first, within reach of ${referencePoint.name}, the stop you added most recently.`}{' '}
+            Add as many as you want. Each one joins the route without leaving this screen.
           </p>
           <div
             style={{
@@ -429,11 +429,6 @@ export function BridgeTapScreen() {
                 onChange={(v) => setDoorOverrideFor({ anchorId: anchor.id, door: v as Door })}
               />
             </div>
-            {viewPlanHref ? (
-              <Button size="sm" variant="secondary" onClick={() => navigate(viewPlanHref)}>
-                View plan
-              </Button>
-            ) : null}
           </div>
         </div>
 
@@ -713,6 +708,32 @@ export function BridgeTapScreen() {
             </p>
           </>
         )}
+
+        {/* P14: this used to be a small secondary button crowded next to the
+            Eat/Explore tabs, easy to miss on a screen whose whole job is
+            adding stops. It belongs at the bottom, once there is a plan
+            worth going to look at, and it should look like the one obvious
+            next step rather than one option among several. */}
+        {viewPlanHref ? (
+          <div
+            style={{
+              position: 'sticky',
+              bottom: 0,
+              marginTop: 'var(--space-4)',
+              marginLeft: 'calc(-1 * var(--gutter))',
+              marginRight: 'calc(-1 * var(--gutter))',
+              padding: 'var(--space-4) var(--gutter)',
+              background: 'var(--bar-scrim)',
+              backdropFilter: 'var(--blur-bar)',
+              WebkitBackdropFilter: 'var(--blur-bar)',
+              borderTop: '1px solid var(--border-hairline)',
+            }}
+          >
+            <Button size="lg" variant="primary" block onClick={() => navigate(viewPlanHref)}>
+              View plan
+            </Button>
+          </div>
+        ) : null}
       </div>
     </AppShell>
   );

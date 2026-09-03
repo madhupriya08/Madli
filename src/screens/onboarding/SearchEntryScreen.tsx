@@ -221,7 +221,7 @@ export function SearchEntryScreen() {
           )
         ) : persona === 'guest' ? (
           <p style={{ font: 'var(--type-body-sm)', color: 'var(--text-muted)' }}>
-            Recent searches are saved once you have an account — sign up to keep a history here.
+            Recent searches are saved once you have an account. Sign up to keep a history here.
           </p>
         ) : (
           <div>
@@ -234,12 +234,11 @@ export function SearchEntryScreen() {
                 marginBottom: 'var(--space-3)',
               }}
             >
-              Your last{' '}
-              {recentSearches.length === 1 ? 'search' : `${recentSearches.length} searches`}
+              Recent searches
             </h2>
             {recentSearches.length === 0 ? (
               <p style={{ font: 'var(--type-body-sm)', color: 'var(--text-muted)' }}>
-                Nothing yet — the last five searches you run will show up here.
+                Nothing yet. Your recent searches will show up here.
               </p>
             ) : (
               <ul

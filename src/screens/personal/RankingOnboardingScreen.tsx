@@ -224,7 +224,7 @@ export function RankingOnboardingScreen() {
               marginTop: 'var(--space-3)',
             }}
           >
-            Skip for now — you can rank any place from its own page later
+            Skip for now, you can rank any place from its own page later
           </button>
         </div>
 
@@ -232,7 +232,7 @@ export function RankingOnboardingScreen() {
           // Already answered — at S8's LocalOrVisitorScreen, most likely.
           // Asking again here would be the same question twice in one flow.
           <p style={{ font: 'var(--type-body-sm)', color: 'var(--text-muted)' }}>
-            You told us you{residency === 'local' ? ' live here' : "'re visiting"} — that is what
+            You told us you{residency === 'local' ? ' live here' : "'re visiting"}. That is what
             these ratings will count as.
           </p>
         ) : (
@@ -256,7 +256,7 @@ export function RankingOnboardingScreen() {
               }}
             >
               We keep local and visitor rankings apart, and show both counts. We ask rather than
-              guess from your location — being here today does not mean you live here.
+              guess from your location: being here today does not mean you live here.
             </p>
           </div>
         )}
@@ -268,7 +268,9 @@ export function RankingOnboardingScreen() {
               key={door}
               style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}
             >
-              <h3 style={{ font: 'var(--type-label)', margin: 0 }}>{heading}</h3>
+              <h3 style={{ font: 'var(--type-h4)', color: 'var(--text-heading)', margin: 0 }}>
+                {heading}
+              </h3>
               {nearby.isLoading ? (
                 <div style={{ display: 'grid', gap: 'var(--space-4)' }}>
                   <PickSkeleton />
@@ -296,12 +298,17 @@ export function RankingOnboardingScreen() {
                     // half the visual weight of any real pick shown
                     // elsewhere in the app (PickCard's own photo + name +
                     // reason), for the exact same kind of decision ("have
-                    // you been here"). A real photo, a bigger name, and a
-                    // proper 2-up (desktop) grid puts these on equal
-                    // footing with everything else someone rates places on.
-                    gridTemplateColumns:
-                      breakpoint === 'desktop' ? 'repeat(2, minmax(0, 1fr))' : '1fr',
-                    gap: 'var(--space-5)',
+                    // you been here"). A real photo and a bigger name put
+                    // these on equal footing with everything else someone
+                    // rates places on.
+                    //
+                    // P14: the 2-up desktop grid from P13 made each photo
+                    // too big for what is meant to be a quick "have you
+                    // been here" skim — four to a row reads faster and
+                    // leaves room to actually see how many nearby places
+                    // there are.
+                    gridTemplateColumns: breakpoint === 'desktop' ? 'repeat(4, minmax(0, 1fr))' : '1fr',
+                    gap: 'var(--space-4)',
                   }}
                 >
                   {nearby.data?.map((candidate) => {
@@ -313,15 +320,14 @@ export function RankingOnboardingScreen() {
                             src={candidate.photoUrl}
                             label={candidate.name}
                             alt={candidate.name}
-                            ratio="16 / 9"
+                            ratio="1 / 1"
                             radius="0"
                             className="madli-hover-zoom"
                           />
-                          <div style={{ padding: 'var(--space-5)' }}>
+                          <div style={{ padding: 'var(--space-4)' }}>
                             <div
                               style={{
-                                font: 'var(--type-h3)',
-                                letterSpacing: 'var(--tracking-display)',
+                                font: 'var(--type-label)',
                                 color: 'var(--text-heading)',
                                 marginBottom: 4,
                               }}
@@ -330,9 +336,12 @@ export function RankingOnboardingScreen() {
                             </div>
                             <div
                               style={{
-                                font: 'var(--type-body-sm)',
+                                font: 'var(--type-caption)',
                                 color: 'var(--evidence-text)',
-                                marginBottom: 'var(--space-4)',
+                                marginBottom: 'var(--space-3)',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
                               }}
                             >
                               {candidate.address}
@@ -357,7 +366,7 @@ export function RankingOnboardingScreen() {
                                     alignSelf: 'center',
                                   }}
                                 >
-                                  Saved — tap again to undo
+                                  Saved, tap again to undo
                                 </span>
                               ) : null}
                             </div>
@@ -376,7 +385,7 @@ export function RankingOnboardingScreen() {
           style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', maxWidth: 320 }}
         >
           <Button onClick={done}>
-            {rankedCount > 0 ? `Done — ${rankedCount} ranked` : 'Continue'}
+            {rankedCount > 0 ? `Done · ${rankedCount} ranked` : 'Continue'}
           </Button>
         </div>
       </div>

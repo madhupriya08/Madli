@@ -143,12 +143,12 @@ describe('RankingOnboardingScreen — deselect + Explore places', () => {
     const lovedButton = within(eatCard).getByRole('button', { name: 'Loved it' });
 
     await user.click(lovedButton);
-    expect(await within(eatCard).findByText('Saved — tap again to undo')).toBeInTheDocument();
+    expect(await within(eatCard).findByText('Saved, tap again to undo')).toBeInTheDocument();
     expect(rankMock).toHaveBeenCalledTimes(1);
 
     await user.click(lovedButton);
     expect(unrankMock).toHaveBeenCalledWith('eat-1');
-    expect(within(eatCard).queryByText('Saved — tap again to undo')).not.toBeInTheDocument();
+    expect(within(eatCard).queryByText('Saved, tap again to undo')).not.toBeInTheDocument();
   });
 
   it('switching from one tier to another re-ranks rather than undoing', async () => {
@@ -182,7 +182,7 @@ describe('RankingOnboardingScreen — Phase 6 §5: Skip for now moved to the top
     await user.click(screen.getByRole('button', { name: 'set persona user' }));
 
     const skipButton = await screen.findByRole('button', {
-      name: 'Skip for now — you can rank any place from its own page later',
+      name: 'Skip for now, you can rank any place from its own page later',
     });
     const eatHeading = await screen.findByRole('heading', { name: 'Places to eat' });
 
@@ -200,7 +200,7 @@ describe('RankingOnboardingScreen — Phase 6 §5: Skip for now moved to the top
     await screen.findByRole('heading', { name: 'Places to eat' });
 
     expect(
-      screen.getAllByText('Skip for now — you can rank any place from its own page later'),
+      screen.getAllByText('Skip for now, you can rank any place from its own page later'),
     ).toHaveLength(1);
   });
 
@@ -211,7 +211,7 @@ describe('RankingOnboardingScreen — Phase 6 §5: Skip for now moved to the top
 
     await user.click(
       screen.getByRole('button', {
-        name: 'Skip for now — you can rank any place from its own page later',
+        name: 'Skip for now, you can rank any place from its own page later',
       }),
     );
 

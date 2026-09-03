@@ -49,15 +49,15 @@ function writeAll(userId: string, items: RecentSearch[]) {
   }
 }
 
+// P14: dropped the full area name from the label ("Eat · Jubilee Hills ·
+// biryani" read as noise once someone had more than a couple of entries,
+// and the area is what "Eat"/"Explore" already implicitly means: nearby).
+// A typed search or vibe is the one thing worth keeping, since it is the
+// only part that actually tells two entries apart.
 function labelFor(search: SearchState): string {
   const doorLabel = search.door === 'eat' ? 'Eat' : 'Explore';
-  const area = search.areaText.trim() || 'Nearby';
-  // P12 §5/§7: a typed search ("biryani") is the most distinctive thing
-  // about that entry — without it, three different cravings in the same
-  // area collapse into one identical "Eat · Jubilee Hills" chip and the
-  // de-duplication below keeps only the last of them.
   const extra = search.queryText.trim() || search.vibes[0] || search.who || search.occasion || null;
-  return [doorLabel, area, extra].filter(Boolean).join(' · ');
+  return [doorLabel, extra].filter(Boolean).join(' · ');
 }
 
 /**
@@ -80,10 +80,10 @@ export function recordRecentSearch(userId: string, search: SearchState): void {
 }
 
 /**
- * The last five, newest first. Capped on read as well as on write: the
- * five-entry promise is what the screens print ("Your last 5 searches"), and
- * a stored blob from an older build — or one written by another tab — must
- * not quietly make that line a lie.
+ * The last five, newest first. Capped on read as well as on write: five is
+ * the promise every screen under "Recent searches" makes, and a stored
+ * blob from an older build (or one written by another tab) must not
+ * quietly break that promise.
  */
 export function listRecentSearches(userId: string, door?: Door): RecentSearch[] {
   if (!userId) return [];

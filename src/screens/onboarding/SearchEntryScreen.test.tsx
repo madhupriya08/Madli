@@ -263,7 +263,7 @@ describe('SearchEntryScreen — P12 §7: real recent searches', () => {
     render(<Harness />);
     await userEvent.click(screen.getByRole('button', { name: 'set persona user' }));
 
-    expect(await screen.findByText('Your last 5 searches')).toBeInTheDocument();
+    expect(await screen.findByText('Recent searches')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Area 6/ })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Area 1$/ })).not.toBeInTheDocument();
   });

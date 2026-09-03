@@ -87,7 +87,7 @@ function writeHideVisited(userId: string, value: boolean): void {
 }
 
 function buildShareText(columns: Column[]): string {
-  const lines = ['My ranked list — Madli'];
+  const lines = ['My ranked list · Madli'];
   for (const column of columns) {
     if (column.rows.length === 0) continue;
     lines.push('', column.label);
@@ -433,7 +433,7 @@ export function MyRankedListScreen() {
             size="sm"
             onClick={() => {
               navigator.clipboard?.writeText(buildShareText(columns)).catch(() => {});
-              show('Ranked list copied — paste it anywhere.');
+              show('Ranked list copied. Paste it anywhere.');
             }}
           >
             Share the list

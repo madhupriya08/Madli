@@ -37,7 +37,7 @@ export function GemOfTheTownPage() {
           }}
         >
           Ranked highly by locals, barely known outside the neighbourhood. That gap is the whole
-          point — a gem is a place locals rate far above its outside reputation.
+          point: a gem is a place locals rate far above its outside reputation.
         </p>
         <div style={{ maxWidth: 420, marginBottom: 'var(--space-6)' }}>
           <PickCard

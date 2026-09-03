@@ -119,7 +119,7 @@ describe('BookmarksScreen — S23 checklist', () => {
 
   it('adding a note on a catalogue bookmark saves it', async () => {
     render(<Harness />);
-    await userEvent.click(await screen.findByText('Add a note — why did you save this?'));
+    await userEvent.click(await screen.findByText('Add a note: why did you save this?'));
     await userEvent.type(screen.getByPlaceholderText('Why did you save this?'), 'Best haleem in town');
     await userEvent.click(screen.getByRole('button', { name: 'Save' }));
 

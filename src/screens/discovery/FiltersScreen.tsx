@@ -123,7 +123,7 @@ export function FiltersScreen() {
   ).length;
   const savedSummary =
     activeFilterCount === 0
-      ? 'Saved an empty set — every filter is cleared, which is a real starting point too.'
+      ? 'Saved an empty set. Every filter is cleared, which is a real starting point too.'
       : `Saved ${activeFilterCount} ${activeFilterCount === 1 ? 'filter' : 'filters'} to your account.`;
 
   const saveSet = async () => {

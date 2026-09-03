@@ -93,7 +93,7 @@ export function MapScreen() {
           : []
       }
       polyline={route?.path}
-      emptyLabel={destination ? undefined : 'No coordinates for this place yet — nothing to map.'}
+      emptyLabel={destination ? undefined : 'No coordinates for this place yet. Nothing to map.'}
     />
   );
 
@@ -113,7 +113,7 @@ export function MapScreen() {
             ? 'Travel time unavailable right now.'
             : destination
               ? 'Working out the route…'
-              : 'Drive time unavailable — this place has no coordinates yet.'}
+              : 'Drive time unavailable. This place has no coordinates yet.'}
       </p>
       {routeError ? (
         <p style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>

@@ -85,7 +85,7 @@ export function LandingPage() {
             maxWidth: 'var(--prose-max)',
           }}
         >
-          Madli ranks restaurants and places to visit by asking the people who actually live there —
+          Madli ranks restaurants and places to visit by asking the people who actually live there,
           not by whoever paid. Every pick comes with the one reason it beat the rest.
         </p>
         {/* All three the same weight, on purpose — matching the same call on
@@ -196,7 +196,7 @@ export function LandingPage() {
             }}
           />
           <span style={{ font: 'var(--type-evidence)', color: 'var(--evidence-text)' }}>
-            Search anywhere — deep local rankings today go as far as {areas.length} neighbourhoods
+            Search anywhere: deep local rankings today go as far as {areas.length} neighbourhoods
           </span>
         </div>
         <nav style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>

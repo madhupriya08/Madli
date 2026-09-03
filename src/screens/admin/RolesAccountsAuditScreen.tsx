@@ -57,7 +57,7 @@ function CreateAdminAccountForm() {
       return;
     }
     if (reason.trim().length === 0) {
-      setError('A written reason is required — it goes in the audit log.');
+      setError('A written reason is required. It goes in the audit log.');
       return;
     }
     setError(null);
@@ -96,7 +96,7 @@ function CreateAdminAccountForm() {
           marginBottom: 'var(--space-4)',
         }}
       >
-        Creates a brand-new account and grants it admin access directly — the
+        Creates a brand-new account and grants it admin access directly. The
         person does not sign up themselves. Recorded in the audit log below.
       </p>
       <form
@@ -116,7 +116,7 @@ function CreateAdminAccountForm() {
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          hint="At least 8 characters — share it with them out of band."
+          hint="At least 8 characters. Share it with them out of band."
           autoComplete="new-password"
         />
         <Input
@@ -225,7 +225,7 @@ export function RolesAccountsAuditScreen() {
             marginBottom: 'var(--space-3)',
           }}
         >
-          Read-only. Immutable — no edit or delete path exists, for any role.
+          Read-only. Immutable: no edit or delete path exists, for any role.
         </p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
           {auditLog.map((a) => (

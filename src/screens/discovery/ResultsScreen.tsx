@@ -176,8 +176,7 @@ export function ResultsScreen({ door }: { door: 'eat' | 'explore' }) {
                 marginBottom: 'var(--space-2)',
               }}
             >
-              Your last{' '}
-              {recentSearches.length === 1 ? 'search' : `${recentSearches.length} searches`}
+              Recent searches
             </h2>
             <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
               {recentSearches.map((r) => (

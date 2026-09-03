@@ -61,7 +61,7 @@ export function LogVisitTriggerScreen() {
           marginBottom: 'var(--space-4)',
         }}
       >
-        Ranked in {categoryName(place.categoryId)} — we&apos;ll compare it against the ones you
+        Ranked in {categoryName(place.categoryId)}. We&apos;ll compare it against the ones you
         already ranked there.
       </p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>

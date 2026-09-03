@@ -109,7 +109,7 @@ describe('RolesAccountsAuditScreen — Phase 7 §7: create another admin', () =>
     expect(createAdminAccount).not.toHaveBeenCalled();
   });
 
-  it('requires a written reason — it is what lands in the audit log', async () => {
+  it('requires a written reason: it is what lands in the audit log', async () => {
     const user = userEvent.setup();
     render(<Harness tier="superadmin" />);
     await user.click(screen.getByRole('button', { name: 'set admin superadmin' }));
@@ -120,7 +120,7 @@ describe('RolesAccountsAuditScreen — Phase 7 §7: create another admin', () =>
     await user.click(screen.getByRole('button', { name: 'Create admin account' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'A written reason is required — it goes in the audit log.',
+      'A written reason is required. It goes in the audit log.',
     );
     expect(createAdminAccount).not.toHaveBeenCalled();
   });

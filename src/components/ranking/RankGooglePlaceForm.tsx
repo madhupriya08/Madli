@@ -165,7 +165,7 @@ export function RankGooglePlaceForm({ candidate, onDone }: RankGooglePlaceFormPr
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
         <p style={{ font: 'var(--type-body)', margin: 0 }}>
-          First, tell us if you live here or are visiting — we keep local and visitor rankings
+          First, tell us if you live here or are visiting. We keep local and visitor rankings
           apart.
         </p>
         <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
@@ -186,7 +186,7 @@ export function RankGooglePlaceForm({ candidate, onDone }: RankGooglePlaceFormPr
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
         <p style={{ font: 'var(--type-body)', margin: 0 }}>Which do you prefer?</p>
         <p style={{ font: 'var(--type-caption)', color: 'var(--text-muted)', margin: 0 }}>
-          Comparison {comparisonStep} of {targets.second ? 2 : 1} — this is what places{' '}
+          Comparison {comparisonStep} of {targets.second ? 2 : 1}: this is what places{' '}
           {candidate.name} in your list.
         </p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>

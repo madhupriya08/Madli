@@ -2,16 +2,16 @@ import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { AppShell } from '../layout/AppShell';
+import { Badge } from '../../components/core/Badge';
 import { Button } from '../../components/core/Button';
 import { Icon } from '../../components/core/Icon';
 import { SearchField } from '../../components/forms/SearchField';
-import { Switch } from '../../components/forms/Switch';
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { useToast } from '../../components/feedback/ToastProvider';
 import { usePersona } from '../../dev/PersonaContext';
 import { DEFAULT_CENTER, haversineMeters, useSearch } from '../../lib/searchState';
 import { areas, nearestArea, type Area } from '../../fixtures/areas';
-import { fetchHomeArea, setHomeAreaId, setHomeAreaText } from '../../data/homeArea';
+import { fetchHomeArea } from '../../data/homeArea';
 import { hasMapsApiKey } from '../../lib/googleMaps';
 import { setResidentStatus } from '../../data/googleRankings';
 import {
@@ -65,10 +65,12 @@ interface AreaNavState {
  * actually elsewhere) is reverse-geocoded to its own real name instead of
  * being mislabelled as whichever Hyderabad neighbourhood is least-far away.
  *
- * "Set as my home area" is the one guest/user difference. It writes to
- * `profiles.home_area_id`, real persistence a signed-in person carries into
- * their next visit; guests have no profile row to hold it, so they re-pick
- * every time — the switch is simply absent for them, not disabled.
+ * P14: "Set as home" used to be a switch on every single row of both lists
+ * below — most of which a person would never touch again. It now lives
+ * on Home instead, next to whichever area is actually current, and this
+ * screen only reads that value (via homeAreaQuery/currentHomeAreaId) to
+ * power the shortcut button and to skip the local/visitor ask when the
+ * area picked here already is the marked home.
  */
 export function PickAreaScreen() {
   const [query, setQuery] = useState('');
@@ -77,9 +79,6 @@ export function PickAreaScreen() {
   const [suggestions, setSuggestions] = useState<AreaSuggestion[]>([]);
   const [suggestLoading, setSuggestLoading] = useState(false);
   const [resolvingPlaceId, setResolvingPlaceId] = useState<string | null>(null);
-  const [homeOverride, setHomeOverride] = useState<
-    { areaId: string | null; areaText: string | null } | undefined
-  >(undefined);
   const [goingHome, setGoingHome] = useState(false);
   const navigate = useNavigate();
   const routerLocation = useLocation();
@@ -94,12 +93,10 @@ export function PickAreaScreen() {
     enabled: persona !== 'guest' && !!userId,
     retry: false,
   });
-  // Reflects Supabase directly, not a synced copy: the query result until a
-  // toggle actually succeeds, then whatever that toggle just wrote. Nothing
-  // here is optimistic ahead of a real write landing. Home is either the
-  // seeded-area id or a live-searched area's text, never both, so setting
-  // either one always overrides the whole pair rather than just one field.
-  const currentHome = homeOverride ?? homeAreaQuery.data ?? { areaId: null, areaText: null };
+  // Reflects Supabase directly. Home is either the seeded-area id or a
+  // live-searched area's text, never both — set from HomeScreen now, not
+  // from a row in either list below (see this screen's own doc comment).
+  const currentHome = homeAreaQuery.data ?? { areaId: null, areaText: null };
   const currentHomeAreaId = currentHome.areaId;
   const currentHomeAreaText = currentHome.areaText;
 
@@ -151,7 +148,7 @@ export function PickAreaScreen() {
   const proceedAfterArea = (isHome: boolean, areaText: string) => {
     if (isHome && persona !== 'guest') {
       setResidentStatus('local', areaText).catch(() => {
-        show('Could not save that you live here — you can still answer it from your profile.');
+        show('Could not save that you live here. You can still answer it from your profile.');
       });
       navigate(next);
       return;
@@ -243,29 +240,6 @@ export function PickAreaScreen() {
     }
   };
 
-  const toggleHome = async (area: Area, on: boolean) => {
-    const value = on ? area.id : null;
-    try {
-      await setHomeAreaId(userId, value);
-      setHomeOverride({ areaId: value, areaText: null });
-    } catch (err) {
-      show(err instanceof Error ? err.message : 'Could not save your home area.');
-    }
-  };
-
-  // The live-search counterpart of toggleHome, for a real place outside the
-  // eight seeded neighbourhoods — the bug this closes: there was previously
-  // no "Set as home" affordance anywhere in this list at all.
-  const toggleHomeText = async (suggestion: AreaSuggestion, on: boolean) => {
-    const value = on ? suggestion.label : null;
-    try {
-      await setHomeAreaText(userId, value);
-      setHomeOverride({ areaId: null, areaText: value });
-    } catch (err) {
-      show(err instanceof Error ? err.message : 'Could not save your home area.');
-    }
-  };
-
   const requestLocation = () => {
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
       setLocationDeclined(true);
@@ -346,7 +320,7 @@ export function PickAreaScreen() {
       >
         <p style={{ font: 'var(--type-body)', color: 'var(--text-body)' }}>
           Every ranking Madli shows is scoped to a neighbourhood. Use your location, or pick one
-          below — either way takes you straight in.
+          below, either way takes you straight in.
         </p>
 
         <Button
@@ -369,7 +343,7 @@ export function PickAreaScreen() {
           >
             {goingHome
               ? 'Finding your home area…'
-              : `Home — ${homeArea?.name ?? currentHomeAreaText}`}
+              : `Home · ${homeArea?.name ?? currentHomeAreaText}`}
           </Button>
         ) : null}
 
@@ -384,7 +358,7 @@ export function PickAreaScreen() {
           {filtered.length === 0 ? (
             query.trim() && hasMapsApiKey() ? (
               <p style={{ font: 'var(--type-body-sm)', color: 'var(--text-muted)' }}>
-                None of our eight home-turf neighbourhoods match that — search below for any other
+                None of our eight home-turf neighbourhoods match that. Search below for any other
                 place.
               </p>
             ) : (
@@ -433,13 +407,7 @@ export function PickAreaScreen() {
                       {a.coverageDepthLabel}
                     </div>
                   </button>
-                  {persona !== 'guest' ? (
-                    <Switch
-                      checked={currentHomeAreaId === a.id}
-                      onChange={(v) => void toggleHome(a, v)}
-                      label="Home"
-                    />
-                  ) : null}
+                  {currentHomeAreaId === a.id ? <Badge tone="teal">Home</Badge> : null}
                 </li>
               ))}
             </ul>
@@ -455,7 +423,7 @@ export function PickAreaScreen() {
               <p style={{ font: 'var(--type-body-sm)', color: 'var(--text-muted)' }}>Searching…</p>
             ) : suggestions.length === 0 ? (
               <p style={{ font: 'var(--type-body-sm)', color: 'var(--text-muted)' }}>
-                Nothing found yet — keep typing.
+                Nothing found yet. Keep typing.
               </p>
             ) : (
               <ul
@@ -495,13 +463,7 @@ export function PickAreaScreen() {
                     >
                       {resolvingPlaceId === s.placeId ? 'Finding it…' : s.label}
                     </button>
-                    {persona !== 'guest' ? (
-                      <Switch
-                        checked={currentHomeAreaText === s.label}
-                        onChange={(v) => void toggleHomeText(s, v)}
-                        label="Home"
-                      />
-                    ) : null}
+                    {currentHomeAreaText === s.label ? <Badge tone="teal">Home</Badge> : null}
                   </li>
                 ))}
               </ul>

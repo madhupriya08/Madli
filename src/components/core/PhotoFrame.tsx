@@ -83,7 +83,7 @@ export function PhotoFrame({
               color: 'var(--slate-400)',
             }}
           >
-            Photo — {label || 'placeholder'}
+            Photo: {label || 'placeholder'}
           </span>
         </div>
       )}

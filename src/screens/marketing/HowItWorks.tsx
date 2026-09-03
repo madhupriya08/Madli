@@ -29,11 +29,11 @@ export function HowItWorksPage() {
           }}
         >
           Every place on Madli is ranked by locals, not by a star average. When someone logs a
-          visit, we run a quick binary comparison against their existing list — that's the whole
+          visit, we run a quick binary comparison against their existing list. That's the whole
           mechanic. Three picks come out the other end, each with the reason a local gave for it.
         </p>
         <p style={{ font: 'var(--type-body)', color: 'var(--text-body)' }}>
-          We print the gap between picks honestly — a close call is labelled a close call, and a
+          We print the gap between picks honestly: a close call is labelled a close call, and a
           place with fewer than about 50 local ratings is never called a pick at all.
         </p>
       </section>

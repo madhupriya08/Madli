@@ -36,7 +36,7 @@ export function PrivacySettingsScreen() {
       >
         <Switch
           label="Location history"
-          description="What Madli has recorded from your searches and logged visits — this is your data, viewable here"
+          description="What Madli has recorded from your searches and logged visits. This is your data, viewable here"
           checked={shareLocationHistory}
           onChange={setShareLocationHistory}
         />
@@ -58,7 +58,7 @@ export function PrivacySettingsScreen() {
             }}
           >
             This deletes your ranked list, bookmarks, and plans permanently. Rankings recalculate
-            without you — this cannot be undone.
+            without you. This cannot be undone.
           </p>
           <Button variant="secondary" onClick={() => setShowConfirm(true)}>
             Delete my account

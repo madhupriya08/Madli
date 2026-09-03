@@ -240,7 +240,7 @@ describe('MyRankedListScreen — matches the S31 design handoff', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Share the list' }));
     expect(writeText).toHaveBeenCalledWith(expect.stringContaining('Cafe Bahar'));
-    expect(await screen.findByText('Ranked list copied — paste it anywhere.')).toBeInTheDocument();
+    expect(await screen.findByText('Ranked list copied. Paste it anywhere.')).toBeInTheDocument();
   });
 
   it('renumbers visible rows sequentially, closing the gap a hidden disliked entry leaves in the raw position', async () => {

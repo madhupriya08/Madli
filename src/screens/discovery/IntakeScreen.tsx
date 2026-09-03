@@ -102,7 +102,7 @@ export function IntakeScreen() {
               it (see `toggle` above); this says so rather than leaving
               people to discover it. */}
           <p style={{ font: 'var(--type-caption)', color: 'var(--text-faint)' }}>
-            Optional — tap a chip again to clear it, or skip this step entirely.
+            Optional. Tap a chip again to clear it, or skip this step entirely.
           </p>
           <Tabs
             size="sm"

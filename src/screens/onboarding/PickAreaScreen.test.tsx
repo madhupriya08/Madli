@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {
   MemoryRouter,
@@ -251,29 +251,25 @@ describe('PickAreaScreen — S8, merged', () => {
     expect(screen.getByText('Jubilee Hills')).toBeInTheDocument();
   });
 
-  it('offers "Set as my home area" for a signed-in persona and persists the choice', async () => {
+  it('P14: shows a read-only "Home" badge next to whichever seeded row is already marked home — no toggle here any more', async () => {
+    homeAreaId = '00000000-0000-0000-0000-0000000000a1'; // Jubilee Hills
     render(<Harness />);
     await userEvent.click(screen.getByRole('button', { name: 'set persona user' }));
 
     const jubileeRow = (await screen.findByText('Jubilee Hills')).closest('li')!;
-    const homeSwitch = within(jubileeRow).getByRole('switch', { name: 'Home' });
-    expect(homeSwitch).not.toBeChecked();
+    expect(within(jubileeRow).getByText('Home')).toBeInTheDocument();
+    expect(within(jubileeRow).queryByRole('switch')).not.toBeInTheDocument();
 
-    await userEvent.click(homeSwitch);
-    await waitFor(() =>
-      expect(updateSpy).toHaveBeenCalledWith({
-        home_area_id: expect.any(String),
-        home_area_text: null,
-      }),
-    );
-    await waitFor(() => expect(homeSwitch).toBeChecked());
+    const banjaraRow = screen.getByText('Banjara Hills').closest('li')!;
+    expect(within(banjaraRow).queryByText('Home')).not.toBeInTheDocument();
   });
 
-  it('has no home-area toggle at all for a guest', async () => {
+  it('has no home-area badge or toggle at all for a guest', async () => {
     render(<Harness />);
     await userEvent.click(screen.getByRole('button', { name: 'set persona guest' }));
     await screen.findByText('Jubilee Hills');
     expect(screen.queryByRole('switch', { name: 'Home' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Home')).not.toBeInTheDocument();
   });
 
   describe('not restricted to Hyderabad', () => {
@@ -304,12 +300,13 @@ describe('PickAreaScreen — S8, merged', () => {
       expect(state.countryCode).toBe('IN');
     });
 
-    // P11 §4: the bug this closes — a live (non-seeded) search result had no
-    // "Set as home" affordance anywhere, even though profiles.home_area_text
-    // already existed for exactly this case (a real place with no seeded
-    // `areas` row to point a `home_area_id` FK at).
-    it('offers "Set as home" on a live search result too, and it persists to home_area_text', async () => {
+    // P14: "Set as home" now lives on Home, not on a row in this list — a
+    // live (non-seeded) search result still shows the read-only "Home"
+    // badge when it is already the marked home (profiles.home_area_text,
+    // the case with no seeded `areas` row to point a `home_area_id` FK at).
+    it('shows the read-only "Home" badge on a live search result too, when it is already marked home', async () => {
       hasMapsApiKeyMock.mockReturnValue(true);
+      homeAreaText = 'Bandra, Mumbai, Maharashtra, India';
       suggestAreasMock.mockResolvedValue([
         { placeId: 'place-mumbai-bandra', label: 'Bandra, Mumbai, Maharashtra, India' },
       ]);
@@ -321,20 +318,8 @@ describe('PickAreaScreen — S8, merged', () => {
       const bandraRow = (await screen.findByText('Bandra, Mumbai, Maharashtra, India')).closest(
         'li',
       )!;
-      const homeSwitch = within(bandraRow).getByRole('switch', { name: 'Home' });
-      expect(homeSwitch).not.toBeChecked();
-
-      await userEvent.click(homeSwitch);
-      await waitFor(() =>
-        expect(updateSpy).toHaveBeenCalledWith({
-          home_area_id: null,
-          home_area_text: 'Bandra, Mumbai, Maharashtra, India',
-        }),
-      );
-      await waitFor(() => expect(homeSwitch).toBeChecked());
-      // Still on this screen — toggling home is independent of picking the
-      // area, exactly like the seeded-list row above.
-      expect(screen.queryByRole('heading', { name: 'Where to start?' })).not.toBeInTheDocument();
+      expect(within(bandraRow).getByText('Home')).toBeInTheDocument();
+      expect(within(bandraRow).queryByRole('switch')).not.toBeInTheDocument();
     });
 
     it('does not offer live search at all when Maps is not configured', async () => {
@@ -431,7 +416,7 @@ describe('PickAreaScreen — P13 §3/§4: a shortcut to home, and no redundant r
     render(<Harness />);
     await userEvent.click(screen.getByRole('button', { name: 'set persona user' }));
 
-    await userEvent.click(await screen.findByRole('button', { name: 'Home — Jubilee Hills' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Home · Jubilee Hills' }));
 
     expect(await screen.findByRole('heading', { name: 'Where to start?' })).toBeInTheDocument();
     const state = probe();
@@ -452,7 +437,7 @@ describe('PickAreaScreen — P13 §3/§4: a shortcut to home, and no redundant r
     render(<Harness />);
     await userEvent.click(screen.getByRole('button', { name: 'set persona user' }));
 
-    await userEvent.click(await screen.findByRole('button', { name: 'Home — Bandra West' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Home · Bandra West' }));
 
     expect(await screen.findByRole('heading', { name: 'Where to start?' })).toBeInTheDocument();
     const state = probe();

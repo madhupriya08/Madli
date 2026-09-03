@@ -306,7 +306,7 @@ function CatalogueDetail({
   const navigate = useNavigate();
   const [showSignupGate, setShowSignupGate] = useState(false);
   const cat = categoryName(place.categoryId);
-  const rankLabel = `#2 in ${place.neighborhood} — ${cat}`;
+  const rankLabel = `#2 in ${place.neighborhood} · ${cat}`;
   const handleBridge = () => {
     if (persona === 'guest') {
       setShowSignupGate(true);
@@ -450,7 +450,7 @@ function CatalogueDetail({
                 }}
               >
                 <Icon name="map" size={26} />
-                <span style={{ font: 'var(--type-label)' }}>Map placeholder — open directions</span>
+                <span style={{ font: 'var(--type-label)' }}>Map placeholder, open directions</span>
                 <span style={{ font: 'var(--type-evidence)', color: 'var(--evidence-text)' }}>
                   Real geography is deliberately not drawn
                 </span>
@@ -581,7 +581,7 @@ function CatalogueDetail({
                       </div>
                       <span style={{ font: 'var(--type-body-sm)', color: 'var(--text-body)' }}>
                         {place.dishes
-                          ? `${place.dishes} dishes mentioned — sign up to see them`
+                          ? `${place.dishes} dishes mentioned. Sign up to see them`
                           : 'Sign up to see what people order'}
                       </span>
                       <Button variant="accent" size="sm" onClick={() => navigate('/signup')}>
