@@ -38,6 +38,10 @@ vi.mock('../../lib/supabaseClient', () => ({
   },
 }));
 
+vi.mock('../../data/placeHistory', () => ({
+  useAiPlaceHistory: () => ({ data: null }),
+}));
+
 vi.mock('../../data/hooks', () => ({
   useBookmarks: () => ({ data: [] }),
   useAddBookmark: () => ({ mutate: vi.fn() }),

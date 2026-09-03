@@ -253,6 +253,19 @@ access: `curl "https://wybpprdunzrzyzsbiarv.supabase.co/functions/v1/share-previ
 Set the `APP_URL` function secret once Phase 2/3 has a real deployed frontend
 URL (falls back to a placeholder otherwise).
 
+A second function, `supabase/functions/place-history/`: PlaceDetailScreen's
+AI-generated history/trivia fallback (P14) — Google's own editorial summary
+is tried first, client-side, and needs no server call at all; this only runs
+when a place has none. Called from the client via
+`supabase.functions.invoke('place-history', ...)` (`src/data/placeHistory.ts`),
+POST + JSON body, `verify_jwt=false` (a Guest reading a place page benefits
+from this too, and it touches no per-user data). Caches its output into
+`place_history_cache` using the service-role key, read back with the anon
+key. **Inert without the `ANTHROPIC_API_KEY` function secret set** — returns
+`{ history: null }` rather than erroring, so this is safe to deploy before
+that key exists; set it with `supabase secrets set ANTHROPIC_API_KEY=...`
+once you have one.
+
 ## Open items carried into Phase 2 (see `PHASE_2_HANDOFF.md` for full detail)
 
 The six items below are genuinely unresolved in the material available to

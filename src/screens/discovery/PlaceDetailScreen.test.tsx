@@ -75,6 +75,10 @@ vi.mock('../../data/googleRankings', () => ({
   useRankingCounts: () => ({ data: {} }),
 }));
 
+vi.mock('../../data/placeHistory', () => ({
+  useAiPlaceHistory: () => ({ data: null }),
+}));
+
 // P13 §8's own regression test needs a real (mocked) Google-sourced branch
 // to exercise — this file otherwise only ever renders catalogue fixtures.
 const GOOGLE_PLACE = {

@@ -8,6 +8,7 @@ import { RankBadge } from '../../components/trust/RankBadge';
 import { RankGap } from '../../components/trust/RankGap';
 import { SampleSize } from '../../components/trust/SampleSize';
 import { CommunityRankBlock } from '../../components/trust/CommunityRankBlock';
+import { useAiPlaceHistory } from '../../data/placeHistory';
 import { ReasonNote } from '../../components/trust/ReasonNote';
 import { Badge } from '../../components/core/Badge';
 import { Button } from '../../components/core/Button';
@@ -742,6 +743,22 @@ function GoogleDetail({
   // Computed once: the "Google reviews" card below checks against it so the
   // same sentence is not printed twice on one page (P12 §8).
   const reason = pickReason(place, vibe);
+  // P14: Google's editorialSummary, when it exists, is already surfacing as
+  // "Why this one" above (pickReason's first-priority branch always returns
+  // it) — a real, separate History section here would just repeat that same
+  // sentence under a second heading. The AI fallback only runs, and only
+  // ever shows, when there is nothing from Google to begin with.
+  const aiHistory = useAiPlaceHistory(
+    !place.editorialSummary
+      ? {
+          googlePlaceId: place.placeId,
+          name: place.name,
+          types: place.types,
+          address: place.address,
+          areaText,
+        }
+      : null,
+  );
 
   const openDirections = () => {
     const { lat, lng } = place.location;
@@ -913,18 +930,22 @@ function GoogleDetail({
               <p style={{ margin: 0, font: 'var(--type-label)', color: 'var(--text-heading)' }}>
                 {ratingLine ?? 'No Google rating yet'}
               </p>
-              {/* P12 §8: "Why this one" above is pickReason(), whose first
-                  choice is this very editorial summary — so a place that has
-                  one printed the identical sentence twice on one screen,
-                  under two different headings. Only shown here when it is
-                  not already the reason. */}
-              {place.editorialSummary && reason !== place.editorialSummary ? (
-                <p style={{ margin: 0, font: 'var(--type-body-sm)', color: 'var(--text-body)' }}>
-                  {place.editorialSummary}
-                </p>
-              ) : null}
             </>,
           )}
+
+          {aiHistory.data
+            ? sectionCard(
+                <>
+                  {eyebrow('History & trivia')}
+                  <p style={{ margin: 0, font: 'var(--type-body)', color: 'var(--text-body)' }}>
+                    {aiHistory.data}
+                  </p>
+                  <p style={{ margin: 0, font: 'var(--type-caption)', color: 'var(--text-faint)' }}>
+                    AI-generated, unverified
+                  </p>
+                </>,
+              )
+            : null}
 
           <button
             type="button"
