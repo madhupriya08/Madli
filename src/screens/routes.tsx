@@ -4,7 +4,6 @@ import { screenRegistry } from './registry';
 import { LandingPage } from './marketing/LandingPage';
 import { HowItWorksPage } from './marketing/HowItWorks';
 import { GemOfTheTownPage } from './marketing/GemOfTheTown';
-import { NeighbourhoodPage } from './marketing/NeighbourhoodPage';
 import { LegalPage } from './marketing/LegalPage';
 
 import { SplashScreen } from './onboarding/SplashScreen';
@@ -48,7 +47,6 @@ const elementById: Record<string, ReactNode> = {
   S1: <LandingPage />,
   S2: <HowItWorksPage />,
   S3: <GemOfTheTownPage />,
-  S4: <NeighbourhoodPage />,
   S5: <LegalPage />,
 
   S6: <SplashScreen />,

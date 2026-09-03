@@ -210,6 +210,16 @@ export function RankingOnboardingScreen() {
               marginTop: 'var(--space-2)',
             }}
           >
+            Local rankings carry the most weight, on purpose: it is what surfaces real gems
+            outsiders never hear about, not just the famous names.
+          </p>
+          <p
+            style={{
+              font: 'var(--type-body-sm)',
+              color: 'var(--text-muted)',
+              marginTop: 'var(--space-2)',
+            }}
+          >
             Entirely optional, and there is no minimum. Skip it and everything still works.
           </p>
           <button

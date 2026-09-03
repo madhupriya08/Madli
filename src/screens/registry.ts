@@ -11,6 +11,13 @@
 // app any more, so there's nothing left for that group to hold. The 'owner'
 // persona itself was retired alongside it (src/dev/PersonaContext.tsx) since
 // nothing in the app treats it differently from 'user' any more.
+// P14: S4 (Neighbourhood page), S25/S26/S27 (Log a visit — trigger/
+// comparison/landed) were removed the same way, once the seed catalogue
+// they were built on was retired. S4 was a per-fixed-neighbourhood SEO page
+// enumerated from the eight seeded areas, with nothing else in the app
+// linking to it; S25-27 was a pairwise ranking mechanic that only ever
+// understood the 17 seeded places (RankGooglePlaceForm covers the same
+// ground for any real place, catalogue or not).
 // The handoff's own numbering is kept for every other screen. Drives the dev
 // harness's persona/state switcher and "All screens" tray (§7 of the Phase 2
 // prompt) and the router in routes.tsx. `states` lists the variants that
@@ -56,16 +63,8 @@ export const screenRegistry: ScreenMeta[] = [
     name: 'Gem of the town',
     path: '/gem-of-the-town',
     group: 'Marketing',
-    states: ['default', 'new gem'],
+    states: ['default'],
     roles: 'All',
-  },
-  {
-    id: 'S4',
-    name: 'Neighbourhood page',
-    path: '/neighbourhoods/:area',
-    group: 'Marketing',
-    states: ['default', 'empty'],
-    roles: 'Guest, User',
   },
   {
     id: 'S5',

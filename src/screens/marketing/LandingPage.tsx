@@ -1,8 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { MarketingShell } from '../layout/MarketingShell';
 import { Button } from '../../components/core/Button';
-import { places } from '../../fixtures/places';
-import { areas } from '../../fixtures/areas';
 import { logEvent } from '../../lib/analytics';
 
 // S1. Ported from the prototype's own S1 block (design_handoff_madli/
@@ -73,7 +71,7 @@ export function LandingPage() {
             color: 'var(--teal-600)',
           }}
         >
-          {areas.length} neighbourhoods, ranked by the people who live there
+          Ranked by the people who actually live there
         </span>
         <h1 style={{ font: 'var(--type-display)', maxWidth: '15ch', textWrap: 'pretty' }}>
           Three picks. One reason each.
@@ -112,8 +110,36 @@ export function LandingPage() {
           </Button>
         </div>
         <span style={{ font: 'var(--type-evidence)', color: 'var(--evidence-text)' }}>
-          {places.length} places ranked · no account needed to search
+          No account needed to search
         </span>
+      </section>
+
+      {/* P14: "so please do rank the places to allow all users to really
+          experience the real gems of the town" — the incentive for why
+          ranking matters, stated where someone first lands, not buried in
+          the ranking flow itself. Local rankings get priority weight; see
+          GemOfTheTownPage for what this produces once enough exist. */}
+      <section style={{ ...SECTION, paddingTop: 0, paddingBottom: 0 }}>
+        <div
+          style={{
+            padding: 'var(--space-6)',
+            background: 'var(--teal-50)',
+            border: '1px solid var(--teal-100)',
+            borderRadius: 'var(--radius-lg)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 6,
+          }}
+        >
+          <span style={{ font: 'var(--type-h4)', color: 'var(--text-heading)' }}>
+            Every rank surfaces the gems, not just the famous names
+          </span>
+          <p style={{ font: 'var(--type-body)', color: 'var(--text-body)', maxWidth: '60ch' }}>
+            Local rankings carry the most weight, on purpose: the whole point is finding the
+            places locals love that outsiders never hear about. Rank a few favourites and you're
+            helping surface the next one.
+          </p>
+        </div>
       </section>
 
       <section
@@ -196,7 +222,7 @@ export function LandingPage() {
             }}
           />
           <span style={{ font: 'var(--type-evidence)', color: 'var(--evidence-text)' }}>
-            Search anywhere: deep local rankings today go as far as {areas.length} neighbourhoods
+            Search anywhere: deep local rankings grow with every place someone ranks
           </span>
         </div>
         <nav style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>

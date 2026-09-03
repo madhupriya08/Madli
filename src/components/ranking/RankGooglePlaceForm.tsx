@@ -39,20 +39,19 @@ interface RankGooglePlaceFormProps {
 }
 
 /**
- * The ranking mechanic (fn_rank_google_place) applied to one real place,
- * outside the onboarding list it was originally built for — reused here so
- * "I've been here" on a real (Google-sourced) place detail page, and a
- * post-visit nudge for one, both write a real ranking rather than routing
- * through S25-27's pairwise screens, which only understand the 17 seeded
- * catalogue places.
+ * The ranking mechanic (fn_rank_google_place) applied to one real place —
+ * shared by "I've been here" on a place detail page, the post-visit nudge,
+ * and the ranking-onboarding list, so all three write through the same
+ * table (google_place_rankings) rather than forking the mechanic per entry
+ * point. (The retired catalogue-only S25-27 flow used to be the other half
+ * of this split; it is gone, this is the only ranking path left.)
  *
  * P12 §9: it asks two things now, not one. First "how was it" — the three
  * tiers in the design's own Rank-this-place card. Then, when the person
  * already has comparable places ranked, "which do you prefer" against their
  * existing list *in the same category* (pickGoogleComparisonTargets), which
  * is what actually decides where the new place lands rather than dropping
- * it at the bottom of its tier every time. Same shape as the catalogue's
- * S26 comparison, on the table that can hold a Google place.
+ * it at the bottom of its tier every time.
  */
 export function RankGooglePlaceForm({ candidate, onDone }: RankGooglePlaceFormProps) {
   const { show } = useToast();

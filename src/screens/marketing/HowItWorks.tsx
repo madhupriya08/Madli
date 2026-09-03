@@ -1,14 +1,13 @@
 import { MarketingShell } from '../layout/MarketingShell';
-import { PickCard } from '../../components/trust/PickCard';
-import { places } from '../../fixtures/places';
-import { categoryName } from '../../fixtures/categories';
-import { placePhotoUrl } from '../../lib/placePhoto';
 
-// S2: placed before signup on purpose — the mechanic is the pitch. The live
-// PickCard row here is the same component the app uses; what's described is
-// what ships.
+// S2: placed before signup on purpose — the mechanic is the pitch.
+//
+// P14: this used to show 3 real PickCards sampled from the seed catalogue,
+// so "what's described is what ships" was literally true. With the
+// catalogue retired there is no fixed sample to draw from any more — the
+// two paragraphs below carry the pitch on their own now rather than showing
+// an empty grid where the example cards used to be.
 export function HowItWorksPage() {
-  const sample = places.filter((p) => p.type === 'eat' && p.locals >= 50).slice(0, 3);
   return (
     <MarketingShell>
       <section
@@ -36,40 +35,6 @@ export function HowItWorksPage() {
           We print the gap between picks honestly: a close call is labelled a close call, and a
           place with fewer than about 50 local ratings is never called a pick at all.
         </p>
-      </section>
-      <section
-        style={{
-          maxWidth: 'var(--content-max)',
-          margin: '0 auto',
-          padding: '0 var(--gutter) var(--section-y)',
-        }}
-      >
-        <div
-          style={{
-            display: 'grid',
-            gap: 'var(--space-5)',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-          }}
-        >
-          {sample.map((p, i) => (
-            <PickCard
-              key={p.id}
-              rank={(i + 1) as 1 | 2 | 3}
-              name={p.name}
-              category={categoryName(p.categoryId)}
-              neighborhood={p.neighborhood}
-              priceLevel={p.priceLevel}
-              reason={p.reason}
-              gem={p.gem}
-              gapTone={p.gapTone ?? 'clear'}
-              gapPoints={p.gapPoints ?? undefined}
-              locals={p.locals}
-              visitors={p.visitors}
-              photoSrc={placePhotoUrl(p.slug)}
-              photoLabel={p.name}
-            />
-          ))}
-        </div>
       </section>
     </MarketingShell>
   );
