@@ -6,7 +6,6 @@ import { SearchField } from '../../components/forms/SearchField';
 import { Button } from '../../components/core/Button';
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { usePersona } from '../../dev/PersonaContext';
-import { searchPlacesByName, placeByGooglePlaceId } from '../../fixtures/places';
 import { searchPlacesByQuery, type GoogleCandidate } from '../../lib/placesSearch';
 import { hasMapsApiKey } from '../../lib/googleMaps';
 import { Tag } from '../../components/core/Tag';
@@ -21,18 +20,13 @@ import { CUISINE_OPTIONS, useSearch, type SearchState } from '../../lib/searchSt
 //
 // Phase 6 §2 fix: submitting used to ignore the typed text outright and
 // navigate to whatever generic filtered results were already in search
-// state — so a query for a real, seeded place name returned unrelated
-// results (or nothing, on a fresh session with no filters set at all). A
-// real name search against the catalogue now drives submit directly.
+// state — so a query for a real place name returned unrelated results (or
+// nothing, on a fresh session with no filters set at all). A real name
+// search now drives submit directly.
 //
-// Phase 8 §5: catalogue-only meant a search for any real place outside the
-// 17 seeded ones came back "No matches" — this now also searches live
-// Google Places, unrestricted by door (a name search should find a place
-// whether it's an Eat or Explore door pick, or neither). Catalogue matches
-// still surface first and instantly (no network round trip, and they carry
-// real ranking/reason data a bare Google result doesn't) — Google results
-// that resolve back to one of those catalogue entries are de-duplicated
-// rather than shown twice.
+// Phase 8 §5 / P14: a name search runs entirely against live Google Places
+// now — the seeded catalogue this used to check first (and de-duplicate
+// Google results against) is retired.
 export function SearchEntryScreen() {
   const [query, setQuery] = useState('');
   const [submittedQuery, setSubmittedQuery] = useState<string | null>(null);
@@ -69,11 +63,6 @@ export function SearchEntryScreen() {
   // and kebab" line that used to sit here pretending to be history.
   const recentSearches = listRecentSearches(userId);
 
-  const localMatches = submittedQuery ? searchPlacesByName(submittedQuery) : [];
-  const localGooglePlaceIds = new Set(
-    localMatches.map((p) => p.googlePlaceId).filter((id): id is string => id !== null),
-  );
-
   const googleSearch = useQuery({
     queryKey: ['placeSearch', submittedQuery, effectiveCenter.lat, effectiveCenter.lng],
     queryFn: () => searchPlacesByQuery(submittedQuery!, effectiveCenter),
@@ -81,16 +70,13 @@ export function SearchEntryScreen() {
     staleTime: 5 * 60 * 1000,
     retry: false,
   });
-  const googleMatches = (googleSearch.data ?? []).filter(
-    (c) => !localGooglePlaceIds.has(c.placeId),
-  );
+  const googleMatches = googleSearch.data ?? [];
 
-  const totalMatches = localMatches.length + googleMatches.length;
+  const totalMatches = googleMatches.length;
   const stillSearching = Boolean(submittedQuery) && googleSearch.isLoading;
 
   function openCandidate(candidate: GoogleCandidate) {
-    const catalogue = placeByGooglePlaceId(candidate.placeId);
-    navigate(`/places/${encodeURIComponent(catalogue ? catalogue.slug : candidate.placeId)}`);
+    navigate(`/places/${encodeURIComponent(candidate.placeId)}`);
   }
 
   return (
@@ -162,26 +148,6 @@ export function SearchEntryScreen() {
                   gap: 'var(--space-2)',
                 }}
               >
-                {localMatches.map((place) => (
-                  <li key={place.id}>
-                    <button
-                      onClick={() => navigate(`/places/${encodeURIComponent(place.slug)}`)}
-                      style={{
-                        width: '100%',
-                        background: 'none',
-                        border: '1px solid var(--border-hairline)',
-                        borderRadius: 'var(--radius-md)',
-                        padding: 'var(--space-4)',
-                        textAlign: 'left',
-                        cursor: 'pointer',
-                        font: 'var(--type-body)',
-                        color: 'var(--text-heading)',
-                      }}
-                    >
-                      {place.name} · {place.neighborhood}
-                    </button>
-                  </li>
-                ))}
                 {googleMatches.map((candidate) => (
                   <li key={candidate.placeId}>
                     <button

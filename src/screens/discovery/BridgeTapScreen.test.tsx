@@ -70,7 +70,23 @@ const NEARBY_STOP: GoogleCandidate = {
   photoUrl: 'https://example.com/durgam-cheruvu.jpg',
 };
 
-function Harness({ slug = 'restaurants%2Fhotel-shadab' }: { slug?: string } = {}) {
+// P14: the seed catalogue is retired — BridgeTapScreen now always resolves
+// its anchor via fetchPlaceDetails, so every test below mocks it to this
+// same Google-sourced "Hotel Shadab" data (its real former seeded lat/lng,
+// kept as-is so every existing assertion stays meaningful).
+const ANCHOR_PLACE_ID = 'ChIJKyxGIoiXyzsRPY8PASGdTW0';
+function mockAnchor() {
+  fetchPlaceDetailsMock.mockReset();
+  fetchPlaceDetailsMock.mockResolvedValue({
+    placeId: ANCHOR_PLACE_ID,
+    name: 'Hotel Shadab',
+    address: 'Ghansi Bazaar, Hyderabad',
+    location: { lat: 17.368888, lng: 78.4755104 },
+    types: ['restaurant'],
+  });
+}
+
+function Harness({ slug = ANCHOR_PLACE_ID }: { slug?: string } = {}) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return (
     <QueryClientProvider client={queryClient}>
@@ -91,6 +107,7 @@ function Harness({ slug = 'restaurants%2Fhotel-shadab' }: { slug?: string } = {}
 
 describe('BridgeTapScreen — Add to plan', () => {
   beforeEach(() => {
+    mockAnchor();
     searchCandidatesMock.mockReset();
     addOutingStopMock.mockReset();
     isStopInOutingMock.mockReset();
@@ -250,10 +267,8 @@ describe('BridgeTapScreen — Add to plan', () => {
 
 // Phase 6 §8 repro: SavedPlanDetailScreen's "Add another stop" button
 // navigates to `/places/${plan.anchorPlaceId}/bridge` — the plan's raw
-// anchorKey (a Google place id, or a catalogue place's own id-as-string),
-// never a catalogue slug. This reproduces exactly that: BridgeTapScreen
-// reached with a slug that placeBySlug cannot match (because it isn't a
-// slug at all), for both kinds of anchorKey a real plan can have.
+// anchorKey, always a real Google place id now that plans can only ever be
+// anchored to a Google-sourced place.
 describe('BridgeTapScreen — Phase 6 §8: "Add another stop" from a saved plan', () => {
   beforeEach(() => {
     searchCandidatesMock.mockReset();
@@ -312,53 +327,11 @@ describe('BridgeTapScreen — Phase 6 §8: "Add another stop" from a saved plan'
     });
     expect(createPlanMutateAsyncMock).not.toHaveBeenCalled();
   });
-
-  it("re-anchored via a catalogue place's own id (no googlePlaceId on that place) still finds the existing plan, not a dead end", async () => {
-    // Mehfil (restaurants/mehfil): has real lat/lng (Phase 6 §1) but
-    // deliberately no googlePlaceId, so its plan anchor_key is its own
-    // catalogue UUID, not a Google id — placeBySlug can't match that UUID
-    // against any slug, and it isn't a valid Google place id either, so a
-    // raw re-fetch by "id" would fail. The fix must resolve this some other
-    // way, e.g. by checking the person's own plans directly by anchorKey.
-    const CATALOGUE_ANCHOR_ID = '00000000-0000-0000-0000-0000000000f9';
-    const existingPlan: Plan = {
-      id: 'plan-2',
-      userId: 'user-1',
-      anchorKey: CATALOGUE_ANCHOR_ID,
-      anchorName: 'Mehfil',
-      anchorLat: 17.503,
-      anchorLng: 78.508,
-      name: null,
-      shareToken: null,
-      stops: [
-        {
-          googlePlaceId: 'already-there-2',
-          placeName: 'Somewhere Else',
-          address: null,
-          lat: 17.4,
-          lng: 78.4,
-          position: 1,
-        },
-      ],
-    };
-    usePlansMock.mockReturnValue({ data: [existingPlan] });
-    fetchPlaceDetailsMock.mockRejectedValue(new Error('not a real Google place id'));
-
-    const user = userEvent.setup();
-    render(<Harness slug={encodeURIComponent(CATALOGUE_ANCHOR_ID)} />);
-
-    await user.click(await screen.findByRole('button', { name: 'Add to plan' }));
-
-    expect(addPlanItemMutateAsyncMock).toHaveBeenCalledWith({
-      planId: 'plan-2',
-      stop: expect.objectContaining({ googlePlaceId: 'nearby-stop-1' }),
-    });
-    expect(createPlanMutateAsyncMock).not.toHaveBeenCalled();
-  });
 });
 
 describe('BridgeTapScreen — Phase 6 §7: door selector + reference-point priority', () => {
   beforeEach(() => {
+    mockAnchor();
     searchCandidatesMock.mockReset();
     addOutingStopMock.mockReset();
     isStopInOutingMock.mockReset();
@@ -474,6 +447,7 @@ describe('BridgeTapScreen — Phase 6 §7: door selector + reference-point prior
 
 describe('BridgeTapScreen — Phase 8 §12: View plan button', () => {
   beforeEach(() => {
+    mockAnchor();
     searchCandidatesMock.mockReset();
     addOutingStopMock.mockReset();
     isStopInOutingMock.mockReset();
@@ -567,6 +541,7 @@ describe('BridgeTapScreen — Phase 8 §12: View plan button', () => {
  */
 describe('BridgeTapScreen — tapping a nearby stop opens its place detail page', () => {
   beforeEach(() => {
+    mockAnchor();
     searchCandidatesMock.mockReset();
     searchCandidatesMock.mockResolvedValue([NEARBY_STOP]);
     usePlansMock.mockReset();

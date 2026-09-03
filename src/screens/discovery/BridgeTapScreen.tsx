@@ -12,7 +12,6 @@ import { PickSkeleton } from '../../components/feedback/Skeleton';
 import { GoogleMapView, type MapMarker } from '../../components/map/GoogleMapView';
 import { usePersona } from '../../dev/PersonaContext';
 import { useToast } from '../../components/feedback/ToastProvider';
-import { placeById, placeBySlug } from '../../fixtures/places';
 import { fetchPlaceDetails, searchCandidates, type GoogleCandidate } from '../../lib/placesSearch';
 import { haversineMeters, useSearch, type Door, type LatLng } from '../../lib/searchState';
 import { hasMapsApiKey } from '../../lib/googleMaps';
@@ -75,9 +74,7 @@ function typeLabel(types: string[]): string | undefined {
   return t ? t.replace(/_/g, ' ') : undefined;
 }
 
-function isEatPlace(types: string[], catalogueType?: string): boolean {
-  if (catalogueType === 'eat') return true;
-  if (catalogueType === 'explore') return false;
+function isEatPlace(types: string[]): boolean {
   return types.some((t) => EAT_TYPES.has(t));
 }
 
@@ -143,53 +140,27 @@ export function BridgeTapScreen() {
   const createPlan = useCreatePlan(userId);
   const addPlanItem = useAddPlanItem(userId);
 
-  // Phase 6 §8 fix: `decoded` is a real catalogue slug (e.g.
-  // "restaurants/hotel-shadab") the first time someone reaches this screen
-  // from a place's own detail page, via place.slug — but SavedPlanDetailScreen's
-  // "Add another stop" navigates using the plan's raw anchorKey instead
-  // (a real Google place id when the plan has one, else the catalogue
-  // place's own id-as-string; see plans.anchor_key's own comment). A bare id
-  // never matches a slug, so placeBySlug alone left a plan anchored to a
-  // catalogue place with no Google id (Mehfil, AutoLounge Rooftop, HICC
-  // Novotel Lawns) with no way to resolve its anchor at all — landing on
-  // "Can't place this spot yet" instead of Google's real Place ID path,
-  // which already resolves correctly by re-fetching that id directly.
-  const catalogue = decoded ? (placeBySlug(decoded) ?? placeById(decoded)) : undefined;
-
+  // `decoded` is always a real Google place id — either from a place's own
+  // detail page (place.placeId), or from SavedPlanDetailScreen's "Add
+  // another stop" (the plan's raw anchorKey, which is the same id).
   const googleAnchorQuery = useQuery({
     queryKey: ['googlePlace', decoded, 'bridge-anchor'],
-    queryFn: () =>
-      fetchPlaceDetails(
-        catalogue?.googlePlaceId && catalogue.lat == null ? catalogue.googlePlaceId : decoded!,
-      ),
-    enabled:
-      Boolean(decoded) &&
-      hasMapsApiKey() &&
-      (!catalogue || (catalogue.lat == null && Boolean(catalogue.googlePlaceId)) || !catalogue),
+    queryFn: () => fetchPlaceDetails(decoded!),
+    enabled: Boolean(decoded) && hasMapsApiKey(),
     staleTime: 5 * 60 * 1000,
     retry: false,
   });
 
   const anchor: Anchor | null = useMemo(() => {
-    if (catalogue?.lat != null && catalogue.lng != null) {
-      return {
-        id: catalogue.googlePlaceId ?? catalogue.id,
-        name: catalogue.name,
-        location: { lat: catalogue.lat, lng: catalogue.lng },
-        bridgeDoor: catalogue.type === 'explore' ? 'eat' : 'explore',
-      };
-    }
-    if (googleAnchorQuery.data) {
-      const g = googleAnchorQuery.data;
-      return {
-        id: g.placeId,
-        name: catalogue?.name ?? g.name,
-        location: g.location,
-        bridgeDoor: isEatPlace(g.types, catalogue?.type) ? 'explore' : 'eat',
-      };
-    }
-    return null;
-  }, [catalogue, googleAnchorQuery.data]);
+    if (!googleAnchorQuery.data) return null;
+    const g = googleAnchorQuery.data;
+    return {
+      id: g.placeId,
+      name: g.name,
+      location: g.location,
+      bridgeDoor: isEatPlace(g.types) ? 'explore' : 'eat',
+    };
+  }, [googleAnchorQuery.data]);
 
   const existingPlan =
     hasSession && anchor ? ownPlans.find((p) => p.anchorKey === anchor.id) : undefined;
@@ -290,10 +261,7 @@ export function BridgeTapScreen() {
   });
 
   const nearby = nearbyQuery.data ?? [];
-  const loading =
-    (!catalogue && googleAnchorQuery.isLoading) ||
-    (Boolean(catalogue) && catalogue?.lat == null && googleAnchorQuery.isLoading) ||
-    (Boolean(anchor) && nearbyQuery.isLoading);
+  const loading = googleAnchorQuery.isLoading || (Boolean(anchor) && nearbyQuery.isLoading);
 
   const markers: MapMarker[] = useMemo(() => {
     if (!anchor) return [];

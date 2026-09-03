@@ -1,17 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
 import { AppShell } from '../layout/AppShell';
 import { Badge } from '../../components/core/Badge';
 import { Button } from '../../components/core/Button';
 import { Icon } from '../../components/core/Icon';
 import { SearchField } from '../../components/forms/SearchField';
-import { EmptyState } from '../../components/feedback/EmptyState';
 import { useToast } from '../../components/feedback/ToastProvider';
 import { usePersona } from '../../dev/PersonaContext';
-import { DEFAULT_CENTER, haversineMeters, useSearch } from '../../lib/searchState';
-import { areas, nearestArea, type Area } from '../../fixtures/areas';
-import { fetchHomeArea } from '../../data/homeArea';
+import { DEFAULT_CENTER, useSearch } from '../../lib/searchState';
+import { useHomeArea } from '../../data/homeArea';
 import { hasMapsApiKey } from '../../lib/googleMaps';
 import { setResidentStatus } from '../../data/googleRankings';
 import {
@@ -20,16 +17,6 @@ import {
   suggestAreas,
   type AreaSuggestion,
 } from '../../lib/placesSearch';
-
-/**
- * How far a GPS reading can be from the nearest seeded neighbourhood and
- * still be treated as it — roughly the seeded eight's own spread plus a
- * margin, not a hard administrative boundary. Madli is not restricted to one
- * city: a reading from anywhere else in the world should get its own real
- * name (via reverse geocoding) rather than being mislabelled as whichever of
- * the eight happens to be least-far away.
- */
-const SEEDED_AREA_RADIUS_METERS = 30_000;
 
 interface AreaNavState {
   /** Where to continue once an area is chosen. Defaults to Home. */
@@ -48,29 +35,16 @@ interface AreaNavState {
  * nothing, so nothing downstream in this session runs without a real area
  * attached.
  *
- * The two ways to answer sit at equal weight, not primary-and-fallback:
- * the GPS button and the searchable list are both live from the first
- * paint. Geolocation fires ONLY from that button tap — never on mount — and
- * a denial is not an error: it just leaves you looking at the list that was
- * already there. The button visually softens after a decline rather than
- * showing an alert or a separate state.
- *
- * Not restricted to Hyderabad. The eight seeded neighbourhoods are the ones
- * with real ranking depth, so they stay the quick picks, but typing anything
- * else runs a live Google Places search (`suggestAreas`/`resolveAreaCenter`
- * — built for the old S9 typed-area screen, unused since that screen was
- * merged away, revived here) so a real area anywhere in the world resolves
- * to a real centre. GPS mirrors this: a reading near the eight snaps to the
- * nearest one as before, but a reading far from all of them (someone
- * actually elsewhere) is reverse-geocoded to its own real name instead of
- * being mislabelled as whichever Hyderabad neighbourhood is least-far away.
- *
- * P14: "Set as home" used to be a switch on every single row of both lists
- * below — most of which a person would never touch again. It now lives
- * on Home instead, next to whichever area is actually current, and this
- * screen only reads that value (via homeAreaQuery/currentHomeAreaId) to
- * power the shortcut button and to skip the local/visitor ask when the
- * area picked here already is the marked home.
+ * P14: this used to offer a fixed quick-pick list of eight demo
+ * neighbourhoods alongside live search — a leftover of the original seeded
+ * catalogue, not something that generalises to a real product covering
+ * anywhere in the world. Live search (`suggestAreas`/`resolveAreaCenter`)
+ * and GPS (reverse-geocoded via `reverseGeocodeArea`) are now the only two
+ * ways in, both live from the first paint, neither privileged over the
+ * other. "Set as home" lives on Home now (see that screen's own doc
+ * comment) — this screen only reads it, to power the one-tap "Home"
+ * shortcut and to skip the local/visitor ask when the area picked here
+ * already is the marked home.
  */
 export function PickAreaScreen() {
   const [query, setQuery] = useState('');
@@ -83,29 +57,16 @@ export function PickAreaScreen() {
   const navigate = useNavigate();
   const routerLocation = useLocation();
   const { show } = useToast();
-  const { persona, userId } = usePersona();
+  const { persona } = usePersona();
   const { setSearch } = useSearch();
   const next = (routerLocation.state as AreaNavState | null)?.next ?? '/app';
 
-  const homeAreaQuery = useQuery({
-    queryKey: ['home-area', userId],
-    queryFn: () => fetchHomeArea(userId),
-    enabled: persona !== 'guest' && !!userId,
-    retry: false,
-  });
-  // Reflects Supabase directly. Home is either the seeded-area id or a
-  // live-searched area's text, never both — set from HomeScreen now, not
-  // from a row in either list below (see this screen's own doc comment).
-  const currentHome = homeAreaQuery.data ?? { areaId: null, areaText: null };
-  const currentHomeAreaId = currentHome.areaId;
-  const currentHomeAreaText = currentHome.areaText;
+  const { areaText: currentHomeAreaText } = useHomeArea();
 
-  const filtered = areas.filter((a) => a.name.toLowerCase().includes(query.toLowerCase()));
-
-  // Live search for anywhere the seeded eight don't cover — debounced so
-  // typing doesn't fire a Google call per keystroke. `hasMapsApiKey()` gates
-  // the whole thing off cleanly when Maps isn't configured, same as every
-  // other live-search surface in this app.
+  // Live search for anywhere in the world — debounced so typing doesn't fire
+  // a Google call per keystroke. `hasMapsApiKey()` gates the whole thing off
+  // cleanly when Maps isn't configured, same as every other live-search
+  // surface in this app.
   useEffect(() => {
     if (!hasMapsApiKey() || query.trim().length < 2) {
       // Deriving local UI state from `query` becoming too short to search —
@@ -124,8 +85,7 @@ export function PickAreaScreen() {
           if (!cancelled) setSuggestions(results);
         })
         .catch(() => {
-          // No key, network blip, API not enabled — the seeded list above is
-          // still fully usable, so this just quietly offers nothing extra.
+          // No key, network blip, API not enabled — quietly offer nothing.
           if (!cancelled) setSuggestions([]);
         })
         .finally(() => {
@@ -159,23 +119,6 @@ export function PickAreaScreen() {
     navigate('/local-or-visitor', { state: { next } });
   };
 
-  const chooseArea = (area: Area) => {
-    // The seeded neighbourhoods now carry real centroids, so a manual pick
-    // gets a real center too — not just text. Leaving center unset here is
-    // the exact bug this screen replaces: results silently re-centring on
-    // Hyderabad's default point instead of the area someone just chose.
-    setSearch({
-      areaText: area.name,
-      areaPlaceId: null,
-      // All eight seeded neighbourhoods are Hyderabad — no lookup needed,
-      // this is a known fact about the fixture, not a guess.
-      countryCode: 'IN',
-      center: { lat: area.lat, lng: area.lng },
-      centerSource: 'area',
-    });
-    proceedAfterArea(currentHomeAreaId === area.id, area.name);
-  };
-
   const chooseLiveSuggestion = async (suggestion: AreaSuggestion) => {
     setResolvingPlaceId(suggestion.placeId);
     try {
@@ -195,30 +138,12 @@ export function PickAreaScreen() {
   };
 
   // P13 §3: "if he wants to check out places near his home, there is no
-  // point making him search for it again" — a person who already marked a
-  // home area (the per-row "Home" switch below) gets a one-tap shortcut
-  // here, the same weight as "Use my current location", instead of having
-  // to find that same row again in the list below. Absent entirely when
-  // nothing is marked home yet, or for a Guest (who has no home area to
-  // jump to in the first place — the per-row switch is already hidden for
-  // them for the same reason).
-  const homeArea = currentHomeAreaId ? areas.find((a) => a.id === currentHomeAreaId) : undefined;
+  // point making him search for it again" — a one-tap shortcut back to
+  // whichever area is marked home, the same weight as "Use my current
+  // location". Absent entirely when nothing is marked home yet, or for a
+  // Guest (who has no home area to jump to in the first place).
   const goHome = async () => {
-    if (homeArea) {
-      setSearch({
-        areaText: homeArea.name,
-        areaPlaceId: null,
-        countryCode: 'IN',
-        center: { lat: homeArea.lat, lng: homeArea.lng },
-        centerSource: 'area',
-      });
-      proceedAfterArea(true, homeArea.name);
-      return;
-    }
     if (!currentHomeAreaText) return;
-    // A home outside the eight seeded neighbourhoods only ever had its
-    // label persisted (home_area_text), not coordinates — re-resolve it the
-    // same way picking it from the live-search list below would.
     setGoingHome(true);
     try {
       const matches = await suggestAreas(currentHomeAreaText, DEFAULT_CENTER);
@@ -249,32 +174,9 @@ export function PickAreaScreen() {
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const point = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        const nearest = nearestArea(point);
-        const distanceToNearest = haversineMeters(point, { lat: nearest.lat, lng: nearest.lng });
-
-        if (distanceToNearest <= SEEDED_AREA_RADIUS_METERS) {
-          // Close enough to one of the eight — the real device position
-          // stays as `center` (more accurate for distance math than the
-          // neighbourhood centroid), and the neighbourhood name is what
-          // "resolving to the nearest seeded area" actually means. Always
-          // Hyderabad, same as the direct seeded pick above.
-          setSearch({
-            areaText: nearest.name,
-            areaPlaceId: null,
-            countryCode: 'IN',
-            center: point,
-            centerSource: 'geolocation',
-          });
-          setAsking(false);
-          proceedAfterArea(currentHomeAreaId === nearest.id, nearest.name);
-          return;
-        }
-
-        // Nowhere near the seeded eight — actually somewhere else. Reverse
-        // geocode for a real name (and country) rather than force-fitting it
-        // into whichever of the eight happens to be least-far away. Raced
-        // against a timeout: a stalled network call must not leave the
-        // person stuck on "Finding you…" forever.
+        // Reverse geocode for a real name (and country) — raced against a
+        // timeout so a stalled network call can't leave the person stuck on
+        // "Finding you…" forever.
         let areaText = 'Your current location';
         let countryCode: string | null = null;
         try {
@@ -299,8 +201,8 @@ export function PickAreaScreen() {
         proceedAfterArea(currentHomeAreaText === areaText, areaText);
       },
       () => {
-        // Not an error path. Stay on this screen — the list below is already
-        // the fallback, so there is nothing else to route to or explain.
+        // Not an error path. Stay on this screen — the search box is
+        // already the fallback, so there is nothing else to route to.
         setAsking(false);
         setLocationDeclined(true);
       },
@@ -319,8 +221,8 @@ export function PickAreaScreen() {
         }}
       >
         <p style={{ font: 'var(--type-body)', color: 'var(--text-body)' }}>
-          Every ranking Madli shows is scoped to a neighbourhood. Use your location, or pick one
-          below, either way takes you straight in.
+          Every ranking Madli shows is scoped to a neighbourhood, anywhere in the world. Use your
+          location, or search for one below.
         </p>
 
         <Button
@@ -333,7 +235,7 @@ export function PickAreaScreen() {
           {asking ? 'Finding you…' : 'Use my current location'}
         </Button>
 
-        {homeArea || currentHomeAreaText ? (
+        {currentHomeAreaText ? (
           <Button
             variant="secondary"
             block
@@ -341,9 +243,7 @@ export function PickAreaScreen() {
             disabled={goingHome}
             iconLeft={<Icon name="home" size={18} />}
           >
-            {goingHome
-              ? 'Finding your home area…'
-              : `Home · ${homeArea?.name ?? currentHomeAreaText}`}
+            {goingHome ? 'Finding your home area…' : `Home · ${currentHomeAreaText}`}
           </Button>
         ) : null}
 
@@ -351,23 +251,20 @@ export function PickAreaScreen() {
           <SearchField
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search a neighbourhood"
+            placeholder="Search a neighbourhood, city, or landmark"
             onClear={() => setQuery('')}
           />
 
-          {filtered.length === 0 ? (
-            query.trim() && hasMapsApiKey() ? (
-              <p style={{ font: 'var(--type-body-sm)', color: 'var(--text-muted)' }}>
-                None of our eight home-turf neighbourhoods match that. Search below for any other
-                place.
-              </p>
-            ) : (
-              <EmptyState
-                icon="map-pin-off"
-                title="Nothing matches that"
-                body="We have real ranking depth in eight neighbourhoods so far. Try one of those, or search for wherever you are."
-              />
-            )
+          {!hasMapsApiKey() ? (
+            <p style={{ font: 'var(--type-body-sm)', color: 'var(--text-muted)' }}>
+              Live area search is not configured, so there is nothing to search here yet.
+            </p>
+          ) : query.trim().length < 2 ? null : suggestLoading ? (
+            <p style={{ font: 'var(--type-body-sm)', color: 'var(--text-muted)' }}>Searching…</p>
+          ) : suggestions.length === 0 ? (
+            <p style={{ font: 'var(--type-body-sm)', color: 'var(--text-muted)' }}>
+              Nothing found yet. Keep typing.
+            </p>
           ) : (
             <ul
               style={{
@@ -378,98 +275,40 @@ export function PickAreaScreen() {
                 gap: 'var(--space-2)',
               }}
             >
-              {filtered.map((a) => (
+              {suggestions.map((s) => (
                 <li
-                  key={a.id}
+                  key={s.placeId}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
+                    gap: 'var(--space-3)',
                     padding: 'var(--space-4)',
                     borderRadius: 'var(--radius-md)',
                     border: '1px solid var(--border-hairline)',
                   }}
                 >
                   <button
-                    onClick={() => chooseArea(a)}
+                    onClick={() => void chooseLiveSuggestion(s)}
+                    disabled={resolvingPlaceId === s.placeId}
                     style={{
+                      flex: 1,
                       background: 'none',
                       border: 'none',
                       textAlign: 'left',
                       cursor: 'pointer',
-                      flex: 1,
+                      font: 'var(--type-body)',
+                      color: 'var(--text-heading)',
                     }}
                   >
-                    <div style={{ font: 'var(--type-body)', color: 'var(--text-heading)' }}>
-                      {a.name}
-                    </div>
-                    <div style={{ font: 'var(--type-evidence)', color: 'var(--evidence-text)' }}>
-                      {a.coverageDepthLabel}
-                    </div>
+                    {resolvingPlaceId === s.placeId ? 'Finding it…' : s.label}
                   </button>
-                  {currentHomeAreaId === a.id ? <Badge tone="teal">Home</Badge> : null}
+                  {currentHomeAreaText === s.label ? <Badge tone="teal">Home</Badge> : null}
                 </li>
               ))}
             </ul>
           )}
         </div>
-
-        {hasMapsApiKey() && query.trim().length >= 2 ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-            <h4 style={{ font: 'var(--type-label)', color: 'var(--text-muted)' }}>
-              Or search any other location
-            </h4>
-            {suggestLoading ? (
-              <p style={{ font: 'var(--type-body-sm)', color: 'var(--text-muted)' }}>Searching…</p>
-            ) : suggestions.length === 0 ? (
-              <p style={{ font: 'var(--type-body-sm)', color: 'var(--text-muted)' }}>
-                Nothing found yet. Keep typing.
-              </p>
-            ) : (
-              <ul
-                style={{
-                  listStyle: 'none',
-                  padding: 0,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 'var(--space-2)',
-                }}
-              >
-                {suggestions.map((s) => (
-                  <li
-                    key={s.placeId}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: 'var(--space-3)',
-                      padding: 'var(--space-4)',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--border-hairline)',
-                    }}
-                  >
-                    <button
-                      onClick={() => void chooseLiveSuggestion(s)}
-                      disabled={resolvingPlaceId === s.placeId}
-                      style={{
-                        flex: 1,
-                        background: 'none',
-                        border: 'none',
-                        textAlign: 'left',
-                        cursor: 'pointer',
-                        font: 'var(--type-body)',
-                        color: 'var(--text-heading)',
-                      }}
-                    >
-                      {resolvingPlaceId === s.placeId ? 'Finding it…' : s.label}
-                    </button>
-                    {currentHomeAreaText === s.label ? <Badge tone="teal">Home</Badge> : null}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        ) : null}
       </div>
     </AppShell>
   );

@@ -27,9 +27,6 @@ import { ShareSheetScreen } from './discovery/ShareSheetScreen';
 
 import { BookmarksScreen } from './personal/BookmarksScreen';
 import { SavedPlanDetailScreen } from './personal/SavedPlanDetailScreen';
-import { LogVisitTriggerScreen } from './personal/LogVisitTriggerScreen';
-import { LogVisitComparisonScreen } from './personal/LogVisitComparisonScreen';
-import { LogVisitLandedScreen } from './personal/LogVisitLandedScreen';
 import { SaveYourListGateScreen } from './personal/SaveYourListGateScreen';
 import { RankingOnboardingScreen } from './personal/RankingOnboardingScreen';
 import { PostVisitNudgeScreen } from './personal/PostVisitNudgeScreen';
@@ -75,9 +72,6 @@ const elementById: Record<string, ReactNode> = {
 
   S23: <BookmarksScreen />,
   S24: <SavedPlanDetailScreen />,
-  S25: <LogVisitTriggerScreen />,
-  S26: <LogVisitComparisonScreen />,
-  S27: <LogVisitLandedScreen />,
   S28: <SaveYourListGateScreen />,
   S29: <RankingOnboardingScreen />,
   S30: <PostVisitNudgeScreen />,

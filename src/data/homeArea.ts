@@ -1,4 +1,6 @@
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../lib/supabaseClient';
+import { usePersona } from '../dev/PersonaContext';
 
 /**
  * A signed-in person's persisted home neighbourhood (S8's "Set as my home
@@ -49,4 +51,23 @@ export async function setHomeAreaText(userId: string, areaText: string | null): 
     .update({ home_area_id: null, home_area_text: areaText })
     .eq('id', userId);
   if (error) throw error;
+}
+
+/**
+ * P14: a thin read-only wrapper around fetchHomeArea for the screens that
+ * only ever care about the text label (PickAreaScreen's "Home" shortcut) —
+ * `areaId` only ever resolved through the retired seeded-areas fixture, so
+ * a legacy row that still has one set (never areaText) has nothing to
+ * display it with here; that shortcut just stays absent for them, same as
+ * it already does for anyone who has never set a home area at all.
+ */
+export function useHomeArea() {
+  const { persona, userId } = usePersona();
+  const query = useQuery({
+    queryKey: ['home-area', userId],
+    queryFn: () => fetchHomeArea(userId),
+    enabled: persona !== 'guest' && !!userId,
+    retry: false,
+  });
+  return { areaText: query.data?.areaText ?? null, isLoading: query.isLoading };
 }

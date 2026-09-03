@@ -7,7 +7,6 @@ import { GoogleMapView } from '../../components/map/GoogleMapView';
 import { usePersona } from '../../dev/PersonaContext';
 import { distanceUnitForCountry, useSearch, type LatLng } from '../../lib/searchState';
 import { fetchRoute, type RouteResult } from '../../lib/routes';
-import { placeBySlug } from '../../fixtures/places';
 import { fetchPlaceDetails } from '../../lib/placesSearch';
 import { track } from '../../lib/analytics';
 
@@ -23,20 +22,17 @@ export function MapScreen() {
   const { breakpoint } = usePersona();
   const { effectiveCenter, search } = useSearch();
   const decoded = slug ? decodeURIComponent(slug) : undefined;
-  const place = decoded ? placeBySlug(decoded) : undefined;
   const googleQuery = useQuery({
     queryKey: ['googlePlace', decoded],
     queryFn: () => fetchPlaceDetails(decoded!),
-    enabled: Boolean(decoded) && !place,
+    enabled: Boolean(decoded),
     staleTime: 5 * 60 * 1000,
     retry: false,
   });
 
-  const destination: LatLng | null = place?.lat != null && place.lng != null
-    ? { lat: place.lat, lng: place.lng }
-    : googleQuery.data?.location ?? null;
-  const destinationName = place?.name ?? googleQuery.data?.name ?? 'Destination';
-  const destinationAddress = place?.address ?? googleQuery.data?.address ?? '';
+  const destination: LatLng | null = googleQuery.data?.location ?? null;
+  const destinationName = googleQuery.data?.name ?? 'Destination';
+  const destinationAddress = googleQuery.data?.address ?? '';
 
   // The result is stored together with the trip it belongs to, so a stale
   // route is discarded by comparison during render rather than by clearing

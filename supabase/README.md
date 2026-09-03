@@ -107,25 +107,26 @@ the same coordinates for use before this migration is applied elsewhere)
 is not sufficient on its own — every environment needs the DB columns for the
 GPS path to do anything.
 
-## Seed data
+## Seed data (retired, P14)
 
-`supabase/seed.sql` — lifted verbatim from `design_handoff_madli/prototype/Madli Prototype.dc.html`
-(the `FOOD`/`EXPLORE`/`AREAS` arrays): 8 eat places, 8 explore places, 8
-neighbourhoods, plus one extra fixture place (`Mehfil`, Alwal, locals=9) added
-specifically to exercise the below-ranking-threshold path — see the seed
-file's own comments for exactly which fields are real handoff data vs.
-synthesized fixture placeholders.
+`supabase/seed.sql` used to carry demo data lifted verbatim from
+`design_handoff_madli/prototype/Madli Prototype.dc.html` (8 eat places, 8
+explore places, 8 neighbourhoods, plus one below-threshold example place).
+That data is gone as of P14 — see the file's own header comment for why.
+Discovery has been 100% live Google Places since Phase 8 §5, so nothing a
+searching user saw was ever decided by these rows; what they did feed
+(marketing pages, the area-picker's quick-pick list, the S25-S27 catalogue
+ranking flow) is either rebuilt on live data or retired outright.
 
-Run it via `supabase db reset` locally, or it has already been applied to the
-hosted dev project.
+`categories` and `areas` now start empty on a fresh `supabase db reset`.
+`app_config` (tunable settings, not demo content) is unaffected — it lives in
+its own schema migration, not this file.
 
-**Known characteristic of this seed set**: the Explore door has no places
-above the ~50-local-ratings pick threshold (the source material's `EXPLORE`
-array simply doesn't carry `locals`/`visitors` numbers for 7 of its 8 rows;
-only Charminar has a real number, 47, still below threshold). The Eat door has
-8 above-threshold picks. This wasn't padded with invented numbers — see the
-seed file's comments. Phase 2/3 content ops should enter real Explore ratings
-via the admin catalogue before demoing that door's "picks" state.
+**Known follow-on**: the Owner test account below claims a place
+(`00000000-0000-0000-0000-0000000000f5`, "Cafe Bahar") that no longer exists
+once this file's places are gone. Re-pointing that `business_claims` row at
+a real Google-sourced place (or removing it) is dev-environment cleanup, not
+done as part of this change.
 
 ## Test accounts
 
