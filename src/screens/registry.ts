@@ -68,8 +68,35 @@ export const screenRegistry: ScreenMeta[] = [
   },
   {
     id: 'S5',
-    name: 'Legal and static',
-    path: '/legal',
+    name: 'About',
+    path: '/about',
+    group: 'Marketing',
+    states: ['default'],
+    roles: 'All',
+  },
+  // P14: the footer's About/Contact/Privacy/Terms links all pointed at this
+  // one generic S5 screen — same content behind four different labels. S5
+  // is now About specifically; these three are its real siblings.
+  {
+    id: 'S54',
+    name: 'Contact',
+    path: '/contact',
+    group: 'Marketing',
+    states: ['default'],
+    roles: 'All',
+  },
+  {
+    id: 'S55',
+    name: 'Privacy (marketing)',
+    path: '/privacy',
+    group: 'Marketing',
+    states: ['default'],
+    roles: 'All',
+  },
+  {
+    id: 'S56',
+    name: 'Terms',
+    path: '/terms',
     group: 'Marketing',
     states: ['default'],
     roles: 'All',

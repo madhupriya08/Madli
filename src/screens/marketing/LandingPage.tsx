@@ -40,7 +40,12 @@ const HOW_STEPS = [
   },
 ];
 
-const FOOTER_LINKS = ['About', 'Contact', 'Privacy', 'Terms'];
+const FOOTER_LINKS: Array<{ label: string; to: string }> = [
+  { label: 'About', to: '/about' },
+  { label: 'Contact', to: '/contact' },
+  { label: 'Privacy', to: '/privacy' },
+  { label: 'Terms', to: '/terms' },
+];
 
 const SECTION: React.CSSProperties = {
   maxWidth: 'var(--content-max)',
@@ -227,8 +232,12 @@ export function LandingPage() {
         </div>
         <nav style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
           {FOOTER_LINKS.map((l) => (
-            <Link key={l} to="/legal" style={{ font: 'var(--type-label)', borderBottom: 'none' }}>
-              {l}
+            <Link
+              key={l.label}
+              to={l.to}
+              style={{ font: 'var(--type-label)', borderBottom: 'none' }}
+            >
+              {l.label}
             </Link>
           ))}
         </nav>
