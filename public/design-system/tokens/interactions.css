@@ -146,6 +146,24 @@
   animation: madli-shimmer-sweep var(--shimmer-dur) ease-in-out infinite;
 }
 
+/* P14: a real scroll-triggered reveal (madli-page-enter/madli-stagger both
+   fire once at mount, so anything below the fold has already finished
+   animating before it's ever seen — indistinguishable from no animation at
+   all). Applied via the useInView hook (src/lib/useInView.ts): an element
+   starts in .madli-reveal, gains .madli-reveal-in once it actually scrolls
+   into view. */
+.madli-reveal {
+  opacity: 0;
+  transform: translateY(28px);
+}
+.madli-reveal-in {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity var(--dur-slow) var(--ease-out),
+    transform var(--dur-slow) var(--ease-out);
+}
+
 /* Underline/segment indicators (Tabs' active pill) settling into place. */
 .madli-tab-active {
   transition:
@@ -202,5 +220,11 @@
   .madli-scale-in,
   .madli-sheet-in {
     animation: none !important;
+  }
+  .madli-reveal,
+  .madli-reveal-in {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
   }
 }

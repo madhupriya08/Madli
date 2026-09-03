@@ -1,4 +1,5 @@
 import { MarketingShell } from '../layout/MarketingShell';
+import { useInView } from '../../lib/useInView';
 
 // S2: placed before signup on purpose — the mechanic is the pitch.
 //
@@ -27,6 +28,7 @@ const MECHANIC_STEPS = [
 ];
 
 export function HowItWorksPage() {
+  const stepsReveal = useInView<HTMLDivElement>();
   return (
     <MarketingShell>
       <section
@@ -63,7 +65,8 @@ export function HowItWorksPage() {
         }}
       >
         <div
-          className="madli-stagger"
+          ref={stepsReveal.ref}
+          className={stepsReveal.inView ? 'madli-stagger madli-reveal-in' : 'madli-reveal'}
           style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',

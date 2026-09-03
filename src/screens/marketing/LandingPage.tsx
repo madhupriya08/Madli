@@ -1,7 +1,9 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { MarketingShell } from '../layout/MarketingShell';
 import { Button } from '../../components/core/Button';
+import { Logo } from '../../components/core/Logo';
 import { logEvent } from '../../lib/analytics';
+import { useInView } from '../../lib/useInView';
 
 // S1. Ported from the prototype's own S1 block (design_handoff_madli/
 // prototype/Madli Prototype.dc.html), which is the authority for this screen
@@ -55,6 +57,8 @@ const SECTION: React.CSSProperties = {
 
 export function LandingPage() {
   const navigate = useNavigate();
+  const gemReveal = useInView<HTMLDivElement>();
+  const howReveal = useInView<HTMLDivElement>();
 
   return (
     <MarketingShell>
@@ -86,7 +90,7 @@ export function LandingPage() {
               padding: '6px 14px',
             }}
           >
-            Ranked by the people who actually live there
+            Ranked by real locals, not tourists
           </span>
           <h1 style={{ font: 'var(--type-display)', maxWidth: '15ch', textWrap: 'pretty' }}>
             Three picks. One reason each.
@@ -98,8 +102,8 @@ export function LandingPage() {
               maxWidth: 'var(--prose-max)',
             }}
           >
-            Madli ranks restaurants and places to visit by asking the people who actually live
-            there, not by whoever paid. Every pick comes with the one reason it beat the rest.
+            Madli ranks restaurants and places to visit by asking real locals, not by whoever paid.
+            Every pick comes with the one reason it beat the rest.
           </p>
           {/* All three the same weight, on purpose — matching the same call on
             S6 Splash. Signing up must not read as the "real" path with guest
@@ -137,7 +141,8 @@ export function LandingPage() {
           GemOfTheTownPage for what this produces once enough exist. */}
       <section style={{ ...SECTION, paddingTop: 0, paddingBottom: 0 }}>
         <div
-          className="madli-hover-lift"
+          ref={gemReveal.ref}
+          className={`madli-hover-lift ${gemReveal.inView ? 'madli-reveal-in' : 'madli-reveal'}`}
           style={{
             padding: 'var(--space-6)',
             background: 'var(--teal-50)',
@@ -173,7 +178,8 @@ export function LandingPage() {
           How it works
         </div>
         <div
-          className="madli-stagger"
+          ref={howReveal.ref}
+          className={howReveal.inView ? 'madli-stagger madli-reveal-in' : 'madli-reveal'}
           style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
@@ -230,16 +236,12 @@ export function LandingPage() {
         }}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <img
-            src="/design-system/assets/logo-wordmark.png"
-            alt="Madli"
-            style={{
-              height: 18,
-              width: 'auto',
-              objectFit: 'contain',
-              objectPosition: 'left center',
-            }}
-          />
+          {/* P14: was the flat (non-transparent) logo-wordmark.png, whose
+              own baked-in background nearly matches --bg-page-warm — it
+              rendered, but close enough to invisible that it read as
+              missing. The header already used the transparent version via
+              this same Logo component; this just matches it. */}
+          <Logo variant="wordmark" height={18} />
           <span style={{ font: 'var(--type-evidence)', color: 'var(--evidence-text)' }}>
             Search anywhere: deep local rankings grow with every place someone ranks
           </span>
