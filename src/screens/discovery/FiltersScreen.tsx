@@ -270,20 +270,35 @@ export function FiltersScreen() {
             // search runs perfectly well with no preference at all. So each
             // preset toggles: tapping the one already chosen clears it, the
             // same way every single-select chip group on this panel behaves
-            // (see `oneOf`). "Any distance" is the same clear, spelled out,
-            // and stays unhighlighted so an untouched group never reads as a
-            // choice already made.
-            distancePresets.map((p) => (
-              <Tag
-                key={p.label}
-                selected={p.km !== null && distanceKm === p.km}
-                onClick={() =>
-                  setSearch({ distanceKm: p.km !== null && distanceKm !== p.km ? p.km : '' })
-                }
-              >
-                {p.label}
-              </Tag>
-            )),
+            // (see `oneOf`).
+            //
+            // P13 §1: "Any distance" used to stay fully unhighlighted even
+            // though it is the group's real, currently-active answer — next
+            // to every other filled-teal chosen chip on this panel, an
+            // unstyled grey pill reads as *disabled*, not as "this one is
+            // already picked, tap another to change it." It is a real,
+            // clickable choice at every moment (tapping it again is a
+            // harmless no-op when it's already active), so it gets a soft
+            // `tone="outline"` highlight — visibly active and interactive,
+            // without the strong teal fill Filters' own preset chips use,
+            // which would read as a hard requirement (the actual bug this
+            // group used to have, before it could be deselected at all).
+            distancePresets.map((p) => {
+              const isAny = p.km === null;
+              const active = isAny ? distanceKm === '' : distanceKm === p.km;
+              return (
+                <Tag
+                  key={p.label}
+                  selected={active}
+                  tone={isAny ? 'outline' : 'solid'}
+                  onClick={() =>
+                    setSearch({ distanceKm: p.km !== null && distanceKm !== p.km ? p.km : '' })
+                  }
+                >
+                  {p.label}
+                </Tag>
+              );
+            }),
           )}
 
           {door === 'explore'

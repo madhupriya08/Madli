@@ -67,30 +67,43 @@ function Harness() {
   );
 }
 
-describe('FiltersScreen — Distance: "Any distance" is not a required selection', () => {
-  it('starts with nothing highlighted in the Distance group — matches every other filter group', async () => {
+describe('FiltersScreen — Distance: "Any distance" is a real, active choice, not a disabled chip', () => {
+  it('starts soft-highlighted (outline tone) — visibly active and clickable, not the strong "solid" fill a real preset gets, and not grey/disabled either', async () => {
     seed({ door: 'eat', countryCode: 'IN' });
     render(<Harness />);
 
     const anyDistance = await screen.findByText('Any distance');
     // Selected vs. not is a background-colour swap on the Tag itself (no
-    // aria-pressed) — see Tag.tsx. Live testing showed this pre-highlighted,
-    // which read as a distance filter being required before you could
-    // search at all; the default (no distanceKm set) is a real "no
-    // preference", same as every untouched chip group above it.
+    // aria-pressed) — see Tag.tsx. P13 §1: an unstyled grey pill here read
+    // as *disabled* rather than "this is the currently active answer" — it
+    // gets the same tinted `tone="outline"` treatment used elsewhere for a
+    // group's soft-active default, never the flat grey "not selected"
+    // background every other untouched chip gets.
+    expect(anyDistance.style.background).not.toContain('surface-sunken');
     expect(anyDistance.style.background).not.toContain('teal-500');
-    expect(anyDistance.style.background).toContain('surface-sunken');
+    expect(anyDistance.style.background).toContain('teal-50');
   });
 
-  it('picking a distance preset highlights it, not "Any distance" — and "Any distance" clears it back', async () => {
+  it('picking a distance preset highlights it (solid), not "Any distance" — and "Any distance" clears it back to its own active outline', async () => {
     seed({ door: 'eat', countryCode: 'IN' });
     render(<Harness />);
 
     await userEvent.click(await screen.findByText('Under 2 km'));
     expect(probe().distanceKm).toBe('2');
+    expect(screen.getByText('Any distance').style.background).toContain('surface-sunken');
 
     await userEvent.click(screen.getByText('Any distance'));
     expect(probe().distanceKm).toBe('');
+    expect(screen.getByText('Any distance').style.background).toContain('teal-50');
+  });
+
+  it('"Any distance" is always clickable — never disabled, at either state', async () => {
+    seed({ door: 'eat', countryCode: 'IN' });
+    render(<Harness />);
+    const anyDistance = await screen.findByText('Any distance');
+    expect(anyDistance).toHaveAttribute('role', 'button');
+    expect(anyDistance).not.toHaveAttribute('aria-disabled', 'true');
+    expect(anyDistance.style.cursor).toBe('pointer');
   });
 });
 

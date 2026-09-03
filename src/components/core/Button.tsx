@@ -146,6 +146,12 @@ export function Button({
               boxShadow: 'none',
             }
           : {}),
+        ...(!disabled &&
+        hover &&
+        !press &&
+        (variant === 'primary' || variant === 'accent' || variant === 'secondary')
+          ? { transform: 'translateY(-1px)', boxShadow: 'var(--shadow-md)' }
+          : {}),
         ...(!disabled && hover ? { background: HOVER[variant] } : {}),
         ...(!disabled && press ? { transform: 'var(--press-translate)', boxShadow: 'none' } : {}),
         ...style,

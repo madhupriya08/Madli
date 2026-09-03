@@ -67,6 +67,7 @@ const NEARBY_STOP: GoogleCandidate = {
   address: 'Madhapur, near the cable bridge',
   location: { lat: 17.4300414, lng: 78.3894594 },
   types: ['park'],
+  photoUrl: 'https://example.com/durgam-cheruvu.jpg',
 };
 
 function Harness({ slug = 'restaurants%2Fhotel-shadab' }: { slug?: string } = {}) {
@@ -79,6 +80,7 @@ function Harness({ slug = 'restaurants%2Fhotel-shadab' }: { slug?: string } = {}
             <Routes>
               <Route path="/places/:slug/bridge" element={<BridgeTapScreen />} />
               <Route path="/plans/:id" element={<h1>plan detail</h1>} />
+              <Route path="/places/:slug" element={<h1>place detail</h1>} />
             </Routes>
           </MemoryRouter>
         </SearchProvider>
@@ -555,5 +557,42 @@ describe('BridgeTapScreen — Phase 8 §12: View plan button', () => {
 
     await user.click(await screen.findByRole('button', { name: 'View plan' }));
     expect(await screen.findByRole('heading', { name: 'plan detail' })).toBeInTheDocument();
+  });
+});
+
+/**
+ * P13 §5: "when the user clicks on the places or images the placedetail
+ * page should open" — only the separate "Details" button did that before;
+ * the photo and the name/reason block right next to it did nothing.
+ */
+describe('BridgeTapScreen — tapping a nearby stop opens its place detail page', () => {
+  beforeEach(() => {
+    searchCandidatesMock.mockReset();
+    searchCandidatesMock.mockResolvedValue([NEARBY_STOP]);
+    usePlansMock.mockReset();
+    usePlansMock.mockReturnValue({ data: [] });
+    usePersonaMock.mockReturnValue({ breakpoint: 'desktop', hasSession: false, userId: '' });
+  });
+
+  it('clicking the photo opens the place detail page', async () => {
+    render(<Harness />);
+    const photoButton = (await screen.findByAltText('Durgam Cheruvu')).closest('button')!;
+    await userEvent.click(photoButton);
+    expect(await screen.findByRole('heading', { name: 'place detail' })).toBeInTheDocument();
+  });
+
+  it('clicking the place name opens the place detail page', async () => {
+    render(<Harness />);
+    const nameButton = (
+      await screen.findByRole('heading', { name: 'Durgam Cheruvu', level: 3 })
+    ).closest('button')!;
+    await userEvent.click(nameButton);
+    expect(await screen.findByRole('heading', { name: 'place detail' })).toBeInTheDocument();
+  });
+
+  it('the "Details" button still opens it too', async () => {
+    render(<Harness />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Details' }));
+    expect(await screen.findByRole('heading', { name: 'place detail' })).toBeInTheDocument();
   });
 });

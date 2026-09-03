@@ -253,6 +253,7 @@ export function HomeScreen() {
         ) : null}
 
         <div
+          className="madli-stagger"
           style={{
             display: 'grid',
             gap: 'var(--space-5)',

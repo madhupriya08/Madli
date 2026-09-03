@@ -32,7 +32,7 @@ export function MarketingShell({ children }: { children: ReactNode }) {
           </Link>
         </nav>
       </header>
-      <main>{children}</main>
+      <main className="madli-page-enter">{children}</main>
     </div>
   );
 }

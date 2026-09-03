@@ -96,7 +96,10 @@ export function AdminShell({ title, children }: { title: string; children: React
           Sign out
         </button>
       </nav>
-      <main style={{ flex: 1, minWidth: 0, padding: 'var(--space-7)' }}>
+      <main
+        className="madli-page-enter"
+        style={{ flex: 1, minWidth: 0, padding: 'var(--space-7)' }}
+      >
         <h1 style={{ font: 'var(--type-h2)', marginBottom: 'var(--space-6)' }}>{title}</h1>
         {children}
       </main>

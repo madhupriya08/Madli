@@ -74,6 +74,7 @@ export function PickCard({
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       type={onClick ? 'button' : undefined}
+      className={onClick ? 'madli-hover-lift' : undefined}
       style={{
         display: 'flex',
         flexDirection: horizontal ? 'row' : 'column',
@@ -98,6 +99,7 @@ export function PickCard({
           label={photoLabel || name}
           ratio={horizontal ? '1 / 1' : '16 / 10'}
           radius="0"
+          className={onClick ? 'madli-hover-zoom' : undefined}
           style={{ height: horizontal ? '100%' : undefined }}
         />
         <div

@@ -11,21 +11,14 @@ import { usePersona } from '../../dev/PersonaContext';
 import { Dialog } from '../../components/feedback/Dialog';
 import { RankGooglePlaceForm } from '../../components/ranking/RankGooglePlaceForm';
 import { useAllRankedEntries, LOCAL_STATUS_THRESHOLD } from '../../data/hooks';
-import { useMyGoogleRankings } from '../../data/googleRankings';
+import { useMyGoogleRankings, type RankedGooglePlace } from '../../data/googleRankings';
+import { subtypeFor } from '../../data/rankedSubtypes';
 import { categories } from '../../fixtures/categories';
 import { placeById } from '../../fixtures/places';
 import type { Tier } from '../../fixtures/mockDb';
 import type { Door } from '../../lib/searchState';
 
-const DOOR_COLUMN_LABEL: Record<Door, string> = {
-  eat: 'Eat — nearby places',
-  explore: 'Explore — nearby places',
-};
-
-const DOOR_COLUMN_META: Record<Door, { icon: string; color: string }> = {
-  eat: { icon: 'utensils', color: 'var(--teal-500)' },
-  explore: { icon: 'map-pin', color: 'var(--teal-600)' },
-};
+const DOOR_LABEL: Record<Door, string> = { eat: 'Eat', explore: 'Explore' };
 
 // Mirrors the design handoff's own CAT_META (prototype's S31 section,
 // "Madli Prototype.dc.html" ~line 3796) — icon + accent colour per catalogue
@@ -45,18 +38,17 @@ const TIER_LABEL: Record<'loved' | 'fine', string> = {
   fine: 'Been and fine',
 };
 
+/** What "Re-rank" actually does for this row — the two ranking mechanics this app has, each with its own re-rank path (P13 §6). */
+type Rerank =
+  | { kind: 'catalogue'; placeId: string }
+  | { kind: 'google'; googlePlaceId: string; name: string; door: Door; types: string[] };
+
 interface Row {
   key: string;
   pos: number;
   name: string;
   tier: Tier;
-  /**
-   * P12 §9: set only on the Google-ranked rows, which are the ones this
-   * screen can actually re-rank in place — fn_log_ranked_visit (the
-   * catalogue's own path) refuses a place that is already ranked, so a
-   * catalogue row has no update path to offer yet.
-   */
-  rerank?: { googlePlaceId: string; name: string; door: Door; types: string[] };
+  rerank?: Rerank;
 }
 
 interface Column {
@@ -113,7 +105,7 @@ function toColumn(
     position: number;
     tier: Tier;
     name: string;
-    rerank?: Row['rerank'];
+    rerank?: Rerank;
   }>,
 ): Column {
   const sorted = [...all].sort((a, b) => a.position - b.position);
@@ -141,6 +133,54 @@ function toColumn(
   };
 }
 
+/**
+ * P13 §7: one column per door was the coarsest possible split once someone
+ * has ranked more than a handful of real places — "categorize the places...
+ * even divide the places based on... breakfast spots, bar and restaurant,
+ * pub, or temples, concerts etc." Google's own `types` on each ranking
+ * (subtypeFor, rankedSubtypes.ts) decide a finer bucket; a column exists
+ * only once something in it has actually been ranked, so an area with
+ * nothing but cafes ranked never shows five empty "Bars & pubs"-style
+ * columns.
+ */
+function subtypeColumns(door: Door, entries: RankedGooglePlace[]): Column[] {
+  const buckets = new Map<
+    string,
+    {
+      label: string;
+      icon: string;
+      color: string;
+      rows: Array<Parameters<typeof toColumn>[3][number]>;
+    }
+  >();
+  for (const e of entries) {
+    const subtype = subtypeFor(door, e.types);
+    const bucketId = `door:${door}:${subtype.id}`;
+    if (!buckets.has(bucketId)) {
+      buckets.set(bucketId, {
+        label: `${DOOR_LABEL[door]} · ${subtype.label}`,
+        icon: subtype.icon,
+        color: subtype.color,
+        rows: [],
+      });
+    }
+    buckets.get(bucketId)!.rows.push({
+      id: e.id,
+      position: e.position,
+      tier: e.tier,
+      name: e.placeName,
+      rerank: {
+        kind: 'google',
+        googlePlaceId: e.googlePlaceId,
+        name: e.placeName,
+        door: e.door,
+        types: e.types,
+      },
+    });
+  }
+  return [...buckets.entries()].map(([id, b]) => toColumn(id, b.label, b, b.rows));
+}
+
 // S31: disliked places drop out of the visible list but stay logged — they
 // keep contributing to ranking without cluttering the list. Real divergence
 // (design_handoff_madli/README.md's own S31 note): desktop is multi-column by
@@ -155,6 +195,9 @@ function toColumn(
 // per door alongside the catalogue's per-category columns, not merged into
 // them — both kinds are real, visible ranked lists; they just group at a
 // different granularity, and both get the same card treatment below.
+//
+// P13 §7: the Google side is subtype-scoped now, not just door-scoped — see
+// subtypeColumns above.
 export function MyRankedListScreen() {
   const { breakpoint, userId, persona } = usePersona();
   const navigate = useNavigate();
@@ -162,12 +205,15 @@ export function MyRankedListScreen() {
   const { data: entries = [] } = useAllRankedEntries(userId);
   const { data: googleEntries = [] } = useMyGoogleRankings(undefined, persona !== 'guest');
   const [hideVisited, setHideVisitedState] = useState(() => readHideVisited(userId));
-  // P12 §9: "my ranked list ... should ask the user to rank the place ... and
-  // follow up by comparing against the existing list." Re-ranking from the
-  // list itself uses the very same card the post-visit nudge and the "I've
-  // been here" button use — one ranking question in the whole app, asked the
-  // same way, comparison step and all.
-  const [reranking, setReranking] = useState<Row['rerank'] | null>(null);
+  // P12 §9/P13 §6: "my ranked list ... should ask the user to rank the
+  // place ... and follow up by comparing against the existing list." A
+  // Google-sourced row's "Re-rank" reuses the exact ranking card the
+  // post-visit nudge and "I've been here" button use; a catalogue row's
+  // routes into the same pairwise mechanic S25-S27 already use, now that
+  // fn_log_ranked_visit accepts re-ranking a place instead of refusing it
+  // (20260904100000_rerank_catalogue_visit.sql) — either way it is the same
+  // in-category comparison, never a hardcoded, unrelated place.
+  const [reranking, setReranking] = useState<Extract<Rerank, { kind: 'google' }> | null>(null);
 
   const usedCategoryIds = [...new Set(entries.map((e) => e.categoryId))];
   const usedCategories = categories.filter((c) => usedCategoryIds.includes(c.id));
@@ -185,29 +231,17 @@ export function MyRankedListScreen() {
             position: e.position,
             tier: e.tier,
             name: placeById(e.placeId)?.name ?? '',
+            rerank: { kind: 'catalogue' as const, placeId: e.placeId },
           })),
       ),
     ),
-    ...(['eat', 'explore'] as const).map((door) =>
-      toColumn(
-        `door:${door}`,
-        DOOR_COLUMN_LABEL[door],
-        DOOR_COLUMN_META[door],
-        googleEntries
-          .filter((e) => e.door === door)
-          .map((e) => ({
-            id: e.id,
-            position: e.position,
-            tier: e.tier,
-            name: e.placeName,
-            rerank: {
-              googlePlaceId: e.googlePlaceId,
-              name: e.placeName,
-              door: e.door,
-              types: e.types,
-            },
-          })),
-      ),
+    ...subtypeColumns(
+      'eat',
+      googleEntries.filter((e) => e.door === 'eat'),
+    ),
+    ...subtypeColumns(
+      'explore',
+      googleEntries.filter((e) => e.door === 'explore'),
     ),
   ].filter((c) => c.rows.length > 0 || c.hiddenCount > 0);
 
@@ -230,6 +264,17 @@ export function MyRankedListScreen() {
     writeHideVisited(userId, next);
   };
 
+  const startRerank = (rerank: Rerank) => {
+    if (rerank.kind === 'google') {
+      setReranking(rerank);
+      return;
+    }
+    // Catalogue path: the real pairwise comparison screens (S25-S27),
+    // exactly like "I've been here" everywhere else in the app — not the
+    // old global button's hardcoded, unrelated fallback place.
+    navigate('/log-visit', { state: { placeId: rerank.placeId } });
+  };
+
   if (columns.length === 0) {
     return (
       <AppShell title="My ranked list">
@@ -239,7 +284,13 @@ export function MyRankedListScreen() {
           body="Rank three places you have already been and the picks start bending toward what you actually like."
           action={
             <button
-              onClick={() => navigate('/log-visit')}
+              // P13 §6: this used to also go to '/log-visit' with no place
+              // named, hitting the same hardcoded-fallback bug the global
+              // "Re-rank by comparing" button had. There is nothing ranked
+              // yet to re-rank, so the honest destination is somewhere a
+              // real place can actually be found and rated for the first
+              // time.
+              onClick={() => navigate('/search')}
               style={{
                 background: 'none',
                 border: 'none',
@@ -247,7 +298,7 @@ export function MyRankedListScreen() {
                 cursor: 'pointer',
               }}
             >
-              Log a visit
+              Find a place to rank
             </button>
           }
         />
@@ -322,7 +373,7 @@ export function MyRankedListScreen() {
             </span>
           </div>
           {row.rerank ? (
-            <Button size="sm" variant="quiet" onClick={() => setReranking(row.rerank)}>
+            <Button size="sm" variant="quiet" onClick={() => startRerank(row.rerank!)}>
               Re-rank
             </Button>
           ) : null}
@@ -371,21 +422,22 @@ export function MyRankedListScreen() {
               needed for full ranking weight
             </span>
           </div>
-          <div style={{ display: 'flex', gap: 10 }}>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => {
-                navigator.clipboard?.writeText(buildShareText(columns)).catch(() => {});
-                show('Ranked list copied — paste it anywhere.');
-              }}
-            >
-              Share the list
-            </Button>
-            <Button variant="quiet" size="sm" onClick={() => navigate('/log-visit')}>
-              Re-rank by comparing
-            </Button>
-          </div>
+          {/* P13 §6: the old "Re-rank by comparing" button here named no
+              place at all — it could not, a screen-level button has no one
+              row in mind — so it fell back to an arbitrary fixed catalogue
+              place every time. Re-ranking is a per-row action now (below,
+              on every row), the same one comparison mechanic, run on the
+              actual place someone taps. */}
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => {
+              navigator.clipboard?.writeText(buildShareText(columns)).catch(() => {});
+              show('Ranked list copied — paste it anywhere.');
+            }}
+          >
+            Share the list
+          </Button>
         </div>
 
         <div
@@ -406,6 +458,7 @@ export function MyRankedListScreen() {
 
         {breakpoint === 'desktop' ? (
           <div
+            className="madli-stagger"
             style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',

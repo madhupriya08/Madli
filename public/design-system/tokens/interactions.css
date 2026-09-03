@@ -1,0 +1,206 @@
+/*
+ * P13 §9 — a light, reusable motion layer on top of tokens/motion.css.
+ *
+ * motion.css's own philosophy ("Fast and quiet. Nothing bounces, nothing
+ * stalls for effect.") stays the baseline for state changes — colour,
+ * shadow, the press settle. This file adds the other half explicitly asked
+ * for afterward: real, felt motion on the things people hover, scroll past,
+ * and wait on — card lift, image zoom, page/list entrances, a travelling
+ * skeleton sheen. Composed from the same --dur- and --ease- tokens rather
+ * than inventing new timing, and every rule here is skipped outright under
+ * prefers-reduced-motion, same guarantee motion.css already makes.
+ *
+ * Utility classes, not component styles: apply alongside a component's own
+ * inline styling via `className`, never in place of it.
+ */
+
+:root {
+  /* Real duration, not a hardcoded 0/1600ms split across rules — referenced
+     by both the .madli-shimmer class and Skeleton.tsx's own inline
+     animation, so one reduced-motion override (below) silences both. */
+  --shimmer-dur: 1600ms;
+}
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --shimmer-dur: 0ms;
+  }
+}
+
+.madli-hover-lift {
+  transition:
+    transform var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-standard);
+}
+.madli-hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+}
+.madli-hover-lift:active {
+  transform: translateY(-1px);
+  transition-duration: var(--dur-instant);
+}
+
+/* Photo zoom on hover — put on the PhotoFrame/container, not the <img> itself. */
+.madli-hover-zoom {
+  overflow: hidden;
+}
+.madli-hover-zoom img {
+  transition: transform var(--dur-slow) var(--ease-out);
+}
+.madli-hover-zoom:hover img {
+  transform: scale(1.07);
+}
+
+/* Small interactive controls (Tag, IconButton, chips): a light settle, not a bounce. */
+.madli-press {
+  transition:
+    transform var(--dur-instant) var(--ease-standard),
+    background-color var(--dur-fast) var(--ease-standard),
+    border-color var(--dur-fast) var(--ease-standard),
+    color var(--dur-fast) var(--ease-standard);
+}
+.madli-press:hover {
+  transform: translateY(-1px);
+}
+.madli-press:active {
+  transform: scale(0.96) translateY(0);
+}
+
+/* One screen's worth of entrance, applied at the AppShell/MarketingShell/
+   AdminShell layer — every route gets it without each screen wiring its own. */
+@keyframes madli-page-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.madli-page-enter {
+  animation: madli-page-in var(--dur-slow) var(--ease-out) both;
+}
+
+/* A grid/list of cards arriving in a light stagger rather than all at once —
+   apply to the grid container; each direct child gets an incremental delay
+   up to the 8th, after which they all just play together. */
+@keyframes madli-item-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.madli-stagger > * {
+  animation: madli-item-in var(--dur-base) var(--ease-out) both;
+}
+.madli-stagger > *:nth-child(1) {
+  animation-delay: 0ms;
+}
+.madli-stagger > *:nth-child(2) {
+  animation-delay: 40ms;
+}
+.madli-stagger > *:nth-child(3) {
+  animation-delay: 80ms;
+}
+.madli-stagger > *:nth-child(4) {
+  animation-delay: 120ms;
+}
+.madli-stagger > *:nth-child(5) {
+  animation-delay: 160ms;
+}
+.madli-stagger > *:nth-child(6) {
+  animation-delay: 200ms;
+}
+.madli-stagger > *:nth-child(7) {
+  animation-delay: 240ms;
+}
+.madli-stagger > *:nth-child(n + 8) {
+  animation-delay: 280ms;
+}
+
+/* A travelling sheen for the skeleton loaders — layered in via background,
+   so Skeleton.tsx's own quiet opacity-breath keeps running underneath it. */
+@keyframes madli-shimmer-sweep {
+  from {
+    background-position: -320px 0;
+  }
+  to {
+    background-position: 320px 0;
+  }
+}
+.madli-shimmer {
+  background-image: linear-gradient(
+    100deg,
+    transparent 30%,
+    color-mix(in oklch, var(--white) 55%, transparent) 50%,
+    transparent 70%
+  );
+  background-size: 320px 100%;
+  background-repeat: no-repeat;
+  animation: madli-shimmer-sweep var(--shimmer-dur) ease-in-out infinite;
+}
+
+/* Underline/segment indicators (Tabs' active pill) settling into place. */
+.madli-tab-active {
+  transition:
+    background-color var(--dur-fast) var(--ease-standard),
+    box-shadow var(--dur-fast) var(--ease-standard),
+    transform var(--dur-instant) var(--ease-standard);
+}
+
+/* Dialog/sheet panel arriving — a small scale, not a slide; the scrim
+   itself keeps its existing madli-fade-up. */
+@keyframes madli-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.madli-scale-in {
+  animation: madli-scale-in var(--dur-base) var(--ease-out) both;
+}
+
+@keyframes madli-sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.madli-sheet-in {
+  animation: madli-sheet-in var(--dur-sheet) var(--ease-out) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .madli-hover-lift,
+  .madli-hover-lift:hover,
+  .madli-hover-lift:active,
+  .madli-hover-zoom img,
+  .madli-hover-zoom:hover img,
+  .madli-press,
+  .madli-press:hover,
+  .madli-press:active {
+    transform: none !important;
+    transition-duration: 0ms !important;
+  }
+  .madli-page-enter,
+  .madli-stagger > *,
+  .madli-shimmer,
+  .madli-scale-in,
+  .madli-sheet-in {
+    animation: none !important;
+  }
+}

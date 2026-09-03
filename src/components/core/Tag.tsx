@@ -5,6 +5,16 @@ export interface TagProps {
   children?: ReactNode;
   icon?: string;
   selected?: boolean;
+  /**
+   * 'solid' (default) is a real choice made — teal fill, white text.
+   * 'outline' is a soft, low-emphasis highlight: a tinted border and text,
+   * no fill. For the one chip in a single-select group that represents "no
+   * preference set" (e.g. Filters' "Any distance") — it needs to read as
+   * the group's current, clickable, active state without looking like a
+   * requirement the way a real 'solid' selection does. Ignored when
+   * `selected` is false.
+   */
+  tone?: 'solid' | 'outline';
   onClick?: () => void;
   onRemove?: () => void;
   /** Screen-reader label for the remove control. Defaults to "Remove". */
@@ -17,6 +27,7 @@ export function Tag({
   children,
   icon,
   selected = false,
+  tone = 'solid',
   onClick,
   onRemove,
   removeLabel = 'Remove',
@@ -24,6 +35,7 @@ export function Tag({
 }: TagProps) {
   const [hover, setHover] = useState(false);
   const interactive = !!onClick;
+  const outline = selected && tone === 'outline';
   return (
     <span
       onClick={onClick}
@@ -41,6 +53,7 @@ export function Tag({
             }
           : undefined
       }
+      className={interactive ? 'madli-press' : undefined}
       style={{
         display: 'inline-flex',
         alignItems: 'center',
@@ -49,10 +62,28 @@ export function Tag({
         padding: onRemove ? '6px 8px 6px 11px' : '6px 11px',
         borderRadius: 'var(--radius-sm)',
         cursor: interactive ? 'pointer' : 'default',
-        transition: 'var(--transition-color)',
-        background: selected ? 'var(--teal-500)' : 'var(--surface-sunken)',
-        color: selected ? 'var(--text-on-dark)' : 'var(--text-body)',
-        border: `1px solid ${selected ? 'var(--teal-500)' : 'var(--border-hairline)'}`,
+        transition: 'var(--transition-color), var(--transition-transform)',
+        background: selected
+          ? outline
+            ? 'var(--teal-50)'
+            : 'var(--teal-500)'
+          : 'var(--surface-sunken)',
+        color: selected
+          ? outline
+            ? 'var(--teal-700)'
+            : 'var(--text-on-dark)'
+          : 'var(--text-body)',
+        // Longhand, not the `border` shorthand — a static shorthand mixed
+        // with a conditional `borderColor` override across renders is what
+        // triggers React's "don't mix shorthand and non-shorthand" warning.
+        borderWidth: 1,
+        borderStyle: 'solid',
+        borderColor:
+          interactive && hover
+            ? 'var(--teal-400)'
+            : selected
+              ? 'var(--teal-500)'
+              : 'var(--border-hairline)',
         ...(interactive && hover && !selected ? { background: 'var(--slate-200)' } : {}),
         ...style,
       }}

@@ -126,7 +126,9 @@ export function AppShell({
       }}
     >
       <TopBar title={title} subtitle={subtitle} onBack={onBack} trailing={topBarTrailing} />
-      <main style={{ flex: 1 }}>{children}</main>
+      <main className="madli-page-enter" style={{ flex: 1 }}>
+        {children}
+      </main>
       {showNav && !isDesktop ? (
         <TabBar
           items={TABS}

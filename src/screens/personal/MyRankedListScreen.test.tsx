@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { PersonaProvider } from '../../dev/PersonaContext';
 import { ToastProvider } from '../../components/feedback/ToastProvider';
 import { MyRankedListScreen } from './MyRankedListScreen';
@@ -10,8 +10,9 @@ import { MyRankedListScreen } from './MyRankedListScreen';
  * P10 §6: a person's Google-place rankings (from onboarding, or the new
  * "I've been here" button on a real place's detail page) used to never show
  * up here at all — only the 17 seeded catalogue places did. They now render
- * as their own door-scoped column(s) alongside the catalogue's per-category
- * columns, so nothing a person ranks disappears from their own list.
+ * as their own subtype-scoped column(s) alongside the catalogue's
+ * per-category columns, so nothing a person ranks disappears from their own
+ * list.
  *
  * P11 §11: an earlier version of this screen had drifted far from the actual
  * S31 design (design_handoff_madli/prototype/Madli Prototype.dc.html) — no
@@ -20,6 +21,16 @@ import { MyRankedListScreen } from './MyRankedListScreen';
  * and it used the raw stored position (which can have gaps where a disliked
  * entry sits) instead of a clean renumbering of the visible rows. This suite
  * also covers that rebuild.
+ *
+ * P13 §7: Google rankings split by subtype within each door now (not just
+ * one flat "Eat"/"Explore" column) — see rankedSubtypes.test.ts for the
+ * type→subtype rules themselves; this file only checks that the screen
+ * actually renders that grouping.
+ *
+ * P13 §6: "Re-rank by comparing" used to be one screen-level button naming
+ * no place at all, so it fell back to an arbitrary fixed catalogue place
+ * every time it was clicked. It is a per-row action now, for both kinds of
+ * ranked place, always on the actual row someone taps.
  */
 
 const CAT_ID = '00000000-0000-0000-0000-0000000000c1';
@@ -92,6 +103,15 @@ vi.mock('../../data/googleRankings', async () => {
   };
 });
 
+// Shows what navigation state actually reached '/log-visit' — the whole
+// point of the P13 §6 regression tests below is that a specific, correct
+// placeId gets there, not an arbitrary fallback.
+function LogVisitRouteProbe() {
+  const location = useLocation();
+  const placeId = (location.state as { placeId?: string } | null)?.placeId;
+  return <h1>log-visit route: {placeId ?? 'no placeId'}</h1>;
+}
+
 function Harness() {
   return (
     <PersonaProvider>
@@ -99,7 +119,8 @@ function Harness() {
         <MemoryRouter initialEntries={['/my-list']}>
           <Routes>
             <Route path="/my-list" element={<MyRankedListScreen />} />
-            <Route path="/log-visit" element={<h1>log-visit route</h1>} />
+            <Route path="/log-visit" element={<LogVisitRouteProbe />} />
+            <Route path="/search" element={<h1>search route</h1>} />
           </Routes>
         </MemoryRouter>
       </ToastProvider>
@@ -127,7 +148,7 @@ describe('MyRankedListScreen — merges catalogue and Google rankings', () => {
     ];
   });
 
-  it('shows the catalogue category column, and switching tabs reveals the Google door column', async () => {
+  it('shows the catalogue category column, and switching tabs reveals the Google subtype column', async () => {
     render(<Harness />);
 
     // Mobile layout (the default breakpoint here) shows one column at a
@@ -137,11 +158,44 @@ describe('MyRankedListScreen — merges catalogue and Google rankings', () => {
       await screen.findByRole('heading', { name: 'Breakfast and tiffin' }),
     ).toBeInTheDocument();
     expect(screen.getByText('Cafe Bahar')).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Eat — nearby places' })).toBeInTheDocument();
+    // A plain 'restaurant' type falls to the Eat door's own fallback bucket.
+    expect(screen.getByRole('tab', { name: 'Eat · Restaurants' })).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole('tab', { name: 'Eat — nearby places' }));
-    expect(await screen.findByRole('heading', { name: 'Eat — nearby places' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('tab', { name: 'Eat · Restaurants' }));
+    expect(await screen.findByRole('heading', { name: 'Eat · Restaurants' })).toBeInTheDocument();
     expect(screen.getByText('Testville Diner')).toBeInTheDocument();
+  });
+
+  it('splits Google rankings into more than one column when their types differ', async () => {
+    rankedEntries = [];
+    googleRankings = [
+      {
+        id: 'g1',
+        googlePlaceId: 'google-1',
+        placeName: 'Testville Diner',
+        door: 'eat',
+        tier: 'loved',
+        raterType: 'visitor',
+        position: 1,
+        areaText: null,
+        types: ['restaurant'],
+      },
+      {
+        id: 'g2',
+        googlePlaceId: 'google-2',
+        placeName: 'Testville Coffee',
+        door: 'eat',
+        tier: 'loved',
+        raterType: 'visitor',
+        position: 2,
+        areaText: null,
+        types: ['cafe'],
+      },
+    ];
+    render(<Harness />);
+
+    expect(await screen.findByRole('tab', { name: 'Eat · Restaurants' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Eat · Cafes' })).toBeInTheDocument();
   });
 });
 
@@ -165,7 +219,7 @@ describe('MyRankedListScreen — matches the S31 design handoff', () => {
     ];
   });
 
-  it('shows the stats subtitle, tier label, and the two action buttons', async () => {
+  it('shows the stats subtitle, tier label, and the Share action', async () => {
     render(<Harness />);
 
     expect(await screen.findByText('Cafe Bahar')).toBeInTheDocument();
@@ -175,16 +229,7 @@ describe('MyRankedListScreen — matches the S31 design handoff', () => {
     ).toBeInTheDocument();
     expect(screen.getByText('Been and loved')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Share the list' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Re-rank by comparing' })).toBeInTheDocument();
     expect(screen.getByText('Hide visited places elsewhere in the app')).toBeInTheDocument();
-  });
-
-  it('"Re-rank by comparing" goes to the same log-a-visit entry point as everywhere else', async () => {
-    render(<Harness />);
-    await screen.findByText('Cafe Bahar');
-
-    await userEvent.click(screen.getByRole('button', { name: 'Re-rank by comparing' }));
-    expect(await screen.findByRole('heading', { name: 'log-visit route' })).toBeInTheDocument();
   });
 
   it('"Share the list" copies a text summary to the clipboard', async () => {
@@ -218,8 +263,10 @@ describe('MyRankedListScreen — matches the S31 design handoff', () => {
 });
 
 /**
- * P12 §9: "my ranked list and any ranking logic should ask the user to rank
- * the place ... followed up with comparing the existing list."
+ * P13 §6: re-ranking is a per-row action, on the actual place shown — never
+ * a screen-level button naming nothing, which is what let the old
+ * "Re-rank by comparing" button silently fall back to an unrelated,
+ * hardcoded catalogue place on every click.
  */
 describe('MyRankedListScreen — re-ranking from the list itself', () => {
   beforeEach(() => {
@@ -241,19 +288,43 @@ describe('MyRankedListScreen — re-ranking from the list itself', () => {
     ];
   });
 
-  it('opens the same Rank-this-place card the rest of the app uses', async () => {
+  it('there is no screen-level "Re-rank by comparing" button any more', async () => {
+    render(<Harness />);
+    await screen.findByText('Cafe Bahar');
+    expect(screen.queryByRole('button', { name: 'Re-rank by comparing' })).not.toBeInTheDocument();
+  });
+
+  it('a Google row opens the same Rank-this-place card the rest of the app uses', async () => {
     render(<Harness />);
 
-    await userEvent.click(await screen.findByRole('tab', { name: 'Eat — nearby places' }));
+    await userEvent.click(await screen.findByRole('tab', { name: 'Eat · Restaurants' }));
     await userEvent.click(screen.getByRole('button', { name: 'Re-rank' }));
 
     expect(await screen.findByRole('heading', { name: 'Rank this place' })).toBeInTheDocument();
   });
 
-  it('offers no re-rank on a catalogue row — that path has no update mechanic yet', async () => {
+  it('a catalogue row\'s "Re-rank" goes to the real comparison flow, on that exact place — not an unrelated fallback', async () => {
     render(<Harness />);
 
     await screen.findByRole('heading', { name: 'Breakfast and tiffin' });
-    expect(screen.queryByRole('button', { name: 'Re-rank' })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Re-rank' }));
+
+    expect(
+      await screen.findByRole('heading', { name: 'log-visit route: catalogue-1' }),
+    ).toBeInTheDocument();
+  });
+});
+
+describe('MyRankedListScreen — empty state does not fall back to a hardcoded place either', () => {
+  beforeEach(() => {
+    rankedEntries = [];
+    googleRankings = [];
+  });
+
+  it('"Find a place to rank" goes to Search, not a broken log-visit link', async () => {
+    render(<Harness />);
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Find a place to rank' }));
+    expect(await screen.findByRole('heading', { name: 'search route' })).toBeInTheDocument();
   });
 });

@@ -13,6 +13,7 @@ import { DEFAULT_CENTER, haversineMeters, useSearch } from '../../lib/searchStat
 import { areas, nearestArea, type Area } from '../../fixtures/areas';
 import { fetchHomeArea, setHomeAreaId, setHomeAreaText } from '../../data/homeArea';
 import { hasMapsApiKey } from '../../lib/googleMaps';
+import { setResidentStatus } from '../../data/googleRankings';
 import {
   reverseGeocodeArea,
   resolveAreaCenter,
@@ -79,6 +80,7 @@ export function PickAreaScreen() {
   const [homeOverride, setHomeOverride] = useState<
     { areaId: string | null; areaText: string | null } | undefined
   >(undefined);
+  const [goingHome, setGoingHome] = useState(false);
   const navigate = useNavigate();
   const routerLocation = useLocation();
   const { show } = useToast();
@@ -139,6 +141,27 @@ export function PickAreaScreen() {
     };
   }, [query]);
 
+  // P13 §4: choosing the area you already marked as home answers "do you
+  // live here" by definition — asking it again right after is redundant.
+  // `setResidentStatus` runs in the background rather than being awaited:
+  // this is an inferred answer, not something the person consciously
+  // stopped to confirm, so a slow network must not visibly hold up getting
+  // to `next`. A failure here just means the ask was not skippable after
+  // all; it is not worth interrupting navigation over.
+  const proceedAfterArea = (isHome: boolean, areaText: string) => {
+    if (isHome && persona !== 'guest') {
+      setResidentStatus('local', areaText).catch(() => {
+        show('Could not save that you live here — you can still answer it from your profile.');
+      });
+      navigate(next);
+      return;
+    }
+    // Through the local/visitor ask rather than straight to `next` — that
+    // question runs once, right after settling on an area, for every path
+    // that reaches this screen.
+    navigate('/local-or-visitor', { state: { next } });
+  };
+
   const chooseArea = (area: Area) => {
     // The seeded neighbourhoods now carry real centroids, so a manual pick
     // gets a real center too — not just text. Leaving center unset here is
@@ -153,10 +176,7 @@ export function PickAreaScreen() {
       center: { lat: area.lat, lng: area.lng },
       centerSource: 'area',
     });
-    // Through the local/visitor ask rather than straight to `next` — that
-    // question runs once, right after settling on an area, for every path
-    // that reaches this screen.
-    navigate('/local-or-visitor', { state: { next } });
+    proceedAfterArea(currentHomeAreaId === area.id, area.name);
   };
 
   const chooseLiveSuggestion = async (suggestion: AreaSuggestion) => {
@@ -170,10 +190,56 @@ export function PickAreaScreen() {
         center,
         centerSource: 'area',
       });
-      navigate('/local-or-visitor', { state: { next } });
+      proceedAfterArea(currentHomeAreaText === suggestion.label, suggestion.label);
     } catch (err) {
       setResolvingPlaceId(null);
       show(err instanceof Error ? err.message : 'Could not look up that place.');
+    }
+  };
+
+  // P13 §3: "if he wants to check out places near his home, there is no
+  // point making him search for it again" — a person who already marked a
+  // home area (the per-row "Home" switch below) gets a one-tap shortcut
+  // here, the same weight as "Use my current location", instead of having
+  // to find that same row again in the list below. Absent entirely when
+  // nothing is marked home yet, or for a Guest (who has no home area to
+  // jump to in the first place — the per-row switch is already hidden for
+  // them for the same reason).
+  const homeArea = currentHomeAreaId ? areas.find((a) => a.id === currentHomeAreaId) : undefined;
+  const goHome = async () => {
+    if (homeArea) {
+      setSearch({
+        areaText: homeArea.name,
+        areaPlaceId: null,
+        countryCode: 'IN',
+        center: { lat: homeArea.lat, lng: homeArea.lng },
+        centerSource: 'area',
+      });
+      proceedAfterArea(true, homeArea.name);
+      return;
+    }
+    if (!currentHomeAreaText) return;
+    // A home outside the eight seeded neighbourhoods only ever had its
+    // label persisted (home_area_text), not coordinates — re-resolve it the
+    // same way picking it from the live-search list below would.
+    setGoingHome(true);
+    try {
+      const matches = await suggestAreas(currentHomeAreaText, DEFAULT_CENTER);
+      const match = matches.find((m) => m.label === currentHomeAreaText) ?? matches[0];
+      if (!match) throw new Error(`Could not find "${currentHomeAreaText}" any more.`);
+      const { center, countryCode } = await resolveAreaCenter(match.placeId);
+      setSearch({
+        areaText: currentHomeAreaText,
+        areaPlaceId: match.placeId,
+        countryCode,
+        center,
+        centerSource: 'area',
+      });
+      proceedAfterArea(true, currentHomeAreaText);
+    } catch (err) {
+      show(err instanceof Error ? err.message : 'Could not look up your home area.');
+    } finally {
+      setGoingHome(false);
     }
   };
 
@@ -226,7 +292,7 @@ export function PickAreaScreen() {
             centerSource: 'geolocation',
           });
           setAsking(false);
-          navigate('/local-or-visitor', { state: { next } });
+          proceedAfterArea(currentHomeAreaId === nearest.id, nearest.name);
           return;
         }
 
@@ -248,9 +314,15 @@ export function PickAreaScreen() {
           // No maps key, network blip, geocoding disabled — still proceed
           // with a generic label rather than blocking the flow entirely.
         }
-        setSearch({ areaText, areaPlaceId: null, countryCode, center: point, centerSource: 'geolocation' });
+        setSearch({
+          areaText,
+          areaPlaceId: null,
+          countryCode,
+          center: point,
+          centerSource: 'geolocation',
+        });
         setAsking(false);
-        navigate('/local-or-visitor', { state: { next } });
+        proceedAfterArea(currentHomeAreaText === areaText, areaText);
       },
       () => {
         // Not an error path. Stay on this screen — the list below is already
@@ -286,6 +358,20 @@ export function PickAreaScreen() {
         >
           {asking ? 'Finding you…' : 'Use my current location'}
         </Button>
+
+        {homeArea || currentHomeAreaText ? (
+          <Button
+            variant="secondary"
+            block
+            onClick={() => void goHome()}
+            disabled={goingHome}
+            iconLeft={<Icon name="home" size={18} />}
+          >
+            {goingHome
+              ? 'Finding your home area…'
+              : `Home — ${homeArea?.name ?? currentHomeAreaText}`}
+          </Button>
+        ) : null}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
           <SearchField

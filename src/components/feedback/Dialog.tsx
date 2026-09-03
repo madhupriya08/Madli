@@ -118,6 +118,7 @@ export function Dialog({
         aria-modal="true"
         tabIndex={-1}
         aria-labelledby={title ? titleId : undefined}
+        className={sheet ? 'madli-sheet-in' : 'madli-scale-in'}
         style={{
           width: sheet ? '100%' : `min(100%, ${width}px)`,
           background: 'var(--surface-card)',

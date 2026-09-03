@@ -11,6 +11,8 @@ export interface PhotoFrameProps {
   overlay?: boolean;
   children?: ReactNode;
   style?: CSSProperties;
+  /** e.g. "madli-hover-zoom" — CSS-driven hover effects a plain style prop can't express. */
+  className?: string;
 }
 
 /**
@@ -27,6 +29,7 @@ export function PhotoFrame({
   overlay = false,
   children,
   style,
+  className,
 }: PhotoFrameProps) {
   // Photography is currently served from a public placeholder host (see
   // src/lib/placePhoto.ts), so a load can fail for reasons that have nothing
@@ -42,6 +45,7 @@ export function PhotoFrame({
 
   return (
     <div
+      className={className}
       style={{
         position: 'relative',
         aspectRatio: children && !ratio ? undefined : ratio,

@@ -21,6 +21,7 @@ import {
   type ResidentStatus,
 } from '../../data/googleRankings';
 import { getPersonalizedSuggestions } from '../../data/recommendations';
+import { PhotoFrame } from '../../components/core/PhotoFrame';
 import { track } from '../../lib/analytics';
 
 const TIERS: Array<{ tier: RankTier; label: string }> = [
@@ -59,7 +60,7 @@ const DOOR_SECTIONS: Array<{ door: Door; heading: string }> = [
 export function RankingOnboardingScreen() {
   const navigate = useNavigate();
   const { show } = useToast();
-  const { userId, hasSession } = usePersona();
+  const { userId, hasSession, breakpoint } = usePersona();
   const { search, effectiveCenter } = useSearch();
   // The question this screen used to ask directly now runs earlier, right
   // after S8 (LocalOrVisitorScreen) — this reads whatever that answer was
@@ -263,7 +264,10 @@ export function RankingOnboardingScreen() {
         {DOOR_SECTIONS.map(({ door, heading }) => {
           const nearby = nearbyByDoor[door];
           return (
-            <div key={door} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+            <div
+              key={door}
+              style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}
+            >
               <h3 style={{ font: 'var(--type-label)', margin: 0 }}>{heading}</h3>
               {nearby.isLoading ? (
                 <div style={{ display: 'grid', gap: 'var(--space-4)' }}>
@@ -282,52 +286,81 @@ export function RankingOnboardingScreen() {
                 />
               ) : (
                 <ul
+                  className="madli-stagger"
                   style={{
                     listStyle: 'none',
                     padding: 0,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 'var(--space-3)',
+                    margin: 0,
+                    display: 'grid',
+                    // P13 §2: these were single-column, text-only rows —
+                    // half the visual weight of any real pick shown
+                    // elsewhere in the app (PickCard's own photo + name +
+                    // reason), for the exact same kind of decision ("have
+                    // you been here"). A real photo, a bigger name, and a
+                    // proper 2-up (desktop) grid puts these on equal
+                    // footing with everything else someone rates places on.
+                    gridTemplateColumns:
+                      breakpoint === 'desktop' ? 'repeat(2, minmax(0, 1fr))' : '1fr',
+                    gap: 'var(--space-5)',
                   }}
                 >
                   {nearby.data?.map((candidate) => {
                     const chosen = ranked[candidate.placeId];
                     return (
                       <li key={candidate.placeId}>
-                        <Card style={{ padding: 'var(--space-4)' }}>
-                          <div style={{ font: 'var(--type-body)', color: 'var(--text-heading)' }}>
-                            {candidate.name}
-                          </div>
-                          <div
-                            style={{
-                              font: 'var(--type-evidence)',
-                              color: 'var(--evidence-text)',
-                              marginBottom: 'var(--space-3)',
-                            }}
-                          >
-                            {candidate.address}
-                          </div>
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
-                            {TIERS.map((t) => (
-                              <Tag
-                                key={t.tier}
-                                selected={chosen === t.tier}
-                                onClick={() => void toggleRate(candidate, door, t.tier)}
-                              >
-                                {t.label}
-                              </Tag>
-                            ))}
-                            {chosen ? (
-                              <span
-                                style={{
-                                  font: 'var(--type-caption)',
-                                  color: 'var(--text-muted)',
-                                  alignSelf: 'center',
-                                }}
-                              >
-                                Saved — tap again to undo
-                              </span>
-                            ) : null}
+                        <Card padding={0} style={{ overflow: 'hidden', height: '100%' }}>
+                          <PhotoFrame
+                            src={candidate.photoUrl}
+                            label={candidate.name}
+                            alt={candidate.name}
+                            ratio="16 / 9"
+                            radius="0"
+                            className="madli-hover-zoom"
+                          />
+                          <div style={{ padding: 'var(--space-5)' }}>
+                            <div
+                              style={{
+                                font: 'var(--type-h3)',
+                                letterSpacing: 'var(--tracking-display)',
+                                color: 'var(--text-heading)',
+                                marginBottom: 4,
+                              }}
+                            >
+                              {candidate.name}
+                            </div>
+                            <div
+                              style={{
+                                font: 'var(--type-body-sm)',
+                                color: 'var(--evidence-text)',
+                                marginBottom: 'var(--space-4)',
+                              }}
+                            >
+                              {candidate.address}
+                            </div>
+                            <div
+                              style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}
+                            >
+                              {TIERS.map((t) => (
+                                <Tag
+                                  key={t.tier}
+                                  selected={chosen === t.tier}
+                                  onClick={() => void toggleRate(candidate, door, t.tier)}
+                                >
+                                  {t.label}
+                                </Tag>
+                              ))}
+                              {chosen ? (
+                                <span
+                                  style={{
+                                    font: 'var(--type-caption)',
+                                    color: 'var(--text-muted)',
+                                    alignSelf: 'center',
+                                  }}
+                                >
+                                  Saved — tap again to undo
+                                </span>
+                              ) : null}
+                            </div>
                           </div>
                         </Card>
                       </li>

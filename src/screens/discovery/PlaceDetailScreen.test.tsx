@@ -74,6 +74,28 @@ vi.mock('../../data/googleRankings', () => ({
   useMyGoogleRankings: () => ({ data: [] }),
 }));
 
+// P13 §8's own regression test needs a real (mocked) Google-sourced branch
+// to exercise — this file otherwise only ever renders catalogue fixtures.
+const GOOGLE_PLACE = {
+  placeId: 'a-real-google-place-id',
+  name: 'Testville Diner',
+  address: '1 Test Street',
+  location: { lat: 17.4, lng: 78.4 },
+  types: ['restaurant', 'point_of_interest'],
+  googleRating: 4.5,
+  reviewCount: 100,
+};
+vi.mock('../../lib/placesSearch', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../lib/placesSearch')>();
+  return {
+    ...actual,
+    fetchPlaceDetails: (id: string) =>
+      id === GOOGLE_PLACE.placeId
+        ? Promise.resolve(GOOGLE_PLACE)
+        : Promise.reject(new Error(`not mocked: ${id}`)),
+  };
+});
+
 function SetPersona({ to }: { to: 'guest' | 'user' }) {
   const { setPersona } = usePersona();
   return <button onClick={() => setPersona(to)}>set persona {to}</button>;
@@ -153,7 +175,7 @@ describe('PlaceDetailScreen — S19 gaps closed against the prototype', () => {
 
     await userEvent.click(
       await screen.findByRole('button', {
-        name: /closest places worth stopping at afterwards/,
+        name: /worth stopping at after this/,
       }),
     );
 
@@ -167,7 +189,7 @@ describe('PlaceDetailScreen — S19 gaps closed against the prototype', () => {
 
     await userEvent.click(
       await screen.findByRole('button', {
-        name: /closest places worth stopping at afterwards/,
+        name: /worth stopping at after this/,
       }),
     );
     await userEvent.click(await screen.findByRole('button', { name: 'Continue as guest' }));
@@ -182,10 +204,39 @@ describe('PlaceDetailScreen — S19 gaps closed against the prototype', () => {
 
     await userEvent.click(
       await screen.findByRole('button', {
-        name: /closest places worth stopping at afterwards/,
+        name: /worth stopping at after this/,
       }),
     );
 
     expect(await screen.findByRole('heading', { name: 'Bridge tap' })).toBeInTheDocument();
+  });
+});
+
+/**
+ * P13 §8: ReasonNote renders its own "Why this one"/"Why this is a gem"
+ * eyebrow label internally (see ReasonNote.tsx's own `label` default) — an
+ * external eyebrow() heading wrapped around it duplicated that same text a
+ * second time, stacked right above it. Confirmed on both branches this
+ * screen has: a catalogue place (gem and non-gem) and a Google-sourced one.
+ */
+describe('PlaceDetailScreen — P13 §8: "Why this one" appears exactly once', () => {
+  it('a plain catalogue place shows "Why this one" exactly once', async () => {
+    render(<Harness slug="restaurants%2Fmehfil" />);
+    await screen.findByText('Mehfil');
+    expect(screen.getAllByText('Why this one')).toHaveLength(1);
+    expect(screen.queryByText('Why this is a gem')).not.toBeInTheDocument();
+  });
+
+  it('a gem catalogue place shows "Why this is a gem" once, and never "Why this one" too', async () => {
+    render(<Harness slug="restaurants%2Fsubhan-bakery" />);
+    await screen.findByText('Subhan Bakery');
+    expect(screen.getAllByText('Why this is a gem')).toHaveLength(1);
+    expect(screen.queryByText('Why this one')).not.toBeInTheDocument();
+  });
+
+  it('a Google-sourced place shows "Why this one" exactly once', async () => {
+    render(<Harness slug="a-real-google-place-id" />);
+    await screen.findByText('Testville Diner');
+    expect(screen.getAllByText('Why this one')).toHaveLength(1);
   });
 });

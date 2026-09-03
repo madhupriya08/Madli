@@ -248,6 +248,7 @@ export function ResultsScreen({ door }: { door: 'eat' | 'explore' }) {
         ) : (
           <>
             <div
+              className="madli-stagger"
               style={{
                 display: 'grid',
                 gap: 'var(--space-5)',

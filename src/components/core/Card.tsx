@@ -8,6 +8,7 @@ export interface CardProps {
   radius?: string;
   as?: ElementType;
   style?: CSSProperties;
+  className?: string;
   onClick?: () => void;
 }
 
@@ -28,6 +29,7 @@ export function Card({
   radius = 'var(--radius-lg)',
   as: El = 'div',
   style,
+  className,
   onClick,
 }: CardProps) {
   const [hover, setHover] = useState(false);
@@ -36,17 +38,25 @@ export function Card({
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       onClick={onClick}
+      // Real lift-on-hover for anything tappable, on top of the existing
+      // shadow/border-colour swap below — a flat colour change alone reads
+      // as "the mouse moved over some text," not "this is a card."
+      className={interactive ? `madli-hover-lift ${className ?? ''}`.trim() : className}
       style={{
         background: 'var(--surface-card)',
-        border: '1px solid var(--border-hairline)',
+        // Split rather than the `border` shorthand: React warns (and can
+        // misbehave) when a later render mixes a shorthand property with a
+        // longhand override of just one of its parts — exactly what
+        // conditionally setting `borderColor` alongside a static `border`
+        // used to do here.
+        borderWidth: 1,
+        borderStyle: 'solid',
+        borderColor: interactive && hover ? 'var(--border-strong)' : 'var(--border-hairline)',
         borderRadius: radius,
         padding,
         boxShadow: SHADOWS[elevation],
         transition: 'var(--transition-shadow), var(--transition-color)',
         cursor: interactive ? 'pointer' : undefined,
-        ...(interactive && hover
-          ? { boxShadow: 'var(--shadow-md)', borderColor: 'var(--border-strong)' }
-          : {}),
         ...style,
       }}
     >

@@ -66,13 +66,28 @@ export function useAllRankedEntries(userId: string, categoryId?: string) {
   });
 }
 
-/** The comparison targets offered on S26 — real entries fetched, then the pure pick logic applied. */
-export function useComparisonTargets(userId: string, categoryId: string | undefined) {
+/**
+ * The comparison targets offered on S26 — real entries fetched, then the
+ * pure pick logic applied.
+ *
+ * P13 §6: `excludePlaceId` — the place being re-ranked. It is still in the
+ * live list at the moment this query runs (the RPC only removes it inside
+ * its own transaction, once the person actually submits), so without this
+ * a re-rank could offer comparing a place against itself.
+ */
+export function useComparisonTargets(
+  userId: string,
+  categoryId: string | undefined,
+  excludePlaceId?: string,
+) {
   return useQuery({
-    queryKey: ['rankedEntries', 'comparisonTargets', userId, categoryId],
+    queryKey: ['rankedEntries', 'comparisonTargets', userId, categoryId, excludePlaceId ?? null],
     queryFn: async () => {
       const entries = await rankedEntriesApi.getVisibleRankedEntries(userId, categoryId);
-      return rankedEntriesApi.pickComparisonTargets(entries);
+      const candidates = excludePlaceId
+        ? entries.filter((e) => e.placeId !== excludePlaceId)
+        : entries;
+      return rankedEntriesApi.pickComparisonTargets(candidates);
     },
     enabled: !!userId && !!categoryId,
   });
@@ -213,7 +228,10 @@ export function usePlanStats() {
 }
 
 export function useFunnelStats(days = 30) {
-  return useQuery({ queryKey: ['funnelStats', days], queryFn: () => adminApi.getFunnelStats(days) });
+  return useQuery({
+    queryKey: ['funnelStats', days],
+    queryFn: () => adminApi.getFunnelStats(days),
+  });
 }
 
 export function useDeleteOwnAccount() {

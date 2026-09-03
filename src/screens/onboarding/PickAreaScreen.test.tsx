@@ -44,6 +44,11 @@ vi.mock('../../lib/placesSearch', () => ({
   reverseGeocodeArea: (...args: unknown[]) => reverseGeocodeAreaMock(...args),
 }));
 
+const setResidentStatusMock = vi.fn();
+vi.mock('../../data/googleRankings', () => ({
+  setResidentStatus: (...args: unknown[]) => setResidentStatusMock(...args),
+}));
+
 vi.mock('../../lib/supabaseClient', () => ({
   supabase: {
     // No real session in any of these tests — persona is driven entirely by
@@ -148,6 +153,7 @@ describe('PickAreaScreen — S8, merged', () => {
     suggestAreasMock.mockReset().mockResolvedValue([]);
     resolveAreaCenterMock.mockReset();
     reverseGeocodeAreaMock.mockReset();
+    setResidentStatusMock.mockReset().mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -284,9 +290,7 @@ describe('PickAreaScreen — S8, merged', () => {
       render(<Harness />);
       await userEvent.type(screen.getByPlaceholderText('Search a neighbourhood'), 'bandra');
 
-      expect(
-        await screen.findByText('Bandra, Mumbai, Maharashtra, India'),
-      ).toBeInTheDocument();
+      expect(await screen.findByText('Bandra, Mumbai, Maharashtra, India')).toBeInTheDocument();
       expect(suggestAreasMock).toHaveBeenCalledWith('bandra', expect.any(Object));
 
       await userEvent.click(screen.getByText('Bandra, Mumbai, Maharashtra, India'));
@@ -314,9 +318,9 @@ describe('PickAreaScreen — S8, merged', () => {
       await userEvent.click(screen.getByRole('button', { name: 'set persona user' }));
       await userEvent.type(screen.getByPlaceholderText('Search a neighbourhood'), 'bandra');
 
-      const bandraRow = (
-        await screen.findByText('Bandra, Mumbai, Maharashtra, India')
-      ).closest('li')!;
+      const bandraRow = (await screen.findByText('Bandra, Mumbai, Maharashtra, India')).closest(
+        'li',
+      )!;
       const homeSwitch = within(bandraRow).getByRole('switch', { name: 'Home' });
       expect(homeSwitch).not.toBeChecked();
 
@@ -387,5 +391,94 @@ describe('PickAreaScreen — S8, merged', () => {
       expect(state.center).toEqual({ lat: 12.9716, lng: 77.5946 });
       expect(state.countryCode).toBeNull();
     });
+  });
+});
+
+/**
+ * P13 §3/§4: a one-tap "Home" shortcut once a home area is marked, and
+ * picking (or jumping straight to) that home area skips the local/visitor
+ * ask entirely — selecting it already answers "do you live here".
+ */
+describe('PickAreaScreen — P13 §3/§4: a shortcut to home, and no redundant residency ask', () => {
+  beforeEach(() => {
+    sessionStorage.clear();
+    homeAreaId = null;
+    homeAreaText = null;
+    updateSpy.mockClear();
+    hasMapsApiKeyMock.mockReturnValue(false);
+    suggestAreasMock.mockReset().mockResolvedValue([]);
+    resolveAreaCenterMock.mockReset();
+    reverseGeocodeAreaMock.mockReset();
+    setResidentStatusMock.mockReset().mockResolvedValue(undefined);
+  });
+
+  it('is absent when nothing is marked home yet', async () => {
+    render(<Harness />);
+    await userEvent.click(screen.getByRole('button', { name: 'set persona user' }));
+    await screen.findByText('Jubilee Hills');
+    expect(screen.queryByRole('button', { name: /^Home —/ })).not.toBeInTheDocument();
+  });
+
+  it('is absent for a Guest even when a home area exists on the account', async () => {
+    homeAreaId = '00000000-0000-0000-0000-0000000000a1';
+    render(<Harness />);
+    await screen.findByText('Jubilee Hills');
+    expect(screen.queryByRole('button', { name: /^Home —/ })).not.toBeInTheDocument();
+  });
+
+  it('jumps straight to the marked home neighbourhood and skips the residency ask', async () => {
+    homeAreaId = '00000000-0000-0000-0000-0000000000a1';
+    render(<Harness />);
+    await userEvent.click(screen.getByRole('button', { name: 'set persona user' }));
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Home — Jubilee Hills' }));
+
+    expect(await screen.findByRole('heading', { name: 'Where to start?' })).toBeInTheDocument();
+    const state = probe();
+    expect(state.areaText).toBe('Jubilee Hills');
+    expect(state.center).not.toBeNull();
+    expect(setResidentStatusMock).toHaveBeenCalledWith('local', 'Jubilee Hills');
+  });
+
+  it('re-resolves coordinates for a home area outside the seeded eight', async () => {
+    homeAreaText = 'Bandra West';
+    hasMapsApiKeyMock.mockReturnValue(true);
+    suggestAreasMock.mockResolvedValue([{ placeId: 'bandra-1', label: 'Bandra West' }]);
+    resolveAreaCenterMock.mockResolvedValue({
+      center: { lat: 19.0596, lng: 72.8295 },
+      countryCode: 'IN',
+    });
+
+    render(<Harness />);
+    await userEvent.click(screen.getByRole('button', { name: 'set persona user' }));
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Home — Bandra West' }));
+
+    expect(await screen.findByRole('heading', { name: 'Where to start?' })).toBeInTheDocument();
+    const state = probe();
+    expect(state.areaText).toBe('Bandra West');
+    expect(state.center).toEqual({ lat: 19.0596, lng: 72.8295 });
+  });
+
+  it('selecting the area already marked home from the list also skips the ask', async () => {
+    homeAreaId = '00000000-0000-0000-0000-0000000000a1';
+    render(<Harness />);
+    await userEvent.click(screen.getByRole('button', { name: 'set persona user' }));
+
+    await userEvent.click(await screen.findByText('Jubilee Hills'));
+
+    expect(await screen.findByRole('heading', { name: 'Where to start?' })).toBeInTheDocument();
+    expect(setResidentStatusMock).toHaveBeenCalledWith('local', 'Jubilee Hills');
+  });
+
+  it('a different area (not home) still goes through the residency ask as before', async () => {
+    homeAreaId = '00000000-0000-0000-0000-0000000000a1';
+    render(<Harness />);
+    await userEvent.click(screen.getByRole('button', { name: 'set persona user' }));
+
+    await userEvent.click(await screen.findByText('Banjara Hills'));
+
+    expect(await screen.findByRole('heading', { name: 'Where to start?' })).toBeInTheDocument();
+    expect(setResidentStatusMock).not.toHaveBeenCalled();
   });
 });

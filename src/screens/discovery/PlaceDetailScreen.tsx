@@ -502,10 +502,18 @@ function CatalogueDetail({
         <div
           style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)', minWidth: 0 }}
         >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {eyebrow(place.gem ? 'Why this is a gem' : 'Why this one')}
-            <ReasonNote tone={place.gem ? 'gem' : 'plain'}>{place.reason}</ReasonNote>
-          </div>
+          {/* P13 §8: ReasonNote renders its own eyebrow label internally
+              (default "Why this one") — wrapping it in a second, separate
+              eyebrow() heading on top produced two labels stacked over one
+              reason line ("Why this is a gem" / "Why this one" immediately
+              above ReasonNote's own "Why this one"). One label now: passed
+              into ReasonNote itself, not duplicated beside it. */}
+          <ReasonNote
+            label={place.gem ? 'Why this is a gem' : 'Why this one'}
+            tone={place.gem ? 'gem' : 'plain'}
+          >
+            {place.reason}
+          </ReasonNote>
 
           {place.tags.length > 0 ? (
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -620,9 +628,13 @@ function CatalogueDetail({
           >
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
               <span style={{ font: 'var(--type-label)', color: 'var(--text-on-dark)' }}>
+                {/* P13: matches BridgeTapScreen's own headline (P12 §4) — that
+                    screen stopped promising "closest" once picks there were
+                    ranked by quality with distance as a secondary cost, and
+                    this teaser was quoting the old promise verbatim. */}
                 {place.type === 'explore'
-                  ? 'The three closest places to eat afterwards'
-                  : 'The three closest places worth stopping at afterwards'}
+                  ? 'Three places worth eating at after this'
+                  : 'Three places worth stopping at after this'}
               </span>
               <span style={{ font: 'var(--type-evidence)', color: 'var(--text-on-dark-muted)' }}>
                 Three more picks, every stop on one map
@@ -880,10 +892,10 @@ function GoogleDetail({
         <div
           style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)', minWidth: 0 }}
         >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {eyebrow('Why this one')}
-            <ReasonNote>{reason}</ReasonNote>
-          </div>
+          {/* P13 §8: same fix as CatalogueDetail above — ReasonNote already
+              renders its own "Why this one" label; the eyebrow() sibling
+              here was a second, redundant copy of the exact same text. */}
+          <ReasonNote label="Why this one">{reason}</ReasonNote>
 
           {vibe || typeLabel ? (
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -930,9 +942,10 @@ function GoogleDetail({
           >
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
               <span style={{ font: 'var(--type-label)', color: 'var(--text-on-dark)' }}>
+                {/* P13: same fix as CatalogueDetail above. */}
                 {isEatPlace
-                  ? 'The three closest places worth stopping at afterwards'
-                  : 'The three closest places to eat afterwards'}
+                  ? 'Three places worth stopping at after this'
+                  : 'Three places worth eating at after this'}
               </span>
               <span style={{ font: 'var(--type-evidence)', color: 'var(--text-on-dark-muted)' }}>
                 Three more picks, every stop on one map

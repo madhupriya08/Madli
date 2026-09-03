@@ -70,6 +70,7 @@ export function IconButton({
       onClick={onClick}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
+      className={disabled ? undefined : 'madli-press'}
       style={{
         width: box,
         height: box,

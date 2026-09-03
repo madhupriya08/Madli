@@ -29,9 +29,13 @@ export function LogVisitComparisonScreen() {
   const [step, setStep] = useState<1 | 2>(1);
   const [choice1, setChoice1] = useState<boolean | null>(null);
   const newPlace = state ? placeById(state.placeId) : undefined;
+  // P13 §6: excludes the place itself — a re-rank (this place was already
+  // logged before) must never be offered as a comparison against its own
+  // still-live entry.
   const { data: targets, isLoading: targetsLoading } = useComparisonTargets(
     userId,
     newPlace?.categoryId,
+    newPlace?.id,
   );
 
   // Phase 4 §9: navigate() moved into an effect, not called during render —

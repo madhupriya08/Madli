@@ -36,6 +36,7 @@ export function Tabs({ items = [], value, onChange, size = 'md', style }: TabsPr
             role="tab"
             aria-selected={active}
             onClick={() => onChange?.(v)}
+            className="madli-tab-active"
             style={{
               height: h,
               padding: '0 16px',
@@ -46,7 +47,7 @@ export function Tabs({ items = [], value, onChange, size = 'md', style }: TabsPr
               background: active ? 'var(--surface-card)' : 'transparent',
               color: active ? 'var(--text-heading)' : 'var(--text-muted)',
               boxShadow: active ? 'var(--shadow-xs)' : 'none',
-              transition: 'var(--transition-color), var(--transition-shadow)',
+              transform: active ? 'scale(1.02)' : 'scale(1)',
             }}
           >
             {label}

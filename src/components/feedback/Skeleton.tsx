@@ -8,7 +8,13 @@ export interface SkeletonProps {
   style?: CSSProperties;
 }
 
-/** Quiet loading placeholder — a slow opacity breath, no travelling sheen. */
+/**
+ * Loading placeholder: the quiet opacity breath plus a travelling shimmer
+ * sweep layered on top (P13 §9) — both run at once (two entries in one
+ * `animation` list), each targeting a different property, so neither
+ * overrides the other the way stacking two separate `animation` values
+ * normally would.
+ */
 export function Skeleton({
   width = '100%',
   height = 12,
@@ -24,8 +30,13 @@ export function Skeleton({
         width,
         height: circle ? width : height,
         borderRadius: circle ? 'var(--radius-circle)' : radius,
-        background: 'var(--surface-skeleton)',
-        animation: 'madli-skeleton var(--skeleton-dur) var(--ease-standard) infinite',
+        backgroundColor: 'var(--surface-skeleton)',
+        backgroundImage:
+          'linear-gradient(100deg, transparent 30%, color-mix(in oklch, var(--white) 55%, transparent) 50%, transparent 70%)',
+        backgroundSize: '320px 100%',
+        backgroundRepeat: 'no-repeat',
+        animation:
+          'madli-skeleton var(--skeleton-dur) var(--ease-standard) infinite, madli-shimmer-sweep var(--shimmer-dur) ease-in-out infinite',
         ...style,
       }}
     />

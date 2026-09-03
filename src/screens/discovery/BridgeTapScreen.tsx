@@ -498,6 +498,7 @@ export function BridgeTapScreen() {
         ) : (
           <>
             <div
+              className="madli-stagger"
               style={{
                 display: 'grid',
                 gap: 'var(--space-5)',
@@ -509,9 +510,11 @@ export function BridgeTapScreen() {
                   ? (existingPlan?.stops.some((s) => s.googlePlaceId === stop.placeId) ?? false)
                   : isStopInOuting(anchor.id, stop.placeId);
                 const category = typeLabel(stop.types);
+                const openDetail = () => navigate(`/places/${encodeURIComponent(stop.placeId)}`);
                 return (
                   <article
                     key={stop.placeId}
+                    className="madli-hover-lift"
                     style={{
                       display: 'flex',
                       flexDirection: 'column',
@@ -522,20 +525,43 @@ export function BridgeTapScreen() {
                       boxShadow: 'var(--shadow-sm)',
                     }}
                   >
-                    <div style={{ position: 'relative' }}>
-                      <PhotoFrame
-                        src={stop.photoUrl}
-                        label={stop.name}
-                        alt={stop.name}
-                        ratio="16 / 10"
-                        radius="0"
-                        overlay
-                      >
-                        <div style={{ position: 'absolute', top: 12, left: 12 }}>
-                          <RankBadge rank={(i + 1) as Rank} size="md" />
-                        </div>
-                      </PhotoFrame>
-                    </div>
+                    {/* P13 §5: the photo and the name/reason block open the
+                        place's own detail page — previously only the
+                        separate "Details" button did, so tapping the thing
+                        someone is actually looking at (the picture, the
+                        name) did nothing. */}
+                    <button
+                      type="button"
+                      onClick={openDetail}
+                      style={{
+                        display: 'block',
+                        width: '100%',
+                        background: 'none',
+                        border: 'none',
+                        padding: 0,
+                        margin: 0,
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        font: 'inherit',
+                        color: 'inherit',
+                      }}
+                    >
+                      <div style={{ position: 'relative' }}>
+                        <PhotoFrame
+                          src={stop.photoUrl}
+                          label={stop.name}
+                          alt={stop.name}
+                          ratio="16 / 10"
+                          radius="0"
+                          overlay
+                          className="madli-hover-zoom"
+                        >
+                          <div style={{ position: 'absolute', top: 12, left: 12 }}>
+                            <RankBadge rank={(i + 1) as Rank} size="md" />
+                          </div>
+                        </PhotoFrame>
+                      </div>
+                    </button>
                     <div
                       style={{
                         display: 'flex',
@@ -545,7 +571,21 @@ export function BridgeTapScreen() {
                         flex: 1,
                       }}
                     >
-                      <div>
+                      <button
+                        type="button"
+                        onClick={openDetail}
+                        style={{
+                          display: 'block',
+                          background: 'none',
+                          border: 'none',
+                          padding: 0,
+                          margin: 0,
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          font: 'inherit',
+                          color: 'inherit',
+                        }}
+                      >
                         <h3
                           style={{
                             margin: 0,
@@ -566,7 +606,7 @@ export function BridgeTapScreen() {
                             .filter(Boolean)
                             .join(' · ')}
                         </p>
-                      </div>
+                      </button>
                       <ReasonNote label="Why this one">{pickReason(stop, null)}</ReasonNote>
                       <p
                         style={{
@@ -585,11 +625,7 @@ export function BridgeTapScreen() {
                           flexWrap: 'wrap',
                         }}
                       >
-                        <Button
-                          size="sm"
-                          variant="quiet"
-                          onClick={() => navigate(`/places/${encodeURIComponent(stop.placeId)}`)}
-                        >
+                        <Button size="sm" variant="quiet" onClick={openDetail}>
                           Details
                         </Button>
                         <Button

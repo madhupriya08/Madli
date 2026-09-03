@@ -46,17 +46,17 @@ vi.mock('../../data/hooks', () => ({
 }));
 
 vi.mock('../../lib/placesSearch', async () => {
-  const actual = await vi.importActual<typeof import('../../lib/placesSearch')>(
-    '../../lib/placesSearch',
-  );
+  const actual =
+    await vi.importActual<typeof import('../../lib/placesSearch')>('../../lib/placesSearch');
   return { ...actual, fetchPlaceDetails: () => Promise.resolve(GOOGLE_PLACE) };
 });
 
 const rankMutateAsync = vi.fn();
 
 vi.mock('../../data/googleRankings', async () => {
-  const actual =
-    await vi.importActual<typeof import('../../data/googleRankings')>('../../data/googleRankings');
+  const actual = await vi.importActual<typeof import('../../data/googleRankings')>(
+    '../../data/googleRankings',
+  );
   return {
     ...actual,
     useResidentStatus: () => ({ data: 'visitor' }),
