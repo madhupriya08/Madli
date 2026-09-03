@@ -26,7 +26,7 @@ vi.mock('../../lib/supabaseClient', () => ({
 }));
 
 vi.mock('../../data/areaCounts', () => ({
-  useAreaDoorCounts: () => ({ data: undefined }),
+  useAreaDoorCountsLive: () => ({ data: undefined }),
 }));
 
 let nudgeCandidate: unknown = null;
@@ -44,15 +44,15 @@ vi.mock('../../data/googleRankings', () => ({
 
 // P14: Home now reads/writes the signed-in person's home area directly
 // (the toggle used to live on every row of PickAreaScreen's own lists).
+// Text-only (home_area_text) -- the seeded-area id path this used to also
+// support has nothing left to point at once the seed catalogue is retired.
 let homeArea: { areaId: string | null; areaText: string | null } = {
   areaId: null,
   areaText: null,
 };
-const setHomeAreaIdMock = vi.fn();
 const setHomeAreaTextMock = vi.fn();
 vi.mock('../../data/homeArea', () => ({
   fetchHomeArea: () => Promise.resolve(homeArea),
-  setHomeAreaId: (...args: unknown[]) => setHomeAreaIdMock(...args),
   setHomeAreaText: (...args: unknown[]) => setHomeAreaTextMock(...args),
 }));
 
@@ -123,7 +123,6 @@ describe('HomeScreen — Phase 8 §9: no Gem of the town banner', () => {
     nudgeCandidate = null;
     myRankings = [];
     homeArea = { areaId: null, areaText: null };
-    setHomeAreaIdMock.mockReset();
     setHomeAreaTextMock.mockReset();
   });
 
@@ -232,7 +231,6 @@ describe('HomeScreen — "Set as home" on the current area', () => {
     nudgeCandidate = null;
     myRankings = [];
     homeArea = { areaId: null, areaText: null };
-    setHomeAreaIdMock.mockReset().mockResolvedValue(undefined);
     setHomeAreaTextMock.mockReset().mockResolvedValue(undefined);
   });
 
@@ -245,7 +243,7 @@ describe('HomeScreen — "Set as home" on the current area', () => {
     expect(screen.queryByText('Home area')).not.toBeInTheDocument();
   });
 
-  it('offers "Set as home" for a signed-in person, and marks a seeded area home via home_area_id', async () => {
+  it('offers "Set as home" for a signed-in person, and marks the current area home', async () => {
     render(<Harness areaText="Jubilee Hills" center={{ lat: 17.4239, lng: 78.4738 }} />);
     await userEvent.click(screen.getByRole('button', { name: 'seed Jubilee Hills' }));
     await userEvent.click(screen.getByRole('button', { name: 'set persona user' }));
@@ -253,15 +251,12 @@ describe('HomeScreen — "Set as home" on the current area', () => {
     const setHome = await screen.findByText('Set as home');
     await userEvent.click(setHome);
 
-    expect(setHomeAreaIdMock).toHaveBeenCalledWith(
-      MOCK_USER_ID,
-      '00000000-0000-0000-0000-0000000000a1',
-    );
+    expect(setHomeAreaTextMock).toHaveBeenCalledWith(MOCK_USER_ID, 'Jubilee Hills');
     expect(await screen.findByText('Home area')).toBeInTheDocument();
   });
 
   it('shows "Home area" (not "Set as home") once the current area already is the marked home', async () => {
-    homeArea = { areaId: '00000000-0000-0000-0000-0000000000a1', areaText: null };
+    homeArea = { areaId: null, areaText: 'Jubilee Hills' };
     render(<Harness areaText="Jubilee Hills" center={{ lat: 17.4239, lng: 78.4738 }} />);
     await userEvent.click(screen.getByRole('button', { name: 'seed Jubilee Hills' }));
     await userEvent.click(screen.getByRole('button', { name: 'set persona user' }));

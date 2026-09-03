@@ -50,3 +50,49 @@ export function useAreaDoorCounts(areaId: string | null) {
     retry: false,
   });
 }
+
+/**
+ * P14: the live-data replacement for fetchAreaDoorCounts/useAreaDoorCounts
+ * above, which both required a seeded areas.id that no longer resolves to
+ * anything once the seed catalogue was retired -- the door cards on Home
+ * silently lost this line entirely rather than erroring. Backed by
+ * fn_area_door_counts_live (20260907100000), scoped by area_text match or
+ * an 8km radius, same as HomeScreen's own "your list here" section.
+ */
+export async function fetchAreaDoorCountsLive(
+  areaText: string | null,
+  center: { lat: number; lng: number } | null,
+): Promise<Record<Door, DoorCounts>> {
+  const empty: Record<Door, DoorCounts> = {
+    eat: { placeCount: 0, rankedCount: 0 },
+    explore: { placeCount: 0, rankedCount: 0 },
+  };
+  const { data, error } = await supabase.rpc('fn_area_door_counts_live', {
+    p_area_text: areaText,
+    p_lat: center?.lat ?? null,
+    p_lng: center?.lng ?? null,
+  });
+  if (error) {
+    if (isMissingSchema(error)) return empty;
+    throw error;
+  }
+  for (const row of data ?? []) {
+    if (row.door === 'eat' || row.door === 'explore') {
+      empty[row.door] = { placeCount: row.place_count ?? 0, rankedCount: row.ranked_count ?? 0 };
+    }
+  }
+  return empty;
+}
+
+export function useAreaDoorCountsLive(
+  areaText: string | null,
+  center: { lat: number; lng: number } | null,
+) {
+  return useQuery({
+    queryKey: ['area-door-counts-live', areaText, center?.lat, center?.lng],
+    queryFn: () => fetchAreaDoorCountsLive(areaText, center),
+    enabled: !!areaText || !!center,
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+}
