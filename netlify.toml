@@ -18,6 +18,24 @@
   # Pinned so CI, local dev and Netlify agree. Vite 5 + TypeScript 6 need >= 20.
   NODE_VERSION = "22"
 
+  # Secrets scanning must not fire on the client-side values, because Vite
+  # inlining them into dist/ is the whole point of the VITE_ prefix — the
+  # scanner would find them there on every single build and fail the deploy.
+  #
+  # Each of these is public by design, and each has a real control that is not
+  # secrecy:
+  #   VITE_GOOGLE_MAPS_API_KEY  — HTTP-referrer restriction + per-API quotas in
+  #                               Google Cloud Console (see .env.example).
+  #   VITE_SUPABASE_ANON_KEY    — row-level security; the anon key is meant to
+  #                               ship to browsers.
+  #   VITE_POSTHOG_KEY          — the write-only project key (phc_...), never a
+  #                               personal key (phx_...); see README § Analytics.
+  #
+  # SUPABASE_SERVICE_ROLE_KEY is deliberately absent from this list: it is a
+  # real secret, nothing in the app needs it, and it must never reach a bundle.
+  # Leaving it scannable is the point.
+  SECRETS_SCAN_OMIT_KEYS = "VITE_GOOGLE_MAPS_API_KEY,VITE_SUPABASE_ANON_KEY,VITE_POSTHOG_KEY"
+
 # SPA fallback. The app is a client-side React Router build with one real HTML
 # entry point, so every unmatched path must serve index.html and let the router
 # resolve it. Without this, a hard refresh or a pasted deep link (e.g.
