@@ -196,7 +196,16 @@ export function GoogleMapView({
         <EmptyState
           icon="map-pin-off"
           title={
-            isKey ? 'Map not configured' : isDisabled ? 'Map API not enabled' : "Map couldn't load"
+            // Same two-audience rule as the error messages themselves: the
+            // precise cause is what a developer needs, but "Map not
+            // configured" reads to a visitor as something they did wrong.
+            import.meta.env.DEV
+              ? isKey
+                ? 'Map not configured'
+                : isDisabled
+                  ? 'Map API not enabled'
+                  : "Map couldn't load"
+              : "Map couldn't load"
           }
           body={error.message}
         />
