@@ -199,7 +199,10 @@ export function ResultsScreen({ door }: { door: 'eat' | 'explore' }) {
               marginBottom: 'var(--space-4)',
             }}
           >
-            Live search is unavailable. {googleError.message}
+            {/* No hardcoded prefix: the error carries its own audience-correct
+                sentence (see googleMaps.ts), and prefixing it produced
+                "Live search is unavailable. Live search ... unavailable." */}
+            {googleError.message}
           </p>
         ) : null}
 

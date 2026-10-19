@@ -22,10 +22,25 @@
  * Google's documented loader for that API.
  */
 
+/**
+ * These messages have two audiences, and the deployed one is easy to forget:
+ * `GoogleMapView` renders `error.message` directly into an `EmptyState` body,
+ * and `ResultsScreen` prints it under the picks. So the same string a
+ * developer reads in the terminal is also read by a visitor on the live site.
+ *
+ * In development, say exactly which variable or API to fix — that is the whole
+ * value of the error. In a production build, say only what the visitor can
+ * understand and nothing they can act on wrongly: no env var names, no "restart
+ * the dev server", no Cloud Console links. The deployed copy also avoids
+ * promising "temporarily", because a missing key is not a transient outage and
+ * this product's whole premise is not overstating what it knows.
+ */
 export class MissingMapsKeyError extends Error {
   constructor() {
     super(
-      'Google Maps is not configured. Add VITE_GOOGLE_MAPS_API_KEY to .env.local and restart the dev server.',
+      import.meta.env.DEV
+        ? 'Google Maps is not configured. Add VITE_GOOGLE_MAPS_API_KEY to .env.local and restart the dev server.'
+        : 'Live search and maps are unavailable right now.',
     );
     this.name = 'MissingMapsKeyError';
   }
@@ -34,7 +49,9 @@ export class MissingMapsKeyError extends Error {
 export class MapsLoadError extends Error {
   constructor(cause?: unknown) {
     super(
-      'Google Maps could not be loaded. Check the API key, its referrer restrictions, and that the Maps JavaScript API is enabled.',
+      import.meta.env.DEV
+        ? 'Google Maps could not be loaded. Check the API key, its referrer restrictions, and that the Maps JavaScript API is enabled.'
+        : "Maps couldn't load.",
     );
     this.name = 'MapsLoadError';
     this.cause = cause;
@@ -49,8 +66,10 @@ export class MapsLoadError extends Error {
 export class MapsApiNotEnabledError extends Error {
   constructor(public api: string) {
     super(
-      `The ${api} is not enabled for this Google Cloud project. Enable it at ` +
-        `https://console.cloud.google.com/apis/library and try again.`,
+      import.meta.env.DEV
+        ? `The ${api} is not enabled for this Google Cloud project. Enable it at ` +
+            `https://console.cloud.google.com/apis/library and try again.`
+        : 'Maps are unavailable right now.',
     );
     this.name = 'MapsApiNotEnabledError';
   }

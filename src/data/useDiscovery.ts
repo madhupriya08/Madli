@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { searchCandidates } from '../lib/placesSearch';
-import { hasMapsApiKey } from '../lib/googleMaps';
+import { hasMapsApiKey, MissingMapsKeyError } from '../lib/googleMaps';
 import { useSearch } from '../lib/searchState';
 import { usePersona } from '../dev/PersonaContext';
 import { buildDiscovery, emptyDiscovery, type DiscoveryResult } from './hybridPicks';
@@ -55,7 +55,11 @@ export function useDiscovery(door: Door): DiscoveryQueryResult {
       if (!hasMapsApiKey()) {
         return {
           result: emptyDiscovery(),
-          error: new Error('Google Maps is not configured.'),
+          // One source of truth for this copy: the same error the map
+          // surfaces, so the list and the map never disagree about why
+          // there are no picks, and neither leaks dev-only wording to a
+          // visitor on a deployed build.
+          error: new MissingMapsKeyError(),
         };
       }
 
